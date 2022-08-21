@@ -2,6 +2,7 @@ from django.shortcuts import render
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from django.http import HttpResponse
 
 from openstack.serializers import OpenstackInstanceSerializer
 from .models import OpenstackInstance
@@ -85,9 +86,16 @@ class openstack(APIView):    #하나로 합치기
         instance_id = "8f2a7448-6942-461b-a524-0c9990b8346b"
         user_res = requests.get("http://" + openstack_hostIP + "/compute/v2.1/servers/" + instance_id,
             headers = {'X-Auth-Token' : admin_token})
+
+
         
         print("flavor_id: ", user_res.json()["server"]["flavor"]["id"])
         flavor_id = user_res.json()["server"]["flavor"]["id"]
+        flavor_res = requests.get("http://" + openstack_hostIP + "/compute/v2.1/flavors/" + flavor_id,
+            headers = {'X-Auth-Token' : admin_token})
+        ram_size_Mib = flavor_res.json()["flavor"]["ram"]
+        ram_size = round(ram_size_Mib * 0.131072)  #Mib를 Mb로 변환
+
 
         volume_id = user_res.json()["server"]["os-extended-volumes:volumes_attached"][0]["id"]
         volume_res = requests.get("http://" + openstack_hostIP + "/compute/v2.1/os-volumes/" + volume_id,
@@ -99,6 +107,7 @@ class openstack(APIView):    #하나로 합치기
         print(request.data)
         flavor_volume_data = {
             "flavor_id" : flavor_id,
+            "ram_size" : ram_size,
             "volume_size" : volume_size
         }
         # flavor_volume_data_JSON = json.dumps(flavor_volume_data)
@@ -111,17 +120,19 @@ class openstack(APIView):    #하나로 합치기
         serializer = OpenstackInstanceSerializer(data=flavor_volume_data)
     
         if serializer.is_valid():
-            serializer.save()
-            print("saved")
+            # serializer.save()
+            # print("saved")
             print(serializer.data)
         else:
             print("not saved")
             print(serializer.errors)
 
-        return Response(serializer.data)#Response(user_res.json())
+        return Response(serializer.data)#Response(user_res.json())#Response(serializer.data)
     
     def put(self, request):
         pass
 
     def delete(self, request):
-        pass
+        instance_data = OpenstackInstance.objects.all()
+        instance_data.delete()
+        return HttpResponse("Del Success")
