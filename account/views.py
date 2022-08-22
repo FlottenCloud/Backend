@@ -6,7 +6,7 @@ from django.views import View
 from django.http import HttpResponse, JsonResponse
 # Create your views here.
 
-openstack_hostIP = "192.168.56.135"
+openstack_hostIP = "172.30.1.57"
 
 
 def token():
@@ -47,7 +47,7 @@ class AccountView(View):
     def post(self, request):
         input_data = json.loads(request.body)
         # admin_token = token()
-
+        print("user create")
         Account_info.objects.create(
             user_id=input_data['user_id'],
             email=input_data['email'],
