@@ -94,7 +94,7 @@ class openstack(APIView):    #하나로 합치기
         flavor_res = requests.get("http://" + openstack_hostIP + "/compute/v2.1/flavors/" + flavor_id,
             headers = {'X-Auth-Token' : admin_token})
         ram_size_Mib = flavor_res.json()["flavor"]["ram"]
-        ram_size = round((ram_size_Mib*0.131072)/1024, 2)  #Mib를 Mb로 변환
+        ram_size = round((ram_size_Mib*0.131072)/1024, 2)  #Mib를 Gb로 변환
 
 
         volume_id = user_res.json()["server"]["os-extended-volumes:volumes_attached"][0]["id"]
