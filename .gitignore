@@ -3,3 +3,5 @@ db.sqlite3
 /static
 /media
 hoo_virtual
+.idea
+hoo_venv
