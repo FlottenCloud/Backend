@@ -1,0 +1,8 @@
+pycache
+db.sqlite3
+/static
+/media
+venv
+.venv
+hoo_virtual
+hoo_venv
