@@ -5,10 +5,10 @@ from .models import Account_info
 from django.views import View
 from django.http import HttpResponse, JsonResponse
 
-openstack_hostIP = "192.168.56.135"
-openstack_default_project_id = "d19996ca7b054308bb26a469eae58d92"
-openstack_admins_group_id = "0153b62c0e194a88b4cccaa7dcb50ff8"
-openstack_admin_role_id = "fe20f13ea1ac4ee6b2f8883eb5b8b150"
+openstack_hostIP = "119.198.160.6"
+openstack_default_project_id = "f9bc10ab8e4040cdb173d33eeb25242b"
+openstack_admins_group_id = "eec6e59ac9e6462a95932c51784d5e6a"
+openstack_admin_role_id = "1cdb994001654362ad8c43b67a0ee825"
 
 #클라우드스택 key 추가해야 된다.
 
