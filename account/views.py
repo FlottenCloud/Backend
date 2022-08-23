@@ -6,7 +6,7 @@ from django.views import View
 from django.http import HttpResponse, JsonResponse
 # Create your views here.
 
-openstack_hostIP = "172.30.1.57"
+openstack_hostIP = "119.198.160.6" #"172.30.1.57"
 
 
 def token():
@@ -79,10 +79,12 @@ class SignView(View):
                     openstack_user_token = token()
 
                     response = JsonResponse(
-                        {"openstack_user_token" : openstack_user_token}, status=200
+                        {"openstack_user_token" : openstack_user_token,
+                         "user_id" : input_data['user_id']}, status=200
                     )
 
                     response['Access-Control-Allow-Origin'] = '*'
+                    print(response)
                     return response
 
                 response = HttpResponse("Wrong Password", status=401)
