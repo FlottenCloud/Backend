@@ -15,45 +15,71 @@ import json
 import requests
 # Create your views here.
 openstack_hostIP = oc.hostIP
+openstack_tenant_id = oc.project_id
 
 class openstack(APIView):    #하나로 합치기
     def post(self, request):
-        #input_data = json.loads(request.body)   #요구사항 및 생성할 인스턴스 이름 등? 대쉬보드에서 입력받은 정보의 body
-        #admin_token = token()
-        admin_token = oc.admin_token()
-        flavor_id = "d1"
-        instance_name = "django_test2"#input("생성할 인스턴스 이름 입력: ")
-        # 특정 (shared) 네트워크 참조
-        network_uuid = requests.get("http://" + openstack_hostIP + ":9696/v2.0/networks?name=public",
-            headers = {'X-Auth-Token' : admin_token}
-            ).json()["networks"][0]["id"]
-        #print(network_uuid)
-        # print()
-        # print("network uuid : "+network_uuid)
-        # print()
+        input_data = json.loads(request.body)
+        stack_template_root = "templates/"
+        token = oc.admin_token()
+        system_num = input_data["system_num"]
+        # stack_name= input("stack 이름 입력 : ")
+        # key_name= input("key 이름 입력 : ")
+        # server_name=1 input("server 이름 입력 : ") 
+        # num_user=int(input("사용자 수 입력: ")) 
 
-        # 특정 img id 참조
-        # img_uuid = requests.get("http://" + openstack_hostIP + "/image/v2/images?name=ubuntu",  #해당 이미지는 내 서버에 없으므로 수정할 것
+        if(system_num==1):
+            with open(stack_template_root + 'main.json','r') as f:
+                json_data=json.load(f)
+        elif(system_num==2):
+            with open(stack_template_root + 'centos.json','r') as f:
+                json_data=json.load(f)
+        elif(system_num==3):
+            with open(stack_template_root + 'fedora.json','r') as f:    #일단 이걸로 생성 test
+                json_data=json.load(f)
+        
+        #address heat-api v1 프로젝트 id stacks
+        user_res = requests.post("http://"+openstack_hostIP+"/heat-api/v1/"+openstack_tenant_id+"/stacks",
+            headers = {'X-Auth-Token' : token},
+            data = json.dumps(json_data))
+        print("stack생성 ",user_res.json())
+        # #input_data = json.loads(request.body)   #요구사항 및 생성할 인스턴스 이름 등? 대쉬보드에서 입력받은 정보의 body
+        # #admin_token = token()
+        # admin_token = oc.admin_token()
+        # flavor_id = "d1"
+        # instance_name = "django_test2"#input("생성할 인스턴스 이름 입력: ")
+        # # 특정 (shared) 네트워크 참조
+        # network_uuid = requests.get("http://" + openstack_hostIP + ":9696/v2.0/networks?name=public",
         #     headers = {'X-Auth-Token' : admin_token}
-        #     ).json()["images"][0]["id"]
+        #     ).json()["networks"][0]["id"]
+        # #print(network_uuid)
+        # # print()
+        # # print("network uuid : "+network_uuid)
+        # # print()
+
+        # # 특정 img id 참조
+        # # img_uuid = requests.get("http://" + openstack_hostIP + "/image/v2/images?name=ubuntu",  #해당 이미지는 내 서버에 없으므로 수정할 것
+        # #     headers = {'X-Auth-Token' : admin_token}
+        # #     ).json()["images"][0]["id"]
 
         
-        # flavor_reference= input("flavor ref id 입력: ")
-        openstack_instance_payload = {
-            "server" : {
-                "name" : instance_name,
-                "imageRef" : "d7626315-8f03-4fd6-9938-d9d208440136",#img_uuid,
-                "flavorRef" : flavor_id,
-                "networks" : [{
-                    "uuid" : network_uuid
-                }]
-            }
-        }
-        #인스턴스 생성 요청
-        user_res = requests.post("http://" + openstack_hostIP + "/compute/v2.1/servers",
-            headers = {'X-Auth-Token' : admin_token},
-            data = json.dumps(openstack_instance_payload))
-        # print(user_res.json())
+        # # flavor_reference= input("flavor ref id 입력: ")
+        # openstack_instance_payload = {
+        #     "server" : {
+        #         "name" : instance_name,
+        #         "imageRef" : "d7626315-8f03-4fd6-9938-d9d208440136",#img_uuid,
+        #         "flavorRef" : flavor_id,
+        #         "networks" : [{
+        #             "uuid" : network_uuid
+        #         }]
+        #     }
+        # }
+        # #인스턴스 생성 요청
+        # user_res = requests.post("http://" + openstack_hostIP + "/compute/v2.1/servers",
+        #     headers = {'X-Auth-Token' : admin_token},
+        #     data = json.dumps(openstack_instance_payload))
+        # # print(user_res.json())
+
 
         return Response(user_res.json())
 
@@ -109,6 +135,10 @@ class openstack(APIView):    #하나로 합치기
         pass
 
     def delete(self, request):
-        instance_data = OpenstackInstance.objects.all()
-        instance_data.delete()
-        return HttpResponse("Del Success")
+        token = oc.admin_token()
+        user_res = requests.delete("http://"+openstack_hostIP+"/heat-api/v1/"+openstack_tenant_id+"/stacks/"
+            +"stack1/43710900-7c3e-4e8a-8b74-d7c7b0143bac",
+            headers = {'X-Auth-Token' : token})
+        # instance_data = OpenstackInstance.objects.all()
+        # instance_data.delete()
+        return Response(user_res)

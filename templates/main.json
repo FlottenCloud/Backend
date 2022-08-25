@@ -1,0 +1,159 @@
+{
+                                
+    "stack_name": "stack1",
+    "template": {
+        "heat_template_version": "2018-08-31",
+        "description": "This template demonstrates the different ways configuration resources can be used to specify boot-time cloud-init configuration.",
+        "resources": {
+            "mybox": {
+                "type": "OS::Nova::Server",
+                "properties": {
+                "name": "server_0526",
+                "flavor": "ds512M",
+                "image": "ubuntu",
+                "key_name": {
+                    "get_resource": "demo_key"
+                },
+                "networks": [
+                    {
+                    "port": {
+                        "get_resource": "mybox_management_port"
+                    }
+                    }
+                ],
+                "user_data": {
+                    "get_resource": "myconfig"
+                },
+                "user_data_format": "RAW"
+                }
+            },
+            "myconfig": {
+                "type": "OS::Heat::CloudConfig",
+                "properties": {
+                "cloud_config": {
+                    "package_update": "true",
+                    "package_upgrade": "true",
+                    "users": [
+                    "default","bong","hun"      
+                    ],
+                    "ssh_pwauth": "true",
+                    "write_files": [
+                    {
+                        "path": "/tmp/one",
+                        "content": "The one is bar"
+                    }
+                    ],
+                    "bootcmd": [
+                    "mkdir /home/ubuntu/bong"
+                    ],
+                    "chpasswd": {
+                        "list": ["root:1111","bong:2222","hun:0000"],
+                        "expired": "false"
+                    },
+                    "manage_home_ubuntu": "false",
+                    "packages": [
+                    "apache2",
+                    "net-tools",
+                    "pwgen",
+                    "pastebinit",
+                    "libguestfs-tools"
+                    ]
+                }
+                }
+            },
+            "demo_key": {
+                "type": "OS::Nova::KeyPair",
+                "properties": {
+                "name": "testkey0324"
+                }
+            },
+            "mybox_management_port": {
+                "type": "OS::Neutron::Port",
+                "properties": {
+                "network_id": {
+                    "get_resource": "mynet"
+                },
+                "security_groups": [
+                    {
+                    "get_resource": "mysecurity_group"
+                    }
+                ]
+                }
+            },
+            "server_floating_ip": {
+                "type": "OS::Neutron::FloatingIP",
+                "properties": {
+                "floating_network_id": "4a1e754d-590f-4473-a8e7-dc230021007d",
+                "port_id": {
+                    "get_resource": "mybox_management_port"
+                }
+                }
+            },
+            "mynet": {
+                "type": "OS::Neutron::Net",
+                "properties": {
+                "name": "management-net"
+                }
+            },
+            "mysub_net": {
+                "type": "OS::Neutron::Subnet",
+                "properties": {
+                "name": "management-sub-net",
+                "network_id": {
+                    "get_resource": "mynet"
+                },
+                "cidr": "10.0.0.0/24",
+                "gateway_ip": "10.0.0.1",
+                "enable_dhcp": "true",
+                "dns_nameservers": [
+                    "8.8.8.8",
+                    "8.8.4.4"
+                ]
+                }
+            },
+            "mysecurity_group": {
+                "type": "OS::Neutron::SecurityGroup",
+                "properties": {
+                "name": "mysecurity_group",
+                "rules": [
+                    {
+                    "remote_ip_prefix": "0.0.0.0/0",
+                    "protocol": "tcp",
+                    "port_range_min": 22,
+                    "port_range_max": 22
+                    },
+                    {
+                    "remote_ip_prefix": "0.0.0.0/0",
+                    "protocol": "icmp",
+                    "direction": "ingress"
+                    }
+                ]
+                }
+            },
+            "router": {
+                "type": "OS::Neutron::Router"
+            },
+            "router_gateway": {
+                "type": "OS::Neutron::RouterGateway",
+                "properties": {
+                    "router_id": {
+                        "get_resource": "router"
+                    },
+                    "network_id": "4a1e754d-590f-4473-a8e7-dc230021007d"
+                }
+            },
+            "router_interface": {
+                "type": "OS::Neutron::RouterInterface",
+                "properties": {
+                    "router_id": {
+                        "get_resource": "router"
+                    },
+                    "subnet_id": {
+                        "get_resource": "mysub_net"
+                    }
+                }
+            }
+        }
+    }
+    
+}

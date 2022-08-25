@@ -1,0 +1,165 @@
+{"stack_name": "test_fedora",
+	"template": 
+	{
+		"heat_template_version": "2018-08-31",
+		"description": "This template demonstrates the different ways configuration resources can be used to specify boot-time cloud-init configuration.\n",
+		"resources": {
+		  "mybox": {
+			"type": "OS::Nova::Server",
+			"properties": {
+			  "name": "mybox_summitExtension",
+			  "flavor": "ds512M",
+			  "image": "Fedora",
+			  "key_name": {
+				"get_resource": "demo_key"
+			  },
+			  "networks": [
+				{
+				  "port": {
+					"get_resource": "mybox_management_port"
+				  }
+				}
+			  ],
+			  "user_data": {
+				"get_resource": "myconfig"
+			  },
+			  "user_data_format": "RAW"
+			}
+		  },
+		  "myconfig": {
+			"type": "OS::Heat::CloudConfig",
+			"properties": {
+			  "cloud_config": {
+				"package_update": true,
+				"package_upgrade": true,
+				"users": [
+				  "default",
+				  {
+					"name": "bong",
+					"shell": "/bin/bash",
+					"sudo": "ALL=(ALL) NOPASSWD:ALL"
+				  },
+				  {
+					"name": "hun"
+				  }
+				],
+				"ssh_pwauth": true,
+				"write_files": [
+				  {
+					"path": "/tmp/one",
+					"content": "The one is bar"
+				  }
+				],
+				"bootcmd": [
+				  "mkdir /home/ubuntu"
+				],
+				"chpasswd": {
+				  "list": "root:1111\nbong:2222\nhun:3333\n",
+				  "expired": false
+	<<<<<<< HEAD
+				}
+	=======
+				},
+				"packages": [
+					"php"
+				  ]
+	>>>>>>> 8cf77402cc268f8c15dde63c0cb5c796878b5539
+			  }
+			}
+		  },
+		  "demo_key": {
+			"type": "OS::Nova::KeyPair",
+			"properties": {
+			  "name": "test-key2"
+			}
+		  },
+		  "mybox_management_port": {
+			"type": "OS::Neutron::Port",
+			"properties": {
+			  "network_id": {
+				"get_resource": "mynet"
+			  },
+			  "security_groups": [
+				{
+				  "get_resource": "mysecurity_group"
+				}
+			  ]
+			}
+		  },
+		  "server_floating_ip": {
+			"type": "OS::Neutron::FloatingIP",
+			"properties": {
+			  "floating_network_id": "067bb553-fa93-4809-8d38-7ed74c700194",
+			  "port_id": {
+				"get_resource": "mybox_management_port"
+			  }
+			}
+		  },
+		  "mynet": {
+			"type": "OS::Neutron::Net",
+			"properties": {
+			  "name": "management-net"
+			}
+		  },
+		  "mysub_net": {
+			"type": "OS::Neutron::Subnet",
+			"properties": {
+			  "name": "management-sub-net",
+			  "network_id": {
+				"get_resource": "mynet"
+			  },
+			  "cidr": "10.0.0.0/24",
+			  "gateway_ip": "10.0.0.1",
+			  "enable_dhcp": true,
+			  "dns_nameservers": [
+				"8.8.8.8",
+				"8.8.4.4"
+			  ]
+			}
+		  },
+		  "mysecurity_group": {
+			"type": "OS::Neutron::SecurityGroup",
+			"properties": {
+			  "name": "mysecurity_group",
+			  "rules": [
+				{
+				  "remote_ip_prefix": "0.0.0.0/0",
+				  "protocol": "tcp",
+				  "port_range_min": 22,
+				  "port_range_max": 22
+				},
+				{
+				  "remote_ip_prefix": "0.0.0.0/0",
+				  "protocol": "icmp",
+				  "direction": "ingress"
+				}
+			  ]
+			}
+		  },
+		  "router": {
+			"type": "OS::Neutron::Router"
+		  },
+		  "router_gateway": {
+			"type": "OS::Neutron::RouterGateway",
+			"properties": {
+			  "router_id": {
+				"get_resource": "router"
+			  },
+			  "network_id": "067bb553-fa93-4809-8d38-7ed74c700194"
+			}
+		  },
+		  "router_interface": {
+			"type": "OS::Neutron::RouterInterface",
+			"properties": {
+			  "router_id": {
+				"get_resource": "router"
+			  },
+			  "subnet_id": {
+				"get_resource": "mysub_net"
+			  }
+			}
+		  }
+		}
+	  }
+	}
+}
