@@ -34,8 +34,8 @@ class AccountView(View):
 
         #openstack 사용자 생성
         user_res = requests.post("http://" + openstack_hostIP + "/identity/v3/users",
-                                 headers={'X-Auth-Token': admin_token},
-                                 data=json.dumps(openstack_user_payload))
+            headers={'X-Auth-Token': admin_token},
+            data=json.dumps(openstack_user_payload))
         print(user_res.json())
 
         # openstack id 확인
@@ -77,8 +77,8 @@ class AccountView(View):
         del_user_id_openstack = Account_data.openstack_user_id  #해당 유저의 openstack user id
         Account_data.delete()
         user_del_res = requests.delete("http://" + openstack_hostIP + "/identity/v3/users/" + del_user_id_openstack,
-                                 headers={'X-Auth-Token': token})     #오픈스택에 해당 유저 삭제 request
-        print(user_del_res.json())
+            headers={'X-Auth-Token': token})     #오픈스택에 해당 유저 삭제 request
+        #print(user_del_res.json())
 
         return HttpResponse("Delete Success")
 
