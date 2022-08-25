@@ -135,4 +135,6 @@ class openstack(APIView):    #하나로 합치기
     def delete(self, request):
         instance_data = OpenstackInstance.objects.all()
         instance_data.delete()
+
+        ##test for ignore, merge
         return HttpResponse("Del Success")
