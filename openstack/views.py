@@ -1,3 +1,8 @@
+import os   #여기서 부터
+import sys
+sys.path.append(os.path.dirname(os.path.abspath(os.path.dirname(__file__))))    #여기까지는 상위 디렉토리 모듈 import 하기 위한 코드
+
+import openstack_controler as oc    #백엔드 루트 디렉토리에 openstack.py 생성했고, 그 안에 공통으로 사용될 함수, 변수들 넣을 것임.
 from django.shortcuts import render
 from rest_framework import status
 from rest_framework.response import Response
@@ -9,42 +14,13 @@ from .models import OpenstackInstance
 import json
 import requests
 # Create your views here.
-openstack_hostIP = "119.198.160.6"
-
-def token():
-    # Admin으로 Token 발급 Body
-    token_payload = {
-        "auth": {
-            "identity": {
-                "methods": [
-                    "password"
-                ],
-                "password": {
-                    "user": {
-                        "name": "admin",
-                        "domain": {
-                            "name": "Default"
-                        },
-                        "password": "0000"
-                    }
-                }
-            }
-        }
-    }
-
-    # Openstack keystone token 발급
-    auth_res = requests.post("http://" + openstack_hostIP + "/identity/v3/auth/tokens",
-        headers = {'content-type' : 'application/json'},
-        data = json.dumps(token_payload))
-
-    #발급받은 token 출력
-    admin_token = auth_res.headers["X-Subject-Token"]
-    #print("token : \n",admin_token)
-    return admin_token
+openstack_hostIP = oc.hostIP
 
 class openstack(APIView):    #하나로 합치기
     def post(self, request):
-        admin_token = token()
+        #input_data = json.loads(request.body)   #요구사항 및 생성할 인스턴스 이름 등? 대쉬보드에서 입력받은 정보의 body
+        #admin_token = token()
+        admin_token = oc.admin_token()
         flavor_id = "d1"
         instance_name = "django_test2"#input("생성할 인스턴스 이름 입력: ")
         # 특정 (shared) 네트워크 참조
@@ -82,7 +58,7 @@ class openstack(APIView):    #하나로 합치기
         return Response(user_res.json())
 
     def get(self, request): #임시로 인스턴스 정보 get 해오는 것 test
-        admin_token = token()
+        admin_token = oc.admin_token()
         instance_id = "8f2a7448-6942-461b-a524-0c9990b8346b"
         user_res = requests.get("http://" + openstack_hostIP + "/compute/v2.1/servers/" + instance_id,
             headers = {'X-Auth-Token' : admin_token})
@@ -135,6 +111,4 @@ class openstack(APIView):    #하나로 합치기
     def delete(self, request):
         instance_data = OpenstackInstance.objects.all()
         instance_data.delete()
-
-        ##test for ignore, merge
         return HttpResponse("Del Success")
