@@ -17,7 +17,7 @@ import requests
 openstack_hostIP = oc.hostIP
 openstack_tenant_id = oc.project_id
 
-class openstack(APIView):    #하나로 합치기
+class openstack(APIView):
     def post(self, request):
         input_data = json.loads(request.body)
         stack_template_root = "templates/"
@@ -43,93 +43,63 @@ class openstack(APIView):    #하나로 합치기
             headers = {'X-Auth-Token' : token},
             data = json.dumps(json_data))
         print("stack생성 ",user_res.json())
-        # #input_data = json.loads(request.body)   #요구사항 및 생성할 인스턴스 이름 등? 대쉬보드에서 입력받은 정보의 body
-        # #admin_token = token()
-        # admin_token = oc.admin_token()
-        # flavor_id = "d1"
-        # instance_name = "django_test2"#input("생성할 인스턴스 이름 입력: ")
-        # # 특정 (shared) 네트워크 참조
-        # network_uuid = requests.get("http://" + openstack_hostIP + ":9696/v2.0/networks?name=public",
-        #     headers = {'X-Auth-Token' : admin_token}
-        #     ).json()["networks"][0]["id"]
-        # #print(network_uuid)
-        # # print()
-        # # print("network uuid : "+network_uuid)
-        # # print()
-
-        # # 특정 img id 참조
-        # # img_uuid = requests.get("http://" + openstack_hostIP + "/image/v2/images?name=ubuntu",  #해당 이미지는 내 서버에 없으므로 수정할 것
-        # #     headers = {'X-Auth-Token' : admin_token}
-        # #     ).json()["images"][0]["id"]
-
-        
-        # # flavor_reference= input("flavor ref id 입력: ")
-        # openstack_instance_payload = {
-        #     "server" : {
-        #         "name" : instance_name,
-        #         "imageRef" : "d7626315-8f03-4fd6-9938-d9d208440136",#img_uuid,
-        #         "flavorRef" : flavor_id,
-        #         "networks" : [{
-        #             "uuid" : network_uuid
-        #         }]
-        #     }
-        # }
-        # #인스턴스 생성 요청
-        # user_res = requests.post("http://" + openstack_hostIP + "/compute/v2.1/servers",
-        #     headers = {'X-Auth-Token' : admin_token},
-        #     data = json.dumps(openstack_instance_payload))
-        # # print(user_res.json())
-
+        instance_id = user_res.json()["resources"][0]["physical_resource_id"]
 
         return Response(user_res.json())
 
-    def get(self, request): #임시로 인스턴스 정보 get 해오는 것 test
-        admin_token = oc.admin_token()
-        instance_id = "8f2a7448-6942-461b-a524-0c9990b8346b"
-        user_res = requests.get("http://" + openstack_hostIP + "/compute/v2.1/servers/" + instance_id,
-            headers = {'X-Auth-Token' : admin_token})
+    def get(self, request): #스택 resources get 해오는 것 test
+        token = oc.admin_token()
+        user_res = requests.get("http://"+openstack_hostIP+"/heat-api/v1/"+openstack_tenant_id+"/stacks/stack1/"
+            +"43be3dc2-45f9-49cb-ab13-21583831d395/resources",
+            headers = {'X-Auth-Token' : token})
+        instance_id = user_res.json()["resources"][0]["physical_resource_id"]
+        print(instance_id)
+        # admin_token = oc.admin_token()
+        # instance_id = "8f2a7448-6942-461b-a524-0c9990b8346b"
+        # user_res = requests.get("http://" + openstack_hostIP + "/compute/v2.1/servers/" + instance_id,
+        #     headers = {'X-Auth-Token' : admin_token})
 
 
         
-        print("flavor_id: ", user_res.json()["server"]["flavor"]["id"])
-        flavor_id = user_res.json()["server"]["flavor"]["id"]
-        flavor_res = requests.get("http://" + openstack_hostIP + "/compute/v2.1/flavors/" + flavor_id,
-            headers = {'X-Auth-Token' : admin_token})
-        ram_size_Mib = flavor_res.json()["flavor"]["ram"]
-        ram_size = round((ram_size_Mib*0.131072)/1024, 2)  #Mib를 Gb로 변환
+        # print("flavor_id: ", user_res.json()["server"]["flavor"]["id"])
+        # flavor_id = user_res.json()["server"]["flavor"]["id"]
+        # flavor_res = requests.get("http://" + openstack_hostIP + "/compute/v2.1/flavors/" + flavor_id,
+        #     headers = {'X-Auth-Token' : admin_token})
+        # ram_size_Mib = flavor_res.json()["flavor"]["ram"]
+        # ram_size = round((ram_size_Mib*0.131072)/1024, 2)  #Mib를 Gb로 변환
 
 
-        volume_id = user_res.json()["server"]["os-extended-volumes:volumes_attached"][0]["id"]
-        volume_res = requests.get("http://" + openstack_hostIP + "/compute/v2.1/os-volumes/" + volume_id,
-            headers = {'X-Auth-Token' : admin_token})
+        # volume_id = user_res.json()["server"]["os-extended-volumes:volumes_attached"][0]["id"]
+        # volume_res = requests.get("http://" + openstack_hostIP + "/compute/v2.1/os-volumes/" + volume_id,
+        #     headers = {'X-Auth-Token' : admin_token})
         
-        print("volume size : ", volume_res.json()["volume"]["size"])
-        volume_size = volume_res.json()["volume"]["size"]
+        # print("volume size : ", volume_res.json()["volume"]["size"])
+        # volume_size = volume_res.json()["volume"]["size"]
 
-        print(request.data)
-        flavor_volume_data = {
-            "flavor_id" : flavor_id,
-            "ram_size" : ram_size,
-            "volume_size" : volume_size
-        }
-        # flavor_volume_data_JSON = json.dumps(flavor_volume_data)
-        # print(flavor_volume_data_JSON)
-        #print('{ "flavor_id" : "' + flavor_id + '", "volume_size" : "', volume_size, '" }')
-        #flavor_volume_data = '{ "flavor_id" : "' + flavor_id + '", "volume_size" : "', volume_size, '" }'
-        #flavor_volume_data_JSON = json.loads(flavor_volume_data)
-        #print(flavor_volume_data_JSON)
+        # print(request.data)
+        # flavor_volume_data = {
+        #     "flavor_id" : flavor_id,
+        #     "ram_size" : ram_size,
+        #     "volume_size" : volume_size
+        # }
+        # # flavor_volume_data_JSON = json.dumps(flavor_volume_data)
+        # # print(flavor_volume_data_JSON)
+        # #print('{ "flavor_id" : "' + flavor_id + '", "volume_size" : "', volume_size, '" }')
+        # #flavor_volume_data = '{ "flavor_id" : "' + flavor_id + '", "volume_size" : "', volume_size, '" }'
+        # #flavor_volume_data_JSON = json.loads(flavor_volume_data)
+        # #print(flavor_volume_data_JSON)
 
-        serializer = OpenstackInstanceSerializer(data=flavor_volume_data)
+        # serializer = OpenstackInstanceSerializer(data=flavor_volume_data)
     
-        if serializer.is_valid():
-            serializer.save()
-            print("saved")
-            print(serializer.data)
-        else:
-            print("not saved")
-            print(serializer.errors)
+        # if serializer.is_valid():
+        #     serializer.save()
+        #     print("saved")
+        #     print(serializer.data)
+        # else:
+        #     print("not saved")
+        #     print(serializer.errors)
 
-        return Response(serializer.data)#Response(user_res.json())#Response(serializer.data)
+        return Response(instance_id)#Response(serializer.data)
     
     def put(self, request):
         pass
@@ -137,7 +107,7 @@ class openstack(APIView):    #하나로 합치기
     def delete(self, request):
         token = oc.admin_token()
         user_res = requests.delete("http://"+openstack_hostIP+"/heat-api/v1/"+openstack_tenant_id+"/stacks/"
-            +"stack1/43710900-7c3e-4e8a-8b74-d7c7b0143bac",
+            +"stack1/c5996d26-1fe8-4ad3-b9fa-b55ecd9d8f2b",
             headers = {'X-Auth-Token' : token})
         # instance_data = OpenstackInstance.objects.all()
         # instance_data.delete()
