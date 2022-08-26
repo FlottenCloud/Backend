@@ -13,6 +13,7 @@ from openstack.serializers import OpenstackInstanceSerializer
 from .models import OpenstackInstance
 import json
 import requests
+import time
 # Create your views here.
 openstack_hostIP = oc.hostIP
 openstack_tenant_id = oc.project_id
@@ -21,7 +22,7 @@ class openstack(APIView):
     def post(self, request):
         input_data = json.loads(request.body)
         stack_template_root = "templates/"
-        token = oc.admin_token()
+        token = oc.user_token(input_data)
         system_num = input_data["system_num"]
         # stack_name= input("stack 이름 입력 : ")
         # key_name= input("key 이름 입력 : ")
@@ -39,42 +40,51 @@ class openstack(APIView):
                 json_data=json.load(f)
         
         #address heat-api v1 프로젝트 id stacks
-        user_res = requests.post("http://"+openstack_hostIP+"/heat-api/v1/"+openstack_tenant_id+"/stacks",
+        stack_req = requests.post("http://"+openstack_hostIP+"/heat-api/v1/"+openstack_tenant_id+"/stacks",
             headers = {'X-Auth-Token' : token},
             data = json.dumps(json_data))
-        print("stack생성 ",user_res.json())
-        instance_id = user_res.json()["resources"][0]["physical_resource_id"]
+        print("stack생성", stack_req.json())
+        stack_id = stack_req.json()["stack"]["id"]
 
-        return Response(user_res.json())
+        time.sleep(3)
+        while(requests.get("http://" + openstack_hostIP + "/heat-api/v1/" + openstack_tenant_id + "/stacks/stack1/"
+            + stack_id + "/resources",
+            headers = {'X-Auth-Token' : token}).json()["resources"][0]["resource_status"] != "CREATE_COMPLETE"):
+            time.sleep(2)
+
+        stack_instance_req = requests.get("http://" + openstack_hostIP + "/heat-api/v1/" + openstack_tenant_id + "/stacks/stack1/"
+            + stack_id + "/resources",
+            headers = {'X-Auth-Token' : token})
+        print(stack_instance_req.json())
+        instance_id = stack_instance_req.json()["resources"][0]["physical_resource_id"]
+        print(instance_id)
+        #스택을 통해서 인스턴스 생성되기까지 시간이 좀 걸리는 듯. 일단 무지성 while문으로 해결은 했음..
+
+        instance_info_req = requests.get("http://" + openstack_hostIP + "/compute/v2.1/servers/" + instance_id,
+            headers = {'X-Auth-Token' : token})
+        print(instance_info_req.json())
+        flavor_id = instance_info_req.json()["server"]["flavor"]["id"]
+        flavor_res = requests.get("http://" + openstack_hostIP + "/compute/v2.1/flavors/" + flavor_id,
+            headers = {'X-Auth-Token' : token})
+        ram_size = round(flavor_res.json()["flavor"]["ram"]*0.131072/1024, 2)
+        print(ram_size)
+
+        # volume_id = instance_info_req.json()["server"]["os-extended-volumes:volumes_attached"][0]["id"]
+        # volume_res = requests.get("http://" + openstack_hostIP + "/compute/v2.1/os-volumes/" + volume_id,
+        #     headers = {'X-Auth-Token' : token})
+        # disk_size = volume_res.json()["volume"]["size"]
+
+        #print("ram: " + ram_size )#+ ", disk: " + disk_size)
+
+        return Response(stack_instance_req.json())
 
     def get(self, request): #스택 resources get 해오는 것 test
         token = oc.admin_token()
         user_res = requests.get("http://"+openstack_hostIP+"/heat-api/v1/"+openstack_tenant_id+"/stacks/stack1/"
-            +"43be3dc2-45f9-49cb-ab13-21583831d395/resources",
+            +"15626449-8e9b-40fe-a555-fa7488c55cef/resources",
             headers = {'X-Auth-Token' : token})
         instance_id = user_res.json()["resources"][0]["physical_resource_id"]
-        print(instance_id)
-        # admin_token = oc.admin_token()
-        # instance_id = "8f2a7448-6942-461b-a524-0c9990b8346b"
-        # user_res = requests.get("http://" + openstack_hostIP + "/compute/v2.1/servers/" + instance_id,
-        #     headers = {'X-Auth-Token' : admin_token})
-
-
-    
-        # print("flavor_id: ", user_res.json()["server"]["flavor"]["id"])
-        # flavor_id = user_res.json()["server"]["flavor"]["id"]
-        # flavor_res = requests.get("http://" + openstack_hostIP + "/compute/v2.1/flavors/" + flavor_id,
-        #     headers = {'X-Auth-Token' : admin_token})
-        # ram_size_Mib = flavor_res.json()["flavor"]["ram"]
-        # ram_size = round((ram_size_Mib*0.131072)/1024, 2)  #Mib를 Gb로 변환
-
-
-        # volume_id = user_res.json()["server"]["os-extended-volumes:volumes_attached"][0]["id"]
-        # volume_res = requests.get("http://" + openstack_hostIP + "/compute/v2.1/os-volumes/" + volume_id,
-        #     headers = {'X-Auth-Token' : admin_token})
-        
-        # print("volume size : ", volume_res.json()["volume"]["size"])
-        # volume_size = volume_res.json()["volume"]["size"]
+        print(user_res)
 
         # print(request.data)
         # flavor_volume_data = {
@@ -99,7 +109,7 @@ class openstack(APIView):
         #     print("not saved")
         #     print(serializer.errors)
 
-        return Response(instance_id)#Response(serializer.data)
+        return Response(user_res.json())#Response(serializer.data)
     
     def put(self, request):
         pass
@@ -107,7 +117,7 @@ class openstack(APIView):
     def delete(self, request):
         token = oc.admin_token()
         user_res = requests.delete("http://"+openstack_hostIP+"/heat-api/v1/"+openstack_tenant_id+"/stacks/"
-            +"stack1/c5996d26-1fe8-4ad3-b9fa-b55ecd9d8f2b",
+            +"stack1/e689fd68-dfc6-4344-8c35-6ad908e8a194",
             headers = {'X-Auth-Token' : token})
         # instance_data = OpenstackInstance.objects.all()
         # instance_data.delete()
