@@ -60,7 +60,7 @@ class openstack(APIView):
         #     headers = {'X-Auth-Token' : admin_token})
 
 
-        
+    
         # print("flavor_id: ", user_res.json()["server"]["flavor"]["id"])
         # flavor_id = user_res.json()["server"]["flavor"]["id"]
         # flavor_res = requests.get("http://" + openstack_hostIP + "/compute/v2.1/flavors/" + flavor_id,
