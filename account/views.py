@@ -74,7 +74,9 @@ class AccountView(View):
         input_data = json.loads(request.body)
         del_user_id = input_data["user_id"]
         Account_data = Account_info.objects.get(user_id = del_user_id)  #db에서 해당 유저 삭제
+        print(Account_data)
         del_user_id_openstack = Account_data.openstack_user_id  #해당 유저의 openstack user id
+        print(del_user_id_openstack)
         Account_data.delete()
         user_del_res = requests.delete("http://" + openstack_hostIP + "/identity/v3/users/" + del_user_id_openstack,
             headers={'X-Auth-Token': token})     #오픈스택에 해당 유저 삭제 request

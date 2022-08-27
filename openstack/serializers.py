@@ -14,4 +14,4 @@ class OpenstackInstanceSerializer(serializers.ModelSerializer):
         instance.ram_size = validated_data.get('ram_size', instance.ram_size)
         instance.volume_size = validated_data.get('volume_size', instance.volume_size)
         instance.save()
-        return instance
+        return instance    
