@@ -10,7 +10,7 @@ from account import models as account_model
 
 # Create your models here.
 class OpenstackInstance(models.Model):
-    openstack_user_id = models.ForeignKey("account.Account_info", related_name="openstack_resource_info", on_delete=models.CASCADE, db_column="openstack_id")
+    #openstack_user_id = models.ForeignKey("account.Account_info", related_name="openstack_resource_info", on_delete=models.CASCADE, db_column="openstack_id")
     stack_id = models.CharField(max_length = 50)
     instance_id = models.CharField(max_length = 50)
     ram_size = models.FloatField(validators=[MaxValueValidator(50)])
