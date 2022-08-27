@@ -16,7 +16,7 @@ import requests
 import time
 # Create your views here.
 openstack_hostIP = oc.hostIP
-openstack_tenant_id = oc.project_id
+openstack_tenant_id = "53db693b52494cdba387b1e5fa7c3cc7"#oc.admin_project_id
 
 class openstack(APIView):
     def post(self, request):

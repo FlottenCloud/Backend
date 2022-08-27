@@ -2,9 +2,9 @@ import requests
 import json
 
 hostIP = "119.198.160.6"    #김영후 집 데스크탑 공인 ip
-project_id = "f9bc10ab8e4040cdb173d33eeb25242b" #김영후 데탑에 깔린 오픈스택 서버의 id들
-group_id = "eec6e59ac9e6462a95932c51784d5e6a"
-role_id = "1cdb994001654362ad8c43b67a0ee825"
+admin_project_id = "f9bc10ab8e4040cdb173d33eeb25242b" #김영후 데탑에 깔린 오픈스택 서버의 id들
+admins_group_id = "eec6e59ac9e6462a95932c51784d5e6a"
+admin_role_id = "1cdb994001654362ad8c43b67a0ee825"
 
 def admin_token():
     # Admin으로 Token 발급 Body

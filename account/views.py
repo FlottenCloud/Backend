@@ -9,11 +9,13 @@ import requests
 from .models import Account_info
 from django.views import View
 from django.http import HttpResponse, JsonResponse
+from rest_framework.response import Response
+import time
 
 openstack_hostIP = oc.hostIP
-openstack_default_project_id = oc.project_id
-openstack_admins_group_id = oc.group_id
-openstack_admin_role_id = oc.role_id
+openstack_admin_project_id = oc.admin_project_id
+openstack_admins_group_id = oc.admins_group_id
+openstack_admin_role_id = oc.admin_role_id
 
 #클라우드스택 key 추가해야 된다.
 #회원가입 view
@@ -23,50 +25,81 @@ class AccountView(View):
         input_data = json.loads(request.body)
         admin_token = oc.admin_token()
 
+        # 사용자 생성 전 사용자 이름의 프로젝트 생성
+        openstack_user_project_payload = {
+            "project": {
+                "domain_id" : "default",
+                "name": "project_of_" + input_data["user_id"],
+                "description": input_data["user_id"] + "'s project",
+                "enabled": True,
+            }
+        }
+        user_project_req = requests.post("http://" + openstack_hostIP + "/identity/v3/projects",
+            headers={'X-Auth-Token': admin_token},
+            data=json.dumps(openstack_user_project_payload))
+        print(user_project_req.json())
+
+        openstack_user_project_id = user_project_req.json()["project"]["id"]
+        print("project_ID 1 : ", openstack_user_project_id)
+
         # 사용자의 openstack 정보
         openstack_user_payload = {
             "user": {
                 "name": input_data['user_id'],
                 "password": str(input_data['password']),
-                "default_project_id": openstack_default_project_id
+                "email": input_data["email"],
+                "default_project_id": openstack_user_project_id
             }
         }
-
         #openstack 사용자 생성
         user_res = requests.post("http://" + openstack_hostIP + "/identity/v3/users",
             headers={'X-Auth-Token': admin_token},
             data=json.dumps(openstack_user_payload))
         print(user_res.json())
-
         # openstack id 확인
         openstack_created_user_id = user_res.json()["user"]["id"]
         print(openstack_created_user_id)
-        #생성된 사용자를 admins 그룹에 추가
-        group_res = requests.put(
-            "http://" + openstack_hostIP + "/identity/v3/groups/" + openstack_admins_group_id + "/users/" + openstack_created_user_id,
+
+        #사용자에게 프로젝트 역할 부여
+        role_assignment_req = requests.put(
+            "http://" + openstack_hostIP + "/identity/v3/projects/" + openstack_user_project_id + "/users/" + openstack_created_user_id + "/roles/" + openstack_admin_role_id,
             headers={'X-Auth-Token': admin_token})
+
+        #생성된 사용자를 admins 그룹에 추가
+        # group_res = requests.put(
+        #     "http://" + openstack_hostIP + "/identity/v3/groups/" + openstack_admins_group_id + "/users/" + openstack_created_user_id,
+        #     headers={'X-Auth-Token': admin_token})
         #생성된 사용자에게 admin 역할 부여
-        permission_req = requests.put(
-            "http://" + openstack_hostIP + "/identity/v3/domains/default/users/" + openstack_created_user_id + "/roles/" + openstack_admin_role_id)
+        # permission_req = requests.put(
+        #     "http://" + openstack_hostIP + "/identity/v3/domains/default/users/" + openstack_created_user_id + "/roles/" + openstack_admin_role_id)
 
         response = JsonResponse(input_data, status=200)
         response['Access-Control-Allow-Origin'] = '*'
 
         #장고 ORM 업데이트
         Account_info.objects.create(
-            user_id=input_data['user_id'],
-            email=input_data['email'],
-            password=input_data['password'],
-            openstack_user_id=openstack_created_user_id,
+            user_id = input_data['user_id'],
+            email = input_data['email'],
+            password = input_data['password'],
+            openstack_user_id = openstack_created_user_id,
+            openstack_user_project_id = openstack_user_project_id
         )
 
         return response
 
 
     def get(self, request):                                              # instance list도 이런 식으로
+        admin_token = oc.admin_token()
+        input_data = json.loads(request.body)
         Account_data = Account_info.objects.values()
+        get_user_id = input_data["user_id"]
+        Account_data_user_id = Account_info.objects.get(user_id = get_user_id)
+        openstack_user_id = Account_data_user_id.openstack_user_id
+        user_res = requests.get("http://" + openstack_hostIP + "/identity/v3/users/" + openstack_user_id,
+            headers={'X-Auth-Token': admin_token})
+        print(user_res.json())
 
-        return JsonResponse({'accounts': list(Account_data)}, status=200)
+        return HttpResponse(user_res.json())#JsonResponse({'accounts': list(Account_data)}, status=200)
 
 
     def delete(self, request):  #그냥 api로 db랑 오픈스택에 유저 쌓인 거 정리하기 쉬우려고 만들었음.
