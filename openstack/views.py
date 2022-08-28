@@ -126,14 +126,17 @@ class Openstack(APIView):
         return Response(serializer.data)
 
     def get(self, request): #스택 resources get 해오는 것 test
-        token = oc.admin_token()
-        user_res = requests.get("http://"+openstack_hostIP+"/heat-api/v1/"+openstack_tenant_id+"/stacks/stack1/"
-            +"15626449-8e9b-40fe-a555-fa7488c55cef/resources",
-            headers = {'X-Auth-Token' : token})
-        instance_id = user_res.json()["resources"][0]["physical_resource_id"]
-        print(user_res)
-
-        return Response(user_res.json())#Response(serializer.data)
+        user_instance_data = []
+        user_stack_data = list(OpenstackInstance.objects.values())
+    
+        for stack_data in user_stack_data :
+            del stack_data["stack_name"]
+            del stack_data["stack_id"]
+            del stack_data["instance_id"]
+            del stack_data["image_name"]
+            user_instance_data.append(stack_data)   #user_instance_data라는 이름이 더 걸맞는 것 같아 로직 추가해줌.
+                                                    #굳이 이 로직 안거치고 바로 user_stack_data 출력해줘도 무방.
+        return Response(user_instance_data)
     
     def put(self, request):
         pass
@@ -166,9 +169,9 @@ class DashBoard(APIView):
         # print(total_ram_size)
         # print(total_disk_size)
         dashboard_data = {
-            "num_instances" : num_instances,
-            "total_ram_size" : total_ram_size["ram_size__sum"],
-            "total_disk_size" : total_disk_size["disk_size__sum"]
+            "num_instances" : num_instances,    # max = 10
+            "total_ram_size" : total_ram_size["ram_size__sum"], # max = 50G
+            "total_disk_size" : total_disk_size["disk_size__sum"]   # max = 1000G
         }
 
         return JsonResponse(dashboard_data)
