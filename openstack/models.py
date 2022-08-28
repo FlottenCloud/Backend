@@ -18,9 +18,9 @@ class OpenstackInstance(models.Model):
     #
     stack_id = models.CharField(max_length = 50, null = True)
     instance_id = models.CharField(max_length = 50, null = True)
-    instance_ip_address = models.CharField(max_length = 50, null = True)
-    instance_image_name = models.CharField(max_length = 50, null = True)
-    instance_status = models.CharField(max_length = 50, null = True)
+    ip_address = models.GenericIPAddressField(null = True)
+    status = models.CharField(max_length = 50, null = True)
+    image_name = models.CharField(max_length = 50, null = True)
     flavor_name = models.CharField(max_length = 50, null = True)
     ram_size = models.FloatField(validators=[MaxValueValidator(50)])
-    volume_size = models.IntegerField(validators = [MaxValueValidator(50)])
+    #volume_size = models.IntegerField(validators = [MaxValueValidator(50)])

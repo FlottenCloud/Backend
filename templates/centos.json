@@ -1,5 +1,5 @@
 {
-    "stack_name": "centos",
+    "stack_name": "centos1",
     "template": 
     {
     "heat_template_version": "2018-08-31",
@@ -8,9 +8,9 @@
       "mybox": {
         "type": "OS::Nova::Server",
         "properties": {
-          "name": "mybox_summitExtension",
-          "flavor": "m1.small",
-          "image": "cirros-0.4.0-x86_64-disk",
+          "name": "user1's instance",
+          "flavor": "m1.tiny",
+          "image": "cirros-0.5.2-x86_64-disk",
           "key_name": {
             "get_resource": "demo_key"
           },
@@ -67,7 +67,7 @@
       "demo_key": {
         "type": "OS::Nova::KeyPair",
         "properties": {
-          "name": "test-key4"
+          "name": "test-key1"
         }
       },
       "mybox_management_port": {
@@ -86,7 +86,7 @@
       "server_floating_ip": {
         "type": "OS::Neutron::FloatingIP",
         "properties": {
-          "floating_network_id": "4a1e754d-590f-4473-a8e7-dc230021007d",
+          "floating_network_id": "4352e90d-bb42-4d00-be19-06c87671be29",
           "port_id": {
             "get_resource": "mybox_management_port"
           }
@@ -142,7 +142,7 @@
           "router_id": {
             "get_resource": "router"
           },
-          "network_id": "4a1e754d-590f-4473-a8e7-dc230021007d"
+          "network_id": "4352e90d-bb42-4d00-be19-06c87671be29"
         }
       },
       "router_interface": {
