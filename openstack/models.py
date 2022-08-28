@@ -11,12 +11,8 @@ from account import models as account_model
 # Create your models here.
 class OpenstackInstance(models.Model):
     #openstack_user_id = models.ForeignKey("account.Account_info", related_name="openstack_resource_info", on_delete=models.CASCADE, db_column="openstack_id")
-    #가상머신 uuid
-    #ip 주소
-    #이미지 네임
-    #status
-    #
-    stack_id = models.CharField(max_length = 50, null = True)
+
+    stack_id = models.CharField(max_length = 50, primary_key = True)
     stack_name = models.CharField(max_length = 50, null = True)
     instance_id = models.CharField(max_length = 50, null = True)
     instance_name = models.CharField(max_length = 50, null = True)
@@ -24,5 +20,5 @@ class OpenstackInstance(models.Model):
     status = models.CharField(max_length = 50, null = True)
     image_name = models.CharField(max_length = 50, null = True)
     flavor_name = models.CharField(max_length = 50, null = True)
-    ram_size = models.FloatField(validators=[MaxValueValidator(50)])
-    #volume_size = models.IntegerField(validators = [MaxValueValidator(50)])
+    ram_size = models.FloatField(validators=[MaxValueValidator(12)])
+    disk_size = models.FloatField(validators=[MaxValueValidator(100)], null = True)

@@ -33,6 +33,13 @@
 			"size" : 4
 		}
 	  },
+	  "volume_attachment" : {
+		"type" : "OS::Cinder::VolumeAttachment",
+		"properties" : {
+		  "volume_id" :	{"get_resource" : "server_volume"},
+		  "instance_uuid" : {"get_resource" : "mybox"}
+		}
+	  },
       "myconfig": {
         "type": "OS::Heat::CloudConfig",
         "properties": {
