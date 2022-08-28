@@ -4,5 +4,6 @@ from . import views
 
 
 urlpatterns = [
-    path('', views.openstack.as_view()),
+    path('', views.Openstack.as_view()),
+    path('dashboard/', views.DashBoard.as_view()),
 ]

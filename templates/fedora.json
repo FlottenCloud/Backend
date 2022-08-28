@@ -1,5 +1,5 @@
 {
-    "stack_name": "stack1",
+    "stack_name": "fedora1",
     "template": {
 		"heat_template_version": "2018-08-31",
 		"description": "This template demonstrates the different ways configuration resources can be used to specify boot-time cloud-init configuration.\n",
@@ -24,6 +24,19 @@
 				"get_resource": "myconfig"
 			  },
 			  "user_data_format": "RAW"
+			}
+		  },
+		  "server_volume": {
+			"type" : "OS::Cinder::Volume",
+			"properties" : {
+				"size" : 4
+			}
+		  },
+		  "volume_attachment" : {
+			"type" : "OS::Cinder::VolumeAttachment",
+			"properties" : {
+			  "volume_id" :	{"get_resource" : "server_volume"},
+			  "instance_uuid" : {"get_resource" : "mybox"}
 			}
 		  },
 		  "myconfig": {
