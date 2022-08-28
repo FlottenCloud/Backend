@@ -32,18 +32,18 @@ class Openstack(APIView):
 
         if(system_num==1):
             with open(stack_template_root + 'main.json','r') as f:
-                json_data=json.load(f)
+                json_template=json.load(f)
         elif(system_num==2):
             with open(stack_template_root + 'centos.json','r') as f:
-                json_data=json.load(f)
+                json_template=json.load(f)
         elif(system_num==3):
             with open(stack_template_root + 'fedora.json','r') as f:    #일단 이걸로 생성 test
-                json_data=json.load(f)
+                json_template=json.load(f)
         
         #address heat-api v1 프로젝트 id stacks
         stack_req = requests.post("http://"+openstack_hostIP + "/heat-api/v1/" + openstack_tenant_id + "/stacks",
             headers = {'X-Auth-Token' : token},
-            data = json.dumps(json_data))
+            data = json.dumps(json_template))
         print("stack생성", stack_req.json())
         stack_id = stack_req.json()["stack"]["id"]
         stack_name_req = requests.get("http://" + openstack_hostIP + "/heat-api/v1/" + openstack_tenant_id + "/stacks?id=" + stack_id,
@@ -172,3 +172,37 @@ class DashBoard(APIView):
         }
 
         return JsonResponse(dashboard_data)
+
+class InstanceStartButton(APIView):
+    def post(self, request):
+        input_data = json.loads(request.body)
+        token = oc.user_token(input_data)
+        start_instance_id = input_data["instance_id"]
+        server_start_payload = {
+            "os-start" : None
+        }
+        instance_start_req = requests.post("http://"+openstack_hostIP + "/compute/v2.1/servers/" + start_instance_id
+            + "/action",
+            headers = {'X-Auth-Token' : token},
+            data = json.dumps(server_start_payload))
+        OpenstackInstance.objects.filter(instance_id=start_instance_id).update(status="ACTIVE")
+        
+        
+        return Response(instance_start_req)
+
+
+class InstanceStopButton(APIView):
+    def post(self, request):
+        input_data = json.loads(request.body)
+        token = oc.user_token(input_data)
+        stop_instance_id = input_data["instance_id"]
+        server_stop_payload = {
+            "os-stop" : None
+        }
+        instance_start_req = requests.post("http://"+openstack_hostIP + "/compute/v2.1/servers/" + stop_instance_id
+            + "/action",
+            headers = {'X-Auth-Token' : token},
+            data = json.dumps(server_stop_payload))
+        OpenstackInstance.objects.filter(instance_id=stop_instance_id).update(status="SHUTOFF")
+        
+        return Response(instance_start_req)
