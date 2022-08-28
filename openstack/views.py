@@ -173,7 +173,7 @@ class DashBoard(APIView):
 
         return JsonResponse(dashboard_data)
 
-class InstanceStartButton(APIView):
+class InstanceStart(APIView):
     def post(self, request):
         input_data = json.loads(request.body)
         token = oc.user_token(input_data)
@@ -187,11 +187,10 @@ class InstanceStartButton(APIView):
             data = json.dumps(server_start_payload))
         OpenstackInstance.objects.filter(instance_id=start_instance_id).update(status="ACTIVE")
         
-        
         return Response(instance_start_req)
 
 
-class InstanceStopButton(APIView):
+class InstanceStop(APIView):
     def post(self, request):
         input_data = json.loads(request.body)
         token = oc.user_token(input_data)
