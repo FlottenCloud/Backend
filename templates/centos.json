@@ -27,6 +27,12 @@
           "user_data_format": "RAW"
         }
       },
+	  "server_volume": {
+		"type" : "OS::Cinder::Volume",
+		"properties" : {
+			"size" : 4
+		}
+	  },
       "myconfig": {
         "type": "OS::Heat::CloudConfig",
         "properties": {
