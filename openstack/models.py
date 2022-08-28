@@ -17,7 +17,9 @@ class OpenstackInstance(models.Model):
     #status
     #
     stack_id = models.CharField(max_length = 50, null = True)
+    stack_name = models.CharField(max_length = 50, null = True)
     instance_id = models.CharField(max_length = 50, null = True)
+    instance_name = models.CharField(max_length = 50, null = True)
     ip_address = models.GenericIPAddressField(null = True)
     status = models.CharField(max_length = 50, null = True)
     image_name = models.CharField(max_length = 50, null = True)

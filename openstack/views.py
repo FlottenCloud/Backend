@@ -69,6 +69,8 @@ class openstack(APIView):
             headers = {'X-Auth-Token' : token})
         print(instance_info_req.json())
 
+        instance_name = instance_info_req.json()["server"]["name"]
+        print(instance_name)
         instance_ip_address = instance_info_req.json()["server"]["addresses"]["management-net"][0]["addr"]
         print(instance_ip_address)
         instance_status =  instance_info_req.json()["server"]["status"]
@@ -91,7 +93,9 @@ class openstack(APIView):
         # db에 저장 할 인스턴스 정보
         instance_data = {
             "stack_id" : stack_id,
+            "stack_name" : stack_name,
             "instance_id" : instance_id,
+            "instance_name" : instance_name,
             "ip_address" : str(instance_ip_address),
             "status" : instance_status,
             "image_name" : instance_image_name,
@@ -126,39 +130,26 @@ class openstack(APIView):
         instance_id = user_res.json()["resources"][0]["physical_resource_id"]
         print(user_res)
 
-        # print(request.data)
-        # flavor_volume_data = {
-        #     "flavor_id" : flavor_id,
-        #     "ram_size" : ram_size,
-        #     "volume_size" : volume_size
-        # }
-        # # flavor_volume_data_JSON = json.dumps(flavor_volume_data)
-        # # print(flavor_volume_data_JSON)
-        # #print('{ "flavor_id" : "' + flavor_id + '", "volume_size" : "', volume_size, '" }')
-        # #flavor_volume_data = '{ "flavor_id" : "' + flavor_id + '", "volume_size" : "', volume_size, '" }'
-        # #flavor_volume_data_JSON = json.loads(flavor_volume_data)
-        # #print(flavor_volume_data_JSON)
-
-        # serializer = OpenstackInstanceSerializer(data=flavor_volume_data)
-    
-        # if serializer.is_valid():
-        #     serializer.save()
-        #     print("saved")
-        #     print(serializer.data)
-        # else:
-        #     print("not saved")
-        #     print(serializer.errors)
-
         return Response(user_res.json())#Response(serializer.data)
     
     def put(self, request):
         pass
 
     def delete(self, request):
-        token = oc.admin_token()
-        user_res = requests.delete("http://"+openstack_hostIP+"/heat-api/v1/"+openstack_tenant_id+"/stacks/"
-            +"stack1/e689fd68-dfc6-4344-8c35-6ad908e8a194",
+        # del_data_all = OpenstackInstance.objects.all()
+        # del_data_all.delete()
+        input_data = json.loads(request.body)
+        token = oc.user_token(input_data)
+        del_stack_name = input_data["stack_name"]
+
+        stack_data = OpenstackInstance.objects.get(stack_name = del_stack_name)
+        del_stack_id = stack_data.stack_id
+        print(del_stack_id)
+        stack_data.delete()
+
+        stack_del_req = requests.delete("http://" + openstack_hostIP + "/heat-api/v1/" + openstack_tenant_id + "/stacks/"
+            + del_stack_name + "/" + del_stack_id,
             headers = {'X-Auth-Token' : token})
-        # instance_data = OpenstackInstance.objects.all()
-        # instance_data.delete()
-        return Response(user_res)
+        print(stack_del_req.json())
+        
+        return Response(stack_del_req.json())
