@@ -2,6 +2,7 @@ from django.db import models
 # Create your models here.
 
 class Account_info(models.Model):
+    # user info
     user_id = models.CharField(max_length=50, primary_key=True)
     email = models.EmailField(max_length=50, null=True)
     password = models.CharField(max_length=100)

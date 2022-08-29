@@ -3,14 +3,13 @@ import sys
 sys.path.append(os.path.dirname(os.path.abspath(os.path.dirname(__file__))))    #여기까지는 상위 디렉토리 모듈 import 하기 위한 코드
 
 import openstack_controller as oc    #백엔드 루트 디렉토리에 openstack.py 생성했고, 그 안에 공통으로 사용될 함수, 변수들 넣을 것임. 아직은 클래스화 안 했음.
-from django.shortcuts import render
 import json
 import requests
 from .models import Account_info
+from django.shortcuts import render
 from django.views import View
 from django.http import HttpResponse, JsonResponse
 from rest_framework.response import Response
-import time
 
 openstack_hostIP = oc.hostIP
 openstack_admin_project_id = oc.admin_project_id
@@ -91,7 +90,7 @@ class AccountView(View):
     def get(self, request):                                   # instance list도 이런 식으로
         input_data = json.loads(request.body)
         admin_token = oc.admin_token()
-        Account_data = Account_info.objects.values()
+        #Account_data = Account_info.objects.values()
         get_user_id = input_data["user_id"]
         Account_data_user_id = Account_info.objects.get(user_id = get_user_id)
         openstack_user_id = Account_data_user_id.openstack_user_id
