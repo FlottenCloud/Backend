@@ -3,45 +3,47 @@ import sys
 sys.path.append(os.path.dirname(os.path.abspath(os.path.dirname(__file__))))    #여기까지는 상위 디렉토리 모듈 import 하기 위한 코드
 
 import openstack_controller as oc    #백엔드 루트 디렉토리에 openstack.py 생성했고, 그 안에 공통으로 사용될 함수, 변수들 넣을 것임.
+import json
+import requests
+from .models import OpenstackInstance
+import account.models
+from django.db.models import Sum
 from django.shortcuts import render
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from django.http import HttpResponse, JsonResponse
-from django.db.models import Sum
-
 from openstack.serializers import OpenstackInstanceSerializer
-from .models import OpenstackInstance
-import json
-import requests
+from django.http import JsonResponse
 import time
 # Create your views here.
 openstack_hostIP = oc.hostIP
-openstack_tenant_id = "53db693b52494cdba387b1e5fa7c3cc7"#oc.admin_project_id
 
 class Openstack(APIView):
     def post(self, request):
-        input_data = json.loads(request.body)
+        input_data = json.loads(request.body)   # user_id, password, system_num(추후에 요구사항 폼 등으로 바뀌면 수정할 것)
         stack_template_root = "templates/"
         token = oc.user_token(input_data)
         system_num = input_data["system_num"]
+        openstack_tenant_id = account.models.Account_info.objects.get(user_id=input_data["user_id"]).openstack_user_project_id
+        print("유저 프로젝트 id: ", openstack_tenant_id)
+
         # stack_name= input("stack 이름 입력 : ")
         # key_name= input("key 이름 입력 : ")
         # server_name=1 input("server 이름 입력 : ") 
-        # num_user=int(input("사용자 수 입력: ")) 
+        # num_user=int(input("사용자 수 입력: "))
 
         if(system_num==1):
             with open(stack_template_root + 'main.json','r') as f:
                 json_template=json.load(f)
         elif(system_num==2):
-            with open(stack_template_root + 'centos.json','r') as f:
+            with open(stack_template_root + 'centos.json','r') as f:    #일단 이거랑
                 json_template=json.load(f)
         elif(system_num==3):
-            with open(stack_template_root + 'fedora.json','r') as f:    #일단 이걸로 생성 test
+            with open(stack_template_root + 'fedora.json','r') as f:    #이걸로 생성 test
                 json_template=json.load(f)
         
         #address heat-api v1 프로젝트 id stacks
-        stack_req = requests.post("http://"+openstack_hostIP + "/heat-api/v1/" + openstack_tenant_id + "/stacks",
+        stack_req = requests.post("http://" + openstack_hostIP + "/heat-api/v1/" + openstack_tenant_id + "/stacks",
             headers = {'X-Auth-Token' : token},
             data = json.dumps(json_template))
         print("stack생성", stack_req.json())
@@ -100,6 +102,7 @@ class Openstack(APIView):
 
         # db에 저장 할 인스턴스 정보
         instance_data = {
+            "user_id" : input_data["user_id"],
             "stack_id" : stack_id,
             "stack_name" : stack_name,
             "instance_id" : instance_id,
@@ -125,9 +128,19 @@ class Openstack(APIView):
 
         return Response(serializer.data)
 
-    def get(self, request): #스택 resources get 해오는 것 test
+    def get(self, request):
+        input_data = json.loads(request.body)   # user_id, password
+        token = oc.user_token(input_data)
+
+        user_instance_info = OpenstackInstance.objects.filter(user_id=input_data["user_id"])
+        for instance_info in user_instance_info:
+            instance_status_req = requests.get("http://" + openstack_hostIP + "/compute/v2.1/servers/" + instance_info.instance_id,
+                headers = {'X-Auth-Token' : token}).json()["server"]["status"]
+            OpenstackInstance.objects.filter(instance_id=instance_info.instance_id).update(status=instance_status_req)
+            #print(OpenstackInstance.objects.filter(instance_id=instance_info.instance_id)[0].status)
+
         user_instance_data = []
-        user_stack_data = list(OpenstackInstance.objects.values())
+        user_stack_data = list(OpenstackInstance.objects.filter(user_id=input_data["user_id"]).values())
     
         for stack_data in user_stack_data :
             del stack_data["stack_name"]
@@ -142,18 +155,17 @@ class Openstack(APIView):
         pass
 
     def delete(self, request):
-        # del_data_all = OpenstackInstance.objects.all()
-        # del_data_all.delete()
-        input_data = json.loads(request.body)
+        input_data = json.loads(request.body)   # user_id, password, stack_name(or instance_name)(or id)
         token = oc.user_token(input_data)
-        del_stack_name = input_data["stack_name"]
+        del_stack_name = input_data["stack_name"]   # or instance name
 
         stack_data = OpenstackInstance.objects.get(stack_name = del_stack_name)
         del_stack_id = stack_data.stack_id
         print(del_stack_id)
         stack_data.delete()
 
-        stack_del_req = requests.delete("http://" + openstack_hostIP + "/heat-api/v1/" + openstack_tenant_id + "/stacks/"
+        del_openstack_tenant_id = account.models.Account_info.objects.get(user_id=input_data["user_id"]).project_id
+        stack_del_req = requests.delete("http://" + openstack_hostIP + "/heat-api/v1/" + del_openstack_tenant_id + "/stacks/"
             + del_stack_name + "/" + del_stack_id,
             headers = {'X-Auth-Token' : token})
         # print(stack_del_req.json())
@@ -162,12 +174,19 @@ class Openstack(APIView):
 
 class DashBoard(APIView):
     def get(self, request):
-        num_instances = OpenstackInstance.objects.count()
-        total_ram_size = OpenstackInstance.objects.aggregate(Sum("ram_size"))
-        total_disk_size = OpenstackInstance.objects.aggregate(Sum("disk_size"))
-        # print(num_instances)
-        # print(total_ram_size)
-        # print(total_disk_size)
+        input_data = json.loads(request.body)   # user_id, password
+        token = oc.user_token(input_data)
+
+        user_instance_info = OpenstackInstance.objects.filter(user_id=input_data["user_id"])
+        for instance_info in user_instance_info:
+            instance_status_req = requests.get("http://" + openstack_hostIP + "/compute/v2.1/servers/" + instance_info.instance_id,
+                headers = {'X-Auth-Token' : token}).json()["server"]["status"]
+            OpenstackInstance.objects.filter(instance_id=instance_info.instance_id).update(status=instance_status_req)
+
+        num_instances = OpenstackInstance.objects.filter(user_id=input_data["user_id"]).count()
+        total_ram_size = OpenstackInstance.objects.filter(user_id=input_data["user_id"]).aggregate(Sum("ram_size"))
+        total_disk_size = OpenstackInstance.objects.filter(user_id=input_data["user_id"]).aggregate(Sum("disk_size"))
+        
         dashboard_data = {
             "num_instances" : num_instances,    # max = 10
             "total_ram_size" : total_ram_size["ram_size__sum"], # max = 50G
@@ -178,7 +197,7 @@ class DashBoard(APIView):
 
 class InstanceStart(APIView):
     def post(self, request):
-        input_data = json.loads(request.body)
+        input_data = json.loads(request.body)   # user_id, password, instance_id(or instance_name)
         token = oc.user_token(input_data)
         start_instance_id = input_data["instance_id"]
         server_start_payload = {
@@ -195,7 +214,7 @@ class InstanceStart(APIView):
 
 class InstanceStop(APIView):
     def post(self, request):
-        input_data = json.loads(request.body)
+        input_data = json.loads(request.body)   # user_id, password, instance_id(or instance_name)
         token = oc.user_token(input_data)
         stop_instance_id = input_data["instance_id"]
         server_stop_payload = {

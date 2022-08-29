@@ -4,13 +4,14 @@ from .models import OpenstackInstance
 class OpenstackInstanceSerializer(serializers.ModelSerializer):
     class Meta:
         model = OpenstackInstance
-        fields = ["stack_id", "stack_name", "instance_id", "instance_name", "ip_address", "status", 
+        fields = ["user_id", "stack_id", "stack_name", "instance_id", "instance_name", "ip_address", "status", 
         "image_name", "flavor_name", "ram_size", "disk_size"]
 
     def create(self, validated_data):
         return OpenstackInstance.objects.create(**validated_data)
 
     def update(self, instance, validated_data):
+        instance.user_id = validated_data.get('user_id', instance.user_id)
         instance.stack_id = validated_data.get('stack_id', instance.stack_id)
         instance.stack_name = validated_data.get('stack_name', instance.stack_name)
         instance.instance_id = validated_data.get('instance_id', instance.instance_id)
