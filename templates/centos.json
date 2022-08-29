@@ -1,5 +1,5 @@
 {
-    "stack_name": "centos1",
+    "stack_name": "user2_centos1",
     "template": 
     {
     "heat_template_version": "2018-08-31",
@@ -8,7 +8,7 @@
       "mybox": {
         "type": "OS::Nova::Server",
         "properties": {
-          "name": "user1's instance",
+          "name": "user2's instance",
           "flavor": "m1.tiny",
           "image": "cirros-0.5.2-x86_64-disk",
           "key_name": {

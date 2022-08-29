@@ -17,7 +17,7 @@ import requests
 import time
 # Create your views here.
 openstack_hostIP = oc.hostIP
-openstack_tenant_id = "53db693b52494cdba387b1e5fa7c3cc7"#oc.admin_project_id
+openstack_tenant_id = "53db693b52494cdba387b1e5fa7c3cc7"    #이거 수정해야함 이거 어제자 user1 프로젝트 id임    #oc.admin_project_id
 
 class Openstack(APIView):
     def post(self, request):
@@ -41,7 +41,7 @@ class Openstack(APIView):
                 json_template=json.load(f)
         
         #address heat-api v1 프로젝트 id stacks
-        stack_req = requests.post("http://"+openstack_hostIP + "/heat-api/v1/" + openstack_tenant_id + "/stacks",
+        stack_req = requests.post("http://" + openstack_hostIP + "/heat-api/v1/" + openstack_tenant_id + "/stacks",
             headers = {'X-Auth-Token' : token},
             data = json.dumps(json_template))
         print("stack생성", stack_req.json())
@@ -100,6 +100,7 @@ class Openstack(APIView):
 
         # db에 저장 할 인스턴스 정보
         instance_data = {
+            "user_id" : input_data["user_id"],
             "stack_id" : stack_id,
             "stack_name" : stack_name,
             "instance_id" : instance_id,
@@ -126,8 +127,9 @@ class Openstack(APIView):
         return Response(serializer.data)
 
     def get(self, request): #스택 resources get 해오는 것 test
+        input_data = json.loads(request.body)
         user_instance_data = []
-        user_stack_data = list(OpenstackInstance.objects.values())
+        user_stack_data = list(OpenstackInstance.objects.filter(user_id=input_data["user_id"]).values())
     
         for stack_data in user_stack_data :
             del stack_data["stack_name"]
@@ -162,9 +164,10 @@ class Openstack(APIView):
 
 class DashBoard(APIView):
     def get(self, request):
-        num_instances = OpenstackInstance.objects.count()
-        total_ram_size = OpenstackInstance.objects.aggregate(Sum("ram_size"))
-        total_disk_size = OpenstackInstance.objects.aggregate(Sum("disk_size"))
+        input_data = json.loads(request.body)
+        num_instances = OpenstackInstance.objects.filter(user_id=input_data["user_id"]).count()
+        total_ram_size = OpenstackInstance.objects.filter(user_id=input_data["user_id"]).aggregate(Sum("ram_size"))
+        total_disk_size = OpenstackInstance.objects.filter(user_id=input_data["user_id"]).aggregate(Sum("disk_size"))
         # print(num_instances)
         # print(total_ram_size)
         # print(total_disk_size)

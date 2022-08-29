@@ -109,11 +109,15 @@ class AccountView(View):
         Account_data = Account_info.objects.get(user_id = del_user_id)  #db에서 해당 유저 삭제
         print(Account_data)
         del_user_id_openstack = Account_data.openstack_user_id  #해당 유저의 openstack user id
+        del_project_id_openstack = Account_data.openstack_user_project_id
         print(del_user_id_openstack)
         Account_data.delete()
+        project_del_req = requests.delete("http://" + openstack_hostIP + "/identity/v3/projects/" + del_project_id_openstack,
+            headers={'X-Auth-Token': token})     #오픈스택에 해당 프로젝트 삭제 request
         user_del_req = requests.delete("http://" + openstack_hostIP + "/identity/v3/users/" + del_user_id_openstack,
             headers={'X-Auth-Token': token})     #오픈스택에 해당 유저 삭제 request
         #print(user_del_res.json())
+        #유저 삭제 시 -> 스택도 같이 삭제되지 않음.
 
         return HttpResponse("Delete Success")
 
@@ -128,6 +132,7 @@ class SignView(View):
                 user = Account_info.objects.get(user_id=input_data['user_id'])
                 if user.password == input_data['password']:
                     openstack_user_token = oc.user_token(input_data)
+                    #hash token 해줄 것
                     response = JsonResponse(
                         {"openstack_user_token" : openstack_user_token}, status=200
                     )
