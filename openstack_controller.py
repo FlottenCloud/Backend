@@ -64,8 +64,7 @@ def user_token(user_data):
     auth_res = requests.post("http://" + hostIP + "/identity/v3/auth/tokens",
                                 headers={'content-type': 'application/json'},
                                 data=json.dumps(user_token_payload))
-    print("abc")
-    #print(auth_res.body)
+    
     # 발급받은 token 출력
     user_token = auth_res.headers["X-Subject-Token"]
     openstack_user_token = user_token

@@ -138,7 +138,6 @@ class Openstack(APIView):
         serializer = OpenstackInstanceSerializer(data=instance_data)
     
         if serializer.is_valid():
-            print("여기서 안됨")
             serializer.save()
             print("saved")
             print(serializer.data)
