@@ -163,22 +163,22 @@ class Openstack(APIView):
                 OpenstackInstance.objects.filter(instance_id=instance_info.instance_id).update(status=instance_status)
                 #print(OpenstackInstance.objects.filter(instance_id=instance_info.instance_id)[0].status)
 
-            user_instance_data = []
+            # user_instance_data = []
             user_stack_data = list(OpenstackInstance.objects.filter(user_id=user_id).values())
         
-            for stack_data in user_stack_data : # 인스턴스 list 정보 출력 때 필요없는 값 삭제
-                del stack_data["user_id_id"]
-                del stack_data["stack_name"]
-                del stack_data["stack_id"]
-                del stack_data["instance_id"]
-                del stack_data["image_name"]
-                del stack_data["num_cpu"]
-                user_instance_data.append(stack_data)   #user_instance_data라는 이름이 더 걸맞는 것 같아 로직 추가해줌.
-                                                        #굳이 이 로직 안거치고 바로 user_stack_data 출력해줘도 무방.
+            # for stack_data in user_stack_data : # 인스턴스 list 정보 출력 때 필요없는 값 삭제
+            #     del stack_data["user_id_id"]
+            #     del stack_data["stack_name"]
+            #     del stack_data["stack_id"]
+            #     del stack_data["instance_id"]
+            #     del stack_data["image_name"]
+            #     del stack_data["num_cpu"]
+            #     user_instance_data.append(stack_data)   #user_instance_data라는 이름이 더 걸맞는 것 같아 로직 추가해줌.
+            #                                             #굳이 이 로직 안거치고 바로 user_stack_data 출력해줘도 무방.
         except OperationalError:
             return JsonResponse({[]}, status=200)
 
-        return JsonResponse({"instances" : user_instance_data}, status=200)
+        return JsonResponse({"instances" : user_stack_data}, status=200)
     #@swagger_auto_schema(tags=['openstack api'], manual_parameters=[openstack_user_token], request_body=CreateOpenstack, responses={200: 'Success'})    
     def put(self, request):
         pass
