@@ -241,3 +241,22 @@ class InstanceStop(APIView):
         OpenstackInstance.objects.filter(instance_id=stop_instance_id).update(status="SHUTOFF")
         
         return Response(instance_start_req)
+
+
+class InstanceConsole(APIView):
+    def post(self, request):
+        input_data = json.loads(request.body)   #user_id, password, instance_name
+        token = oc.user_token(input_data)
+        console_for_instance_name = input_data["instance_name"]
+        console_for_instance_id = OpenstackInstance.objects.get(instance_name=console_for_instance_name).instance_id
+        instance_console_payload ={
+            "os-getVNCConsole": {
+                "type": "novnc"
+            }
+        }
+        instance_console_req = requests.post("http://" + openstack_hostIP + "/compute/v2.1/servers/" + console_for_instance_id
+            + "/action",
+            headers={'X-Auth-Token': token},
+            data=json.dumps(instance_console_payload))
+
+        return Response(instance_console_req.json()["console"]["url"])
