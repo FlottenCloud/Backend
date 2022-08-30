@@ -164,16 +164,16 @@ class Openstack(APIView):
         pass
 
     def delete(self, request):
-        input_data = json.loads(request.body)   # user_id, password, stack_name(or instance_name)(or id)
+        input_data = json.loads(request.body)   # user_id, password, instance_name
         token = oc.user_token(input_data)
-        del_stack_name = input_data["stack_name"]   # or instance name
+        del_stack_name = OpenstackInstance.objects.get(instance_name=input_data["instance_name"]).stack_name
 
         stack_data = OpenstackInstance.objects.get(stack_name = del_stack_name)
         del_stack_id = stack_data.stack_id
         #print(del_stack_id)
         stack_data.delete()
 
-        del_openstack_tenant_id = account.models.Account_info.objects.get(user_id=input_data["user_id"]).project_id
+        del_openstack_tenant_id = account.models.Account_info.objects.get(user_id=input_data["user_id"]).openstack_user_project_id
         stack_del_req = requests.delete("http://" + openstack_hostIP + "/heat-api/v1/" + del_openstack_tenant_id + "/stacks/"
             + del_stack_name + "/" + del_stack_id,
             headers = {'X-Auth-Token' : token})
