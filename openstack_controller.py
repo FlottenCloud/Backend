@@ -1,5 +1,8 @@
 import requests
 import json
+from django.http import JsonResponse
+
+from openstack.models import OpenstackInstance
 
 hostIP = "119.198.160.6"    #김영후 집 데스크탑 공인 ip
 admin_project_id = "f9bc10ab8e4040cdb173d33eeb25242b" #김영후 데탑에 깔린 오픈스택 서버의 id들
@@ -61,6 +64,8 @@ def user_token(user_data):
     auth_res = requests.post("http://" + hostIP + "/identity/v3/auth/tokens",
                                 headers={'content-type': 'application/json'},
                                 data=json.dumps(user_token_payload))
+    print("abc")
+    #print(auth_res.body)
     # 발급받은 token 출력
     user_token = auth_res.headers["X-Subject-Token"]
     openstack_user_token = user_token
@@ -68,8 +73,35 @@ def user_token(user_data):
 
     return openstack_user_token
 
-def getInfoByToken(AToken, SToken):
+def getInfoByToken(user_token):
+    admin_token_value = admin_token()
     auth_res = requests.get("http://" + hostIP + "/identity/v3/auth/tokens",
-                                headers={'X-Auth-Token': AToken,
-                                "X-Subject-Token" : SToken})
+                                headers={'X-Auth-Token': admin_token_value,
+                                "X-Subject-Token" : user_token}).json()
     return auth_res
+
+def getUserID(user_token):
+    user_id = getInfoByToken(user_token)["token"]["user"]["name"]
+    return user_id
+
+def getRequestParamsWithBody(request):
+    input_data = json.loads(request.body)   # user_id, password
+    token = request.headers["X-Auth-Token"]#oc.user_token(input_data)
+    user_id = getUserID(token)
+
+    return input_data, token, user_id
+
+def getRequestParams(request):
+    token = request.headers["X-Auth-Token"]#oc.user_token(input_data)
+    user_id = getUserID(token)
+
+    return token, user_id
+
+def getInstanceID(input_data):
+    instance_id = input_data["instance_id"]
+    try:
+        instance_id = OpenstackInstance.objects.get(instance_id=instance_id).instance_id
+    except :
+        return None
+
+    return instance_id
