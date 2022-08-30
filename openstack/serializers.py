@@ -26,3 +26,9 @@ class OpenstackInstanceSerializer(serializers.ModelSerializer):
         instance.save()
         
         return instance
+
+class CreateOpenstack(serializers.Serializer):
+    system_num = serializers.IntegerField(help_text='system number', default="1")
+
+class InstanceNameSerializer(serializers.Serializer):
+    instance_name = serializers.CharField(help_text='system number', default="1")

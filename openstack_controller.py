@@ -67,3 +67,9 @@ def user_token(user_data):
     print("openstack_user_token : ", openstack_user_token)  #디버깅 용, 나중에 지우기
 
     return openstack_user_token
+
+def getInfoByToken(AToken, SToken):
+    auth_res = requests.get("http://" + hostIP + "/identity/v3/auth/tokens",
+                                headers={'X-Auth-Token': AToken,
+                                "X-Subject-Token" : SToken})
+    return auth_res

@@ -1,3 +1,4 @@
+from email import header
 import os   #여기서 부터
 import sys
 sys.path.append(os.path.dirname(os.path.abspath(os.path.dirname(__file__))))    #여기까지는 상위 디렉토리 모듈 import 하기 위한 코드
@@ -12,13 +13,26 @@ from django.shortcuts import render
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from openstack.serializers import OpenstackInstanceSerializer
+from drf_yasg.utils       import swagger_auto_schema
+from drf_yasg             import openapi     
+from openstack.serializers import CreateOpenstack, InstanceNameSerializer, OpenstackInstanceSerializer
 from django.http import JsonResponse
 import time
 # Create your views here.
 openstack_hostIP = oc.hostIP
+openstack_user_token = openapi.Parameter(
+        "X-Auth-Token",
+        openapi.IN_HEADER,
+        description = "access_token",
+        type = openapi.TYPE_STRING
+    )
 
 class Openstack(APIView):
+    #user_id = openapi.Parameter('user_id', openapi.IN_BODY, description='body parameter: user_id', required=True, type=openapi.TYPE_STRING)
+    # # user_id = openapi.Parameter('user_id', openapi.IN_BODY, description='body parameter: user_id', required=True, type=openapi.TYPE_STRING)
+    # # user_id = openapi.Parameter('user_id', openapi.IN_BODY, description='body parameter: user_id', required=True, type=openapi.TYPE_STRING)
+
+    @swagger_auto_schema(tags=['openstack api'], manual_parameters=[openstack_user_token], request_body=CreateOpenstack, responses={200: 'Success'})
     def post(self, request):
         input_data = json.loads(request.body)   # user_id, password, system_num(추후에 요구사항 폼 등으로 바뀌면 수정할 것)
         stack_template_root = "templates/"
@@ -132,11 +146,13 @@ class Openstack(APIView):
             print("not saved")
             print(serializer.errors)
 
-        return Response(serializer.data)
+        return JsonResponse({"message" : "가상머신 생성 완료"}, status=200)#Response(serializer.data)
 
+    @swagger_auto_schema(tags=['openstack api'], manual_parameters=[openstack_user_token], responses={200: 'Success'})
     def get(self, request):
         input_data = json.loads(request.body)   # user_id, password
-        token = oc.user_token(input_data)
+        token = request.headers["X-Auth-Token"]#oc.user_token(input_data)
+        print(token)
 
         user_instance_info = OpenstackInstance.objects.filter(user_id=input_data["user_id"])
         for instance_info in user_instance_info:
@@ -158,11 +174,12 @@ class Openstack(APIView):
             del stack_data["num_cpu"]
             user_instance_data.append(stack_data)   #user_instance_data라는 이름이 더 걸맞는 것 같아 로직 추가해줌.
                                                     #굳이 이 로직 안거치고 바로 user_stack_data 출력해줘도 무방.
-        return Response(user_instance_data)
-    
+        return JsonResponse({"instances" : user_instance_data}, status=200)
+    #@swagger_auto_schema(tags=['openstack api'], manual_parameters=[openstack_user_token], request_body=CreateOpenstack, responses={200: 'Success'})    
     def put(self, request):
         pass
 
+    @swagger_auto_schema(tags=['openstack api'], manual_parameters=[openstack_user_token], request_body=InstanceNameSerializer, responses={200: 'Success'})
     def delete(self, request):
         input_data = json.loads(request.body)   # user_id, password, instance_name
         token = oc.user_token(input_data)
@@ -179,9 +196,10 @@ class Openstack(APIView):
             headers = {'X-Auth-Token' : token})
         # print(stack_del_req.json())
         
-        return Response(stack_del_req)
+        return JsonResponse({"message" : "가상머신 삭제 완료"}, status=200)#Response(stack_del_req)
 
 class DashBoard(APIView):
+    @swagger_auto_schema(tags=['Instance api'], manual_parameters=[openstack_user_token], responses={200: 'Success'})
     def get(self, request):
         input_data = json.loads(request.body)   # user_id, password
         token = oc.user_token(input_data)
@@ -208,6 +226,7 @@ class DashBoard(APIView):
         return JsonResponse(dashboard_data)
 
 class InstanceStart(APIView):
+    @swagger_auto_schema(tags=['Instance api'], manual_parameters=[openstack_user_token], request_body=InstanceNameSerializer, responses={200: 'Success'})
     def post(self, request):
         input_data = json.loads(request.body)   # user_id, password, instance_id(or instance_name)
         token = oc.user_token(input_data)
@@ -222,10 +241,11 @@ class InstanceStart(APIView):
             data = json.dumps(server_start_payload))
         OpenstackInstance.objects.filter(instance_id=start_instance_id).update(status="ACTIVE")
         
-        return Response(instance_start_req)
+        return JsonResponse({"message" : "가상머신 시작"}, status=200)#Response(instance_start_req)
 
 
 class InstanceStop(APIView):
+    @swagger_auto_schema(tags=['Instance api'], manual_parameters=[openstack_user_token], request_body=InstanceNameSerializer, responses={200: 'Success'})
     def post(self, request):
         input_data = json.loads(request.body)   # user_id, password, instance_id(or instance_name)
         token = oc.user_token(input_data)
@@ -240,10 +260,11 @@ class InstanceStop(APIView):
             data = json.dumps(server_stop_payload))
         OpenstackInstance.objects.filter(instance_id=stop_instance_id).update(status="SHUTOFF")
         
-        return Response(instance_start_req)
+        return JsonResponse({"message" : "가상머신 전원 끔"}, status=200)#Response(instance_start_req)
 
 
 class InstanceConsole(APIView):
+    @swagger_auto_schema(tags=['Instance api'], manual_parameters=[openstack_user_token], request_body=InstanceNameSerializer, responses={200: 'Success'})
     def post(self, request):
         input_data = json.loads(request.body)   #user_id, password, instance_name
         token = oc.user_token(input_data)
@@ -259,4 +280,4 @@ class InstanceConsole(APIView):
             headers={'X-Auth-Token': token},
             data=json.dumps(instance_console_payload))
 
-        return Response(instance_console_req.json()["console"]["url"])
+        return JsonResponse({"instance_url" : instance_console_req.json()["console"]["url"]}, status=200)#Response(instance_console_req.json()["console"]["url"])
