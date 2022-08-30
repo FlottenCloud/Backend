@@ -7,7 +7,7 @@
 		  "mybox": {
 			"type": "OS::Nova::Server",
 			"properties": {
-			  "name": "mybox_summitExtension",
+			  "name": "fedora_instance",
 			  "flavor": "ds512M",
 			  "image": "Fedora-Cloud-Base-36-1.5.x86_64",
 			  "key_name": {
@@ -24,19 +24,6 @@
 				"get_resource": "myconfig"
 			  },
 			  "user_data_format": "RAW"
-			}
-		  },
-		  "server_volume": {
-			"type" : "OS::Cinder::Volume",
-			"properties" : {
-				"size" : 4
-			}
-		  },
-		  "volume_attachment" : {
-			"type" : "OS::Cinder::VolumeAttachment",
-			"properties" : {
-			  "volume_id" :	{"get_resource" : "server_volume"},
-			  "instance_uuid" : {"get_resource" : "mybox"}
 			}
 		  },
 		  "myconfig": {
@@ -76,7 +63,7 @@
 		  "demo_key": {
 			"type": "OS::Nova::KeyPair",
 			"properties": {
-			  "name": "test-key4"
+			  "name": "test-key1"
 			}
 		  },
 		  "mybox_management_port": {

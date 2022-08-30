@@ -5,7 +5,7 @@ class OpenstackInstanceSerializer(serializers.ModelSerializer):
     class Meta:
         model = OpenstackInstance
         fields = ["user_id", "stack_id", "stack_name", "instance_id", "instance_name", "ip_address", "status", 
-        "image_name", "flavor_name", "ram_size", "disk_size"]
+        "image_name", "flavor_name", "ram_size", "disk_size", "num_cpu"]
 
     def create(self, validated_data):
         return OpenstackInstance.objects.create(**validated_data)
@@ -22,6 +22,7 @@ class OpenstackInstanceSerializer(serializers.ModelSerializer):
         instance.flavor_name = validated_data.get('flavor_name', instance.flavor_name)
         instance.ram_size = validated_data.get('ram_size', instance.ram_size)
         instance.disk_size = validated_data.get('disk_size', instance.disk_size)
+        instance.num_cpu = validated_data.get('num_cpu', instance.num_cpu)
         instance.save()
         
         return instance

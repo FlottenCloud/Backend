@@ -105,12 +105,22 @@ class AccountView(View):
         input_data = json.loads(request.body)
         token = oc.admin_token()
         del_user_id = input_data["user_id"]
-        Account_data = Account_info.objects.get(user_id = del_user_id)  #db에서 해당 유저 삭제
-        print(Account_data)
-        del_user_id_openstack = Account_data.openstack_user_id  #해당 유저의 openstack user id
-        del_project_id_openstack = Account_data.openstack_user_project_id
-        print(del_user_id_openstack)
-        Account_data.delete()
+        account_data = Account_info.objects.get(user_id = del_user_id)  #db에서 삭제할 유저 정보
+        # print(account_data)
+        del_project_id_openstack = account_data.openstack_user_project_id
+        del_user_id_openstack = account_data.openstack_user_id  #해당 유저의 openstack user id
+        # print(del_project_id_openstack)
+        # print(del_user_id_openstack)
+        user_resource = account_data.user_resource_info.all()   #해당 유저의 stack 정보
+
+        for resource in user_resource:  # 오픈스택에서 user의 stack 모두 삭제
+            stack_del_req = requests.delete("http://" + openstack_hostIP + "/heat-api/v1/" + del_project_id_openstack + "/stacks/"
+            + resource.stack_name + "/" + resource.stack_id,
+            headers = {'X-Auth-Token' : token})
+            print(stack_del_req)
+
+        account_data.delete()
+
         project_del_req = requests.delete("http://" + openstack_hostIP + "/identity/v3/projects/" + del_project_id_openstack,
             headers={'X-Auth-Token': token})     #오픈스택에 해당 프로젝트 삭제 request
         user_del_req = requests.delete("http://" + openstack_hostIP + "/identity/v3/users/" + del_user_id_openstack,
