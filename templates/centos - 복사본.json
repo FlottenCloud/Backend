@@ -1,5 +1,5 @@
 {
-    "stack_name": "centos1",
+    "stack_name": "user2_centos1",
     "template": 
     {
     "heat_template_version": "2018-08-31",
@@ -8,7 +8,7 @@
       "mybox": {
         "type": "OS::Nova::Server",
         "properties": {
-          "name": "centos instance",
+          "name": "user2's instance",
           "flavor": "m1.tiny",
           "image": "cirros-0.5.2-x86_64-disk",
           "key_name": {
@@ -27,6 +27,19 @@
           "user_data_format": "RAW"
         }
       },
+	  "server_volume": {
+		"type" : "OS::Cinder::Volume",
+		"properties" : {
+			"size" : 4
+		}
+	  },
+	  "volume_attachment" : {
+		"type" : "OS::Cinder::VolumeAttachment",
+		"properties" : {
+		  "volume_id" :	{"get_resource" : "server_volume"},
+		  "instance_uuid" : {"get_resource" : "mybox"}
+		}
+	  },
       "myconfig": {
         "type": "OS::Heat::CloudConfig",
         "properties": {
@@ -67,7 +80,7 @@
       "demo_key": {
         "type": "OS::Nova::KeyPair",
         "properties": {
-          "name": "test-key2"
+          "name": "test-key1"
         }
       },
       "mybox_management_port": {

@@ -63,7 +63,7 @@ class Openstack(APIView):
             + stack_id + "/resources",
             headers = {'X-Auth-Token' : token})
         print("스택으로 만들어진 인스턴스 정보: ", stack_instance_req.json())
-        instance_id = stack_instance_req.json()["resources"][1]["physical_resource_id"]
+        instance_id = stack_instance_req.json()["resources"][0]["physical_resource_id"]
         print("인스턴스 id: ", instance_id)
         #스택을 통해서 인스턴스 생성되기까지 시간이 좀 걸리는 듯. 일단 무지성 while문으로 해결은 했음..
 
@@ -81,7 +81,7 @@ class Openstack(APIView):
         print("인스턴스 상태: ",instance_status)
         image_id = instance_info_req.json()["server"]["image"]["id"]
         flavor_id = instance_info_req.json()["server"]["flavor"]["id"]
-        volume_id = instance_info_req.json()["server"]["os-extended-volumes:volumes_attached"][0]["id"]
+        #volume_id = instance_info_req.json()["server"]["os-extended-volumes:volumes_attached"][0]["id"]
 
         image_req = requests.get("http://" + openstack_hostIP + "/compute/v2.1/images/" + image_id,
             headers = {'X-Auth-Token' : token})
@@ -90,15 +90,20 @@ class Openstack(APIView):
 
         flavor_req = requests.get("http://" + openstack_hostIP + "/compute/v2.1/flavors/" + flavor_id,
             headers = {'X-Auth-Token' : token})
+        print(flavor_req)
         instance_flavor_name = flavor_req.json()["flavor"]["name"]
         print("flavor 이름: ", instance_flavor_name)
-        instance_ram_size = round(flavor_req.json()["flavor"]["ram"]*0.131072/1024, 2)
+        instance_ram_size = round(flavor_req.json()["flavor"]["ram"]/953.7, 2)
         print("램 크기: ", instance_ram_size)
+        instance_disk_size = flavor_req.json()["flavor"]["disk"]
+        print("디스크 용량: ", instance_disk_size)
+        instance_num_cpu = flavor_req.json()["flavor"]["vcpus"]
+        print("CPU 개수: ", instance_num_cpu)
 
-        volume_req = requests.get("http://" + openstack_hostIP + "/compute/v2.1/os-volumes/" + volume_id,
-            headers = {'X-Auth-Token' : token})
-        instance_disk_size = float(volume_req.json()["volume"]["size"])
-        print("디스크 크기: ", instance_disk_size)
+        # volume_req = requests.get("http://" + openstack_hostIP + "/compute/v2.1/os-volumes/" + volume_id,
+        #     headers = {'X-Auth-Token' : token})
+        # instance_disk_size = float(volume_req.json()["volume"]["size"])
+        # print("디스크 크기: ", instance_disk_size)
 
         # db에 저장 할 인스턴스 정보
         instance_data = {
@@ -112,7 +117,8 @@ class Openstack(APIView):
             "image_name" : instance_image_name,
             "flavor_name" : instance_flavor_name,
             "ram_size" : instance_ram_size,
-            "disk_size" : instance_disk_size
+            "disk_size" : instance_disk_size,
+            "num_cpu" : instance_num_cpu
         }
 
         #serializing을 통한 인스턴스 정보 db 저장
@@ -134,19 +140,22 @@ class Openstack(APIView):
 
         user_instance_info = OpenstackInstance.objects.filter(user_id=input_data["user_id"])
         for instance_info in user_instance_info:
-            instance_status_req = requests.get("http://" + openstack_hostIP + "/compute/v2.1/servers/" + instance_info.instance_id,
-                headers = {'X-Auth-Token' : token}).json()["server"]["status"]
-            OpenstackInstance.objects.filter(instance_id=instance_info.instance_id).update(status=instance_status_req)
+            instance_req = requests.get("http://" + openstack_hostIP + "/compute/v2.1/servers/" + instance_info.instance_id,
+                headers = {'X-Auth-Token' : token})
+            instance_status = instance_req.json()["server"]["status"]
+            OpenstackInstance.objects.filter(instance_id=instance_info.instance_id).update(status=instance_status)
             #print(OpenstackInstance.objects.filter(instance_id=instance_info.instance_id)[0].status)
 
         user_instance_data = []
         user_stack_data = list(OpenstackInstance.objects.filter(user_id=input_data["user_id"]).values())
     
-        for stack_data in user_stack_data :
+        for stack_data in user_stack_data : # 인스턴스 list 정보 출력 때 필요없는 값 삭제
+            del stack_data["user_id_id"]
             del stack_data["stack_name"]
             del stack_data["stack_id"]
             del stack_data["instance_id"]
             del stack_data["image_name"]
+            del stack_data["num_cpu"]
             user_instance_data.append(stack_data)   #user_instance_data라는 이름이 더 걸맞는 것 같아 로직 추가해줌.
                                                     #굳이 이 로직 안거치고 바로 user_stack_data 출력해줘도 무방.
         return Response(user_instance_data)
@@ -161,7 +170,7 @@ class Openstack(APIView):
 
         stack_data = OpenstackInstance.objects.get(stack_name = del_stack_name)
         del_stack_id = stack_data.stack_id
-        print(del_stack_id)
+        #print(del_stack_id)
         stack_data.delete()
 
         del_openstack_tenant_id = account.models.Account_info.objects.get(user_id=input_data["user_id"]).project_id
@@ -178,19 +187,22 @@ class DashBoard(APIView):
         token = oc.user_token(input_data)
 
         user_instance_info = OpenstackInstance.objects.filter(user_id=input_data["user_id"])
-        for instance_info in user_instance_info:
+        for instance_info in user_instance_info:    # 대쉬보드 출력에 status는 굳이 필요없지만, db 정보 최신화를 위해 status 업데이트.
             instance_status_req = requests.get("http://" + openstack_hostIP + "/compute/v2.1/servers/" + instance_info.instance_id,
                 headers = {'X-Auth-Token' : token}).json()["server"]["status"]
             OpenstackInstance.objects.filter(instance_id=instance_info.instance_id).update(status=instance_status_req)
 
-        num_instances = OpenstackInstance.objects.filter(user_id=input_data["user_id"]).count()
+        num_instances = OpenstackInstance.objects.filter(user_id=input_data["user_id"]).count() 
         total_ram_size = OpenstackInstance.objects.filter(user_id=input_data["user_id"]).aggregate(Sum("ram_size"))
         total_disk_size = OpenstackInstance.objects.filter(user_id=input_data["user_id"]).aggregate(Sum("disk_size"))
+        total_num_cpu = OpenstackInstance.objects.filter(user_id=input_data["user_id"]).aggregate(Sum("num_cpu"))
+        #위에 애들 다 dict 형식.
         
         dashboard_data = {
             "num_instances" : num_instances,    # max = 10
             "total_ram_size" : total_ram_size["ram_size__sum"], # max = 50G
-            "total_disk_size" : total_disk_size["disk_size__sum"]   # max = 1000G
+            "total_disk_size" : total_disk_size["disk_size__sum"],   # max = 1000G
+            "total_num_cpu" : total_num_cpu["num_cpu__sum"]
         }
 
         return JsonResponse(dashboard_data)
@@ -199,7 +211,8 @@ class InstanceStart(APIView):
     def post(self, request):
         input_data = json.loads(request.body)   # user_id, password, instance_id(or instance_name)
         token = oc.user_token(input_data)
-        start_instance_id = input_data["instance_id"]
+        start_instance_name = input_data["instance_name"]
+        start_instance_id = OpenstackInstance.objects.get(instance_name=start_instance_name).instance_id
         server_start_payload = {
             "os-start" : None
         }
@@ -216,7 +229,8 @@ class InstanceStop(APIView):
     def post(self, request):
         input_data = json.loads(request.body)   # user_id, password, instance_id(or instance_name)
         token = oc.user_token(input_data)
-        stop_instance_id = input_data["instance_id"]
+        stop_instance_name = input_data["instance_name"]
+        stop_instance_id = OpenstackInstance.objects.get(instance_name=stop_instance_name).instance_id
         server_stop_payload = {
             "os-stop" : None
         }

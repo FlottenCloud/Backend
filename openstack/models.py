@@ -23,3 +23,4 @@ class OpenstackInstance(models.Model):  #유저와 연관짓기 위한 외래키
     flavor_name = models.CharField(max_length = 50, null = True)
     ram_size = models.FloatField(validators=[MaxValueValidator(12)])
     disk_size = models.FloatField(validators=[MaxValueValidator(100)], null = True)
+    num_cpu = models.IntegerField(validators=[MaxValueValidator(12)], null = True)
