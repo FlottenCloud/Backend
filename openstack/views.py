@@ -1,5 +1,6 @@
 from email import header
-import os   #여기서 부터
+import os
+from sqlite3 import OperationalError   #여기서 부터
 import sys
 sys.path.append(os.path.dirname(os.path.abspath(os.path.dirname(__file__))))    #여기까지는 상위 디렉토리 모듈 import 하기 위한 코드
 
@@ -137,6 +138,7 @@ class Openstack(APIView):
         serializer = OpenstackInstanceSerializer(data=instance_data)
     
         if serializer.is_valid():
+            print("여기서 안됨")
             serializer.save()
             print("saved")
             print(serializer.data)
@@ -151,26 +153,31 @@ class Openstack(APIView):
         token = request.headers["X-Auth-Token"]#oc.user_token(input_data)
         user_id = oc.getUserID(token)
 
-        user_instance_info = OpenstackInstance.objects.filter(user_id=user_id)
-        for instance_info in user_instance_info:
-            instance_req = requests.get("http://" + openstack_hostIP + "/compute/v2.1/servers/" + instance_info.instance_id,
-                headers = {'X-Auth-Token' : token})
-            instance_status = instance_req.json()["server"]["status"]
-            OpenstackInstance.objects.filter(instance_id=instance_info.instance_id).update(status=instance_status)
-            #print(OpenstackInstance.objects.filter(instance_id=instance_info.instance_id)[0].status)
+        try:
+            print
+            user_instance_info = OpenstackInstance.objects.filter(user_id=user_id)
+            for instance_info in user_instance_info:
+                instance_req = requests.get("http://" + openstack_hostIP + "/compute/v2.1/servers/" + instance_info.instance_id,
+                    headers = {'X-Auth-Token' : token})
+                instance_status = instance_req.json()["server"]["status"]
+                OpenstackInstance.objects.filter(instance_id=instance_info.instance_id).update(status=instance_status)
+                #print(OpenstackInstance.objects.filter(instance_id=instance_info.instance_id)[0].status)
 
-        user_instance_data = []
-        user_stack_data = list(OpenstackInstance.objects.filter(user_id=user_id).values())
-    
-        for stack_data in user_stack_data : # 인스턴스 list 정보 출력 때 필요없는 값 삭제
-            del stack_data["user_id_id"]
-            del stack_data["stack_name"]
-            del stack_data["stack_id"]
-            del stack_data["instance_id"]
-            del stack_data["image_name"]
-            del stack_data["num_cpu"]
-            user_instance_data.append(stack_data)   #user_instance_data라는 이름이 더 걸맞는 것 같아 로직 추가해줌.
-                                                    #굳이 이 로직 안거치고 바로 user_stack_data 출력해줘도 무방.
+            user_instance_data = []
+            user_stack_data = list(OpenstackInstance.objects.filter(user_id=user_id).values())
+        
+            for stack_data in user_stack_data : # 인스턴스 list 정보 출력 때 필요없는 값 삭제
+                del stack_data["user_id_id"]
+                del stack_data["stack_name"]
+                del stack_data["stack_id"]
+                del stack_data["instance_id"]
+                del stack_data["image_name"]
+                del stack_data["num_cpu"]
+                user_instance_data.append(stack_data)   #user_instance_data라는 이름이 더 걸맞는 것 같아 로직 추가해줌.
+                                                        #굳이 이 로직 안거치고 바로 user_stack_data 출력해줘도 무방.
+        except OperationalError:
+            return JsonResponse({[]}, status=200)
+
         return JsonResponse({"instances" : user_instance_data}, status=200)
     #@swagger_auto_schema(tags=['openstack api'], manual_parameters=[openstack_user_token], request_body=CreateOpenstack, responses={200: 'Success'})    
     def put(self, request):
@@ -202,24 +209,28 @@ class DashBoard(APIView):
     def get(self, request):
         token, user_id = oc.getRequestParams(request)
 
-        user_instance_info = OpenstackInstance.objects.filter(user_id=user_id)
-        for instance_info in user_instance_info:    # 대쉬보드 출력에 status는 굳이 필요없지만, db 정보 최신화를 위해 status 업데이트.
-            instance_status_req = requests.get("http://" + openstack_hostIP + "/compute/v2.1/servers/" + instance_info.instance_id,
-                headers = {'X-Auth-Token' : token}).json()["server"]["status"]
-            OpenstackInstance.objects.filter(instance_id=instance_info.instance_id).update(status=instance_status_req)
+        try:
+            user_instance_info = OpenstackInstance.objects.filter(user_id=user_id)
+            for instance_info in user_instance_info:    # 대쉬보드 출력에 status는 굳이 필요없지만, db 정보 최신화를 위해 status 업데이트.
+                instance_status_req = requests.get("http://" + openstack_hostIP + "/compute/v2.1/servers/" + instance_info.instance_id,
+                    headers = {'X-Auth-Token' : token}).json()["server"]["status"]
+                OpenstackInstance.objects.filter(instance_id=instance_info.instance_id).update(status=instance_status_req)
 
-        num_instances = OpenstackInstance.objects.filter(user_id=user_id).count() 
-        total_ram_size = OpenstackInstance.objects.filter(user_id=user_id).aggregate(Sum("ram_size"))
-        total_disk_size = OpenstackInstance.objects.filter(user_id=user_id).aggregate(Sum("disk_size"))
-        total_num_cpu = OpenstackInstance.objects.filter(user_id=user_id).aggregate(Sum("num_cpu"))
-        #위에 애들 다 dict 형식.
-        
-        dashboard_data = {
-            "num_instances" : num_instances,    # max = 10
-            "total_ram_size" : total_ram_size["ram_size__sum"], # max = 50G
-            "total_disk_size" : total_disk_size["disk_size__sum"],   # max = 1000G
-            "total_num_cpu" : total_num_cpu["num_cpu__sum"]
-        }
+            num_instances = OpenstackInstance.objects.filter(user_id=user_id).count() 
+            total_ram_size = OpenstackInstance.objects.filter(user_id=user_id).aggregate(Sum("ram_size"))
+            total_disk_size = OpenstackInstance.objects.filter(user_id=user_id).aggregate(Sum("disk_size"))
+            total_num_cpu = OpenstackInstance.objects.filter(user_id=user_id).aggregate(Sum("num_cpu"))
+            #위에 애들 다 dict 형식.
+            
+            dashboard_data = {
+                "num_instances" : num_instances,    # max = 10
+                "total_ram_size" : total_ram_size["ram_size__sum"], # max = 50G
+                "total_disk_size" : total_disk_size["disk_size__sum"],   # max = 1000G
+                "total_num_cpu" : total_num_cpu["num_cpu__sum"]
+            }
+
+        except OperationalError:
+            return JsonResponse({[]}, status=200)
 
         return JsonResponse(dashboard_data)
 
