@@ -138,6 +138,7 @@ class Openstack(APIView):
         serializer = OpenstackInstanceSerializer(data=instance_data)
     
         if serializer.is_valid():
+            print("여기서 안됨")
             serializer.save()
             print("saved")
             print(serializer.data)
@@ -153,6 +154,7 @@ class Openstack(APIView):
         user_id = oc.getUserID(token)
 
         try:
+            print
             user_instance_info = OpenstackInstance.objects.filter(user_id=user_id)
             for instance_info in user_instance_info:
                 instance_req = requests.get("http://" + openstack_hostIP + "/compute/v2.1/servers/" + instance_info.instance_id,
@@ -229,6 +231,7 @@ class DashBoard(APIView):
 
         except OperationalError:
             return JsonResponse({[]}, status=200)
+
         return JsonResponse(dashboard_data)
 
 class InstanceStart(APIView):
