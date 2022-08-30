@@ -242,7 +242,6 @@ class InstanceStart(APIView):
         start_instance_id = oc.getInstanceID(input_data)
         if start_instance_id == None :
             return JsonResponse({"message" : "인스턴스를 찾을 수 없습니다."}, status=404)
-
         server_start_payload = {
             "os-start" : None
         }
@@ -295,4 +294,4 @@ class InstanceConsole(APIView):
             headers={'X-Auth-Token': token},
             data=json.dumps(instance_console_payload))
 
-        return JsonResponse({"instance_url" : instance_console_req.json()["console"]["url"]}, status=200)#Response(instance_console_req.json()["console"]["url"])
+        return JsonResponse({"instance_url" : str(instance_console_req.json()["console"]["url"])}, status=200)#Response(instance_console_req.json()["console"]["url"])
