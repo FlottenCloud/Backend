@@ -15,7 +15,7 @@ from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from drf_yasg.utils       import swagger_auto_schema
-from drf_yasg             import openapi     
+from drf_yasg             import openapi
 from openstack.serializers import CreateOpenstack, InstanceIDSerializer, OpenstackInstanceSerializer
 from django.http import JsonResponse
 import time
@@ -156,6 +156,12 @@ class Openstack(APIView):
             print
             user_instance_info = OpenstackInstance.objects.filter(user_id=user_id)
             for instance_info in user_instance_info:
+                # while(True):
+                #     instance_req = requests.get("http://" + openstack_hostIP + "/compute/v2.1/servers/" + instance_info.instance_id,
+                #     headers = {'X-Auth-Token' : token})
+                #     instance_status = instance_req.json()["server"]["status"]
+                #     if instance_status == OpenstackInstance.objects.filter(instance_id=instance_info.instance_id).status:
+                #         break
                 instance_req = requests.get("http://" + openstack_hostIP + "/compute/v2.1/servers/" + instance_info.instance_id,
                     headers = {'X-Auth-Token' : token})
                 instance_status = instance_req.json()["server"]["status"]
@@ -292,5 +298,8 @@ class InstanceConsole(APIView):
             + "/action",
             headers={'X-Auth-Token': token},
             data=json.dumps(instance_console_payload))
+        print(str(instance_console_req.json()["console"]["url"]))
+        instance_url = str(instance_console_req.json()["console"]["url"])[0:7] + oc.hostIP + str(instance_console_req.json()["console"]["url"])[18:]
+        print(instance_url)
 
-        return JsonResponse({"instance_url" : str(instance_console_req.json()["console"]["url"])}, status=200)#Response(instance_console_req.json()["console"]["url"])
+        return JsonResponse({"instance_url" : instance_url}, status=200)#Response(instance_console_req.json()["console"]["url"])

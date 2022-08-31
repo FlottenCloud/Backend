@@ -82,6 +82,7 @@ class AccountView(View):
             password = input_data['password'],
             openstack_user_id = openstack_created_user_id,
             openstack_user_project_id = openstack_user_project_id
+            
         )
 
         return response
@@ -158,6 +159,6 @@ class SignView(View):
             return response
 
         except KeyError:
-            response = JsonResponse({'message': "ID와 비밀번호를 입력해주세요."}, status=400)
+            response = JsonResponse({'message': "Openstack 서버에 존재하지 않는 사용자입니다."}, status=400)
             response['Access-Control-Allow-Origin'] = '*'
             return response
