@@ -15,7 +15,7 @@ from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from drf_yasg.utils       import swagger_auto_schema
-from drf_yasg             import openapi     
+from drf_yasg             import openapi
 from openstack.serializers import CreateOpenstack, InstanceIDSerializer, OpenstackInstanceSerializer
 from django.http import JsonResponse
 import time
@@ -138,7 +138,6 @@ class Openstack(APIView):
         serializer = OpenstackInstanceSerializer(data=instance_data)
     
         if serializer.is_valid():
-            print("여기서 안됨")
             serializer.save()
             print("saved")
             print(serializer.data)
@@ -157,28 +156,23 @@ class Openstack(APIView):
             print
             user_instance_info = OpenstackInstance.objects.filter(user_id=user_id)
             for instance_info in user_instance_info:
+                # while(True):
+                #     instance_req = requests.get("http://" + openstack_hostIP + "/compute/v2.1/servers/" + instance_info.instance_id,
+                #     headers = {'X-Auth-Token' : token})
+                #     instance_status = instance_req.json()["server"]["status"]
+                #     if instance_status == OpenstackInstance.objects.filter(instance_id=instance_info.instance_id).status:
+                #         break
                 instance_req = requests.get("http://" + openstack_hostIP + "/compute/v2.1/servers/" + instance_info.instance_id,
                     headers = {'X-Auth-Token' : token})
                 instance_status = instance_req.json()["server"]["status"]
                 OpenstackInstance.objects.filter(instance_id=instance_info.instance_id).update(status=instance_status)
-                #print(OpenstackInstance.objects.filter(instance_id=instance_info.instance_id)[0].status)
 
-            # user_instance_data = []
             user_stack_data = list(OpenstackInstance.objects.filter(user_id=user_id).values())
-        
-            # for stack_data in user_stack_data : # 인스턴스 list 정보 출력 때 필요없는 값 삭제
-            #     del stack_data["user_id_id"]
-            #     del stack_data["stack_name"]
-            #     del stack_data["stack_id"]
-            #     del stack_data["instance_id"]
-            #     del stack_data["image_name"]
-            #     del stack_data["num_cpu"]
-            #     user_instance_data.append(stack_data)   #user_instance_data라는 이름이 더 걸맞는 것 같아 로직 추가해줌.
-            #                                             #굳이 이 로직 안거치고 바로 user_stack_data 출력해줘도 무방.
         except OperationalError:
             return JsonResponse({[]}, status=200)
 
         return JsonResponse({"instances" : user_stack_data}, status=200)
+
     #@swagger_auto_schema(tags=['openstack api'], manual_parameters=[openstack_user_token], request_body=CreateOpenstack, responses={200: 'Success'})    
     def put(self, request):
         pass
@@ -239,7 +233,7 @@ class InstanceStart(APIView):
     def post(self, request):
         input_data, token, _ = oc.getRequestParamsWithBody(request)
         
-        start_instance_id = oc.getInstanceID(input_data)
+        start_instance_id = oc.checkDataBaseInstanceID(input_data)
         if start_instance_id == None :
             return JsonResponse({"message" : "인스턴스를 찾을 수 없습니다."}, status=404)
         server_start_payload = {
@@ -259,7 +253,7 @@ class InstanceStop(APIView):
     def post(self, request):
         input_data, token, _ = oc.getRequestParamsWithBody(request)
 
-        stop_instance_id = oc.getInstanceID(input_data)
+        stop_instance_id = oc.checkDataBaseInstanceID(input_data)
         if stop_instance_id == None :
             return JsonResponse({"message" : "인스턴스를 찾을 수 없습니다."}, status=404)
 
@@ -280,7 +274,7 @@ class InstanceConsole(APIView):
     def post(self, request):
         input_data, token, _ = oc.getRequestParamsWithBody(request)
 
-        console_for_instance_id = oc.getInstanceID(input_data)
+        console_for_instance_id = oc.checkDataBaseInstanceID(input_data)
         if console_for_instance_id == None :
             return JsonResponse({"message" : "인스턴스를 찾을 수 없습니다."}, status=404)
         
@@ -293,5 +287,6 @@ class InstanceConsole(APIView):
             + "/action",
             headers={'X-Auth-Token': token},
             data=json.dumps(instance_console_payload))
+        instance_url = str(instance_console_req.json()["console"]["url"])[0:7] + oc.hostIP + str(instance_console_req.json()["console"]["url"])[18:]
 
-        return JsonResponse({"instance_url" : str(instance_console_req.json()["console"]["url"])}, status=200)#Response(instance_console_req.json()["console"]["url"])
+        return JsonResponse({"instance_url" : instance_url}, status=200)#Response(instance_console_req.json()["console"]["url"])
