@@ -106,3 +106,5 @@ def checkDataBaseInstanceID(input_data):  # DB에서 Instance의 ID를 가져 �
         return None # DB에 일치하는 instance_id가 없으면 None(NULL) 반환
 
     return instance_id
+
+    #test용 주석
