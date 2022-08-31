@@ -2,10 +2,7 @@ __pycache__
 db.sqlite3
 /static
 /media
-hoo_virtual
 .idea
 hoo_venv
 venv
 migrations
-#고준성
-#ignore test
