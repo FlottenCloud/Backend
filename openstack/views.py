@@ -16,7 +16,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from drf_yasg.utils       import swagger_auto_schema
 from drf_yasg             import openapi
-from openstack.serializers import CreateOpenstack, InstanceIDSerializer, OpenstackInstanceSerializer
+from openstack.serializers import CreateStackSerializer, InstanceIDSerializer, OpenstackInstanceSerializer
 from django.http import JsonResponse
 import time
 # Create your views here.
@@ -30,11 +30,11 @@ openstack_user_token = openapi.Parameter(
 
 class Openstack(APIView):
 
-    @swagger_auto_schema(tags=['openstack api'], manual_parameters=[openstack_user_token], request_body=CreateOpenstack, responses={200: 'Success'})
+    @swagger_auto_schema(tags=['openstack api'], manual_parameters=[openstack_user_token], request_body=CreateStackSerializer, responses={200: 'Success'})
     def post(self, request):
         input_data = json.loads(request.body)   # user_id, password, system_num(추후에 요구사항 폼 등으로 바뀌면 수정할 것)
         stack_template_root = "templates/"
-        token = request.headers["X-Auth-Token"]#oc.user_token(input_data)
+        token = request.headers["X-Auth-Token"]
         user_id = oc.getUserID(token)
         system_num = input_data["system_num"]
         openstack_tenant_id = account.models.Account_info.objects.get(user_id=user_id).openstack_user_project_id
@@ -66,8 +66,7 @@ class Openstack(APIView):
         print("스택 이름 정보: ", stack_name_req.json())
         stack_name = stack_name_req.json()["stacks"][0]["stack_name"]
 
-        time.sleep(3)
-        while(requests.get("http://" + openstack_hostIP + "/heat-api/v1/" + openstack_tenant_id + "/stacks/" + stack_name + "/"
+        while(requests.get("http://" + openstack_hostIP + "/heat-api/v1/" + openstack_tenant_id + "/stacks/" + stack_name + "/" # 스택으로 만든 인스턴스가 생성 완료될 때까지 기다림
             + stack_id + "/resources",
             headers = {'X-Auth-Token' : token}).json()["resources"][0]["resource_status"] != "CREATE_COMPLETE"):
             time.sleep(2)
@@ -78,7 +77,6 @@ class Openstack(APIView):
         print("스택으로 만들어진 인스턴스 정보: ", stack_instance_req.json())
         instance_id = stack_instance_req.json()["resources"][0]["physical_resource_id"]
         print("인스턴스 id: ", instance_id)
-        #스택을 통해서 인스턴스 생성되기까지 시간이 좀 걸리는 듯. 일단 무지성 while문으로 해결은 했음..
 
         time.sleep(1)
         #인스턴스 정보 get, 여기서 image id, flavor id 받아와서 다시 get 요청해서 세부 정보 받아와야 함
@@ -94,7 +92,6 @@ class Openstack(APIView):
         print("인스턴스 상태: ",instance_status)
         image_id = instance_info_req.json()["server"]["image"]["id"]
         flavor_id = instance_info_req.json()["server"]["flavor"]["id"]
-        #volume_id = instance_info_req.json()["server"]["os-extended-volumes:volumes_attached"][0]["id"]
 
         image_req = requests.get("http://" + openstack_hostIP + "/compute/v2.1/images/" + image_id,
             headers = {'X-Auth-Token' : token})
@@ -112,11 +109,6 @@ class Openstack(APIView):
         print("디스크 용량: ", instance_disk_size)
         instance_num_cpu = flavor_req.json()["flavor"]["vcpus"]
         print("CPU 개수: ", instance_num_cpu)
-
-        # volume_req = requests.get("http://" + openstack_hostIP + "/compute/v2.1/os-volumes/" + volume_id,
-        #     headers = {'X-Auth-Token' : token})
-        # instance_disk_size = float(volume_req.json()["volume"]["size"])
-        # print("디스크 크기: ", instance_disk_size)
 
         # db에 저장 할 인스턴스 정보
         instance_data = {
@@ -145,7 +137,7 @@ class Openstack(APIView):
             print("not saved")
             print(serializer.errors)
 
-        return JsonResponse({"message" : "가상머신 생성 완료"}, status=200)#Response(serializer.data)
+        return JsonResponse({"message" : "가상머신 생성 완료"}, status=201)
 
     @swagger_auto_schema(tags=['openstack api'], manual_parameters=[openstack_user_token], responses={200: 'Success'})
     def get(self, request):
@@ -179,24 +171,23 @@ class Openstack(APIView):
 
     @swagger_auto_schema(tags=['openstack api'], manual_parameters=[openstack_user_token], request_body=InstanceIDSerializer, responses={200: 'Success'})
     def delete(self, request):
-        input_data = json.loads(request.body)   # user_id, password, instance_name
-        token = request.headers["X-Auth-Token"]#oc.user_token(input_data)
+        input_data = json.loads(request.body)   # user_id, password, instance_id
+        token = request.headers["X-Auth-Token"]
         user_id = oc.getUserID(token)
 
-        del_stack_id = OpenstackInstance.objects.get(instance_id=input_data["instance_id"]).stack_id
-
-        stack_data = OpenstackInstance.objects.get(stack_id = del_stack_id)
+        stack_data = OpenstackInstance.objects.get(instance_id=input_data["instance_id"])
+        del_instance_name = stack_data.instance_name
         del_stack_name = stack_data.stack_name
-        #print(del_stack_id)
-        stack_data.delete()
+        del_stack_id = stack_data.stack_id
+        print("삭제한 가상머신 이름: " + del_instance_name + "\n삭제한 스택 이름: " + del_stack_name + "\n삭제한 스택 ID: " + del_stack_id)
+        stack_data.delete() # DB에서 해당 stack row 삭제
 
         del_openstack_tenant_id = account.models.Account_info.objects.get(user_id=user_id).openstack_user_project_id
         stack_del_req = requests.delete("http://" + openstack_hostIP + "/heat-api/v1/" + del_openstack_tenant_id + "/stacks/"
             + del_stack_name + "/" + del_stack_id,
             headers = {'X-Auth-Token' : token})
-        # print(stack_del_req.json())
         
-        return JsonResponse({"message" : "가상머신 삭제 완료"}, status=200)#Response(stack_del_req)
+        return JsonResponse({"message" : "가상머신 " + del_instance_name + " 삭제 완료"}, status=200)
 
 class DashBoard(APIView):
     @swagger_auto_schema(tags=['Instance api'], manual_parameters=[openstack_user_token], responses={200: 'Success'})
@@ -236,6 +227,9 @@ class InstanceStart(APIView):
         start_instance_id = oc.checkDataBaseInstanceID(input_data)
         if start_instance_id == None :
             return JsonResponse({"message" : "인스턴스를 찾을 수 없습니다."}, status=404)
+        elif OpenstackInstance.objects.filter(instance_id=start_instance_id).status == "ERROR" :
+            return JsonResponse({"message" : "인스턴스가 ERROR 상태입니다."}, status=202)
+
         server_start_payload = {
             "os-start" : None
         }
@@ -243,7 +237,7 @@ class InstanceStart(APIView):
             + "/action",
             headers = {'X-Auth-Token' : token},
             data = json.dumps(server_start_payload))
-        OpenstackInstance.objects.filter(instance_id=start_instance_id).update(status="ACTIVE")
+        #OpenstackInstance.objects.filter(instance_id=start_instance_id).update(status="ACTIVE")
         
         return JsonResponse({"message" : "가상머신 시작"}, status=200)#Response(instance_start_req)
 
@@ -264,7 +258,7 @@ class InstanceStop(APIView):
             + "/action",
             headers = {'X-Auth-Token' : token},
             data = json.dumps(server_stop_payload))
-        OpenstackInstance.objects.filter(instance_id=stop_instance_id).update(status="SHUTOFF")
+        #OpenstackInstance.objects.filter(instance_id=stop_instance_id).update(status="SHUTOFF")
         
         return JsonResponse({"message" : "가상머신 전원 끔"}, status=200)#Response(instance_start_req)
 
