@@ -1,5 +1,8 @@
 import json
 
+# 램, 디스크, 이미지, 네트워크 이름, 키페어 네임,
+
+
 def templateImageModify(template, user_stack_num, flavor):  # template 파일, 유저가 생성할 스택(인스턴스)의 번호(서수) -> 스택 번호 말고 이름 등을 받아올 수도 있음.
     with open(template, 'r') as f:
         template_data = json.load(f)
