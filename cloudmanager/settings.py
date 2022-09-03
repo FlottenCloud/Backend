@@ -10,6 +10,8 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/4.1/ref/settings/
 """
 
+import os
+
 from pathlib import Path
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -42,6 +44,7 @@ INSTALLED_APPS = [
     'rest_framework',
     'account',
     'openstack',
+    'fileBoard'
 ]
 
 MIDDLEWARE = [
@@ -134,6 +137,8 @@ REST_FRAMEWORK = {
     ),
     'DEFAULT_PARSER_CLASSES' : (
         'rest_framework.parsers.JSONParser',
+        'rest_framework.parsers.FormParser',
+        'rest_framework.parsers.MultiPartParser',
     )
 }
 
@@ -157,3 +162,6 @@ CORS_ALLOW_HEADERS = [
     'x-requested-with',
     'x-auth-token'
 ]
+
+MEDIA_URL = '/media/'
+MEDIA_ROOT = os.path.join(BASE_DIR, 'media')

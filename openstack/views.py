@@ -46,10 +46,10 @@ class Openstack(APIView):
         # num_user=int(input("사용자 수 입력: "))
 
         if(system_num==1):
-            with open(stack_template_root + 'main.json','r') as f:
+            with open(stack_template_root + 'ubuntu_2204.json','r') as f:   # 아직 템플릿 구현 안됨
                 json_template=json.load(f)
         elif(system_num==2):
-            with open(stack_template_root + 'centos.json','r') as f:    #일단 이거랑
+            with open(stack_template_root + 'cirros.json','r') as f:    #일단 이거랑
                 json_template=json.load(f)
         elif(system_num==3):
             with open(stack_template_root + 'fedora.json','r') as f:    #이걸로 생성 test
