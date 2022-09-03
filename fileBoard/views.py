@@ -10,13 +10,17 @@ from openstack.models import OpenstackInstance
 class InstanceImg(APIView):
     def post(self, request):
         # Saving the information in the database
+        print("a")
+
         document = InstanceImgBoard(
             instance_img_file = request.FILES["imgFile"]
         )
+        print("b)")
         document.save()
         documents = InstanceImgBoard.objects.all()
+        print(list(documents))
 
-        return JsonResponse({"현재까지 저장된 파일들: ", documents}, status=201)
+        return JsonResponse({"message" : "저장 완료"}, status=201)
 
     def get(self, request):
         path = request.GET['path']
