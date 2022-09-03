@@ -63,7 +63,6 @@ class AccountView(View):
         role_assignment_req = requests.put(
             "http://" + openstack_hostIP + "/identity/v3/projects/" + openstack_user_project_id + "/users/" + openstack_created_user_id + "/roles/" + openstack_admin_role_id,
             headers={'X-Auth-Token': admin_token})
-        print(role_assignment_req)
 
         #생성된 사용자를 admins 그룹에 추가
         # group_res = requests.put(
