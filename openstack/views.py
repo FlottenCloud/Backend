@@ -71,7 +71,7 @@ class Openstack(APIView):
             stack_resource_req = requests.get("http://" + openstack_hostIP + "/heat-api/v1/" + openstack_tenant_id + "/stacks/" + stack_name + "/" # 스택으로 만든 인스턴스가 생성 완료될 때까지 기다림
                 + stack_id + "/resources",
                 headers = {'X-Auth-Token' : token}).json()["resources"]
-            for resource in stack_resource_req:
+            for resource in stack_resource_req: # 스택 리스폰스에서 리소스들의 순서가 바뀌어 오는 경우 발견. 순회로 해결함.
                 if resource["resource_type"] == "OS::Nova::Server":
                     print("리소스 정보: ", resource)
                     resource_instance = resource
