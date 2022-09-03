@@ -66,16 +66,21 @@ class Openstack(APIView):
         print("스택 이름 정보: ", stack_name_req.json())
         stack_name = stack_name_req.json()["stacks"][0]["stack_name"]
 
-        while(requests.get("http://" + openstack_hostIP + "/heat-api/v1/" + openstack_tenant_id + "/stacks/" + stack_name + "/" # 스택으로 만든 인스턴스가 생성 완료될 때까지 기다림
-            + stack_id + "/resources",
-            headers = {'X-Auth-Token' : token}).json()["resources"][0]["resource_status"] != "CREATE_COMPLETE"):
+        time.sleep(3)
+        while(True):
+            stack_resource_req = requests.get("http://" + openstack_hostIP + "/heat-api/v1/" + openstack_tenant_id + "/stacks/" + stack_name + "/" # 스택으로 만든 인스턴스가 생성 완료될 때까지 기다림
+                + stack_id + "/resources",
+                headers = {'X-Auth-Token' : token}).json()["resources"]
+            for resource in stack_resource_req:
+                if resource["resource_type"] == "OS::Nova::Server":
+                    print("리소스 정보: ", resource)
+                    resource_instance = resource
+                    break
+            if resource_instance["resource_status"] == "CREATE_COMPLETE":
+                instance_id = resource_instance["physical_resource_id"]
+                break
             time.sleep(2)
 
-        stack_instance_req = requests.get("http://" + openstack_hostIP + "/heat-api/v1/" + openstack_tenant_id + "/stacks/" + stack_name + "/"
-            + stack_id + "/resources",
-            headers = {'X-Auth-Token' : token})
-        print("스택으로 만들어진 인스턴스 정보: ", stack_instance_req.json())
-        instance_id = stack_instance_req.json()["resources"][0]["physical_resource_id"]
         print("인스턴스 id: ", instance_id)
 
         time.sleep(1)
