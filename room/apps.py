@@ -1,9 +1,9 @@
 from django.apps import AppConfig
-
+from . import updater
 
 class RoomConfig(AppConfig):
     name = 'room'
 
     def ready(self):
-        from . import updater
         updater.start()
+        updater.start_2()
