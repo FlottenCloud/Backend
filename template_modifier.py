@@ -3,7 +3,8 @@ import requests
 import openstack_controller as oc
 # 램, 디스크, 이미지, 네트워크 이름, 키페어 네임,
 def getUserRequirement(param_needs, param_os, param_package, param_num_people, param_data_size, param_instance_name, param_backup_time, request):
-    token = request.headers["X-Auth-Token"]
+    user_token = request.headers["X-Auth-Token"]
+    admin_token = oc.admin_token()
     user_needs = param_needs
     user_os = param_os
     user_package = param_package
@@ -11,17 +12,15 @@ def getUserRequirement(param_needs, param_os, param_package, param_num_people, p
     flavor_payload = {
         "flavor": {
             "name": "test_flavor",
-            "ram": 1024,
+            "ram": 4096,
             "vcpus": 2,
             "disk": disk_size,
-            "id": "10",
-            "rxtx_factor": 2.0,
             "description": "test description"
         }
     }
 
     flavor_make_req = requests.post("http://" + oc.hostIP + "/compute/v2.1/flavors/",
-            headers = {'X-Auth-Token' : token},
+            headers = {'X-Auth-Token' : admin_token},
             data = json.dumps(flavor_payload))
     flavor = flavor_make_req.json()["flavor"]["name"]
     
@@ -65,5 +64,5 @@ def templateFlavorModify(template, user_stack_num):
 #         template_data = json.load(f)
 #     print(json.dumps(template_data))
 
-templateImageModify("templates/cirros.json", "user1", "instance_1", "m1.nano", ["https", "apache2"], 2)
+#templateImageModify("templates/cirros.json", "user1", "instance_1", "m1.nano", ["https", "apache2"], 2)
 #templateFlavorModify("templates/cirros.json", 3)
