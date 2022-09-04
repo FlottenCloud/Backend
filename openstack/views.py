@@ -173,6 +173,11 @@ class Openstack(APIView):
     #@swagger_auto_schema(tags=['openstack api'], manual_parameters=[openstack_user_token], request_body=CreateOpenstack, responses={200: 'Success'})    
     def put(self, request):
         pass
+    
+    #@swagger_auto_schema(tags=['openstack api'], manual_parameters=[openstack_user_token], request_body=CreateOpenstack, responses={200: 'Success'})
+    def patch(self, request):
+
+        pass
 
     @swagger_auto_schema(tags=['openstack api'], manual_parameters=[openstack_user_token], request_body=InstanceIDSerializer, responses={200: 'Success'})
     def delete(self, request):
