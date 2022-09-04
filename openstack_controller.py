@@ -2,6 +2,12 @@ import requests
 import json
 from django.http import JsonResponse
 
+import os   #여기서부터 장고와 환경을 맞추기 위한 import
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", "cloudmanager.settings")    # INSTALLED_APPS에 등록된 앱 내의 함수가 아니기 때문에, INSTALLED APPS에 있는 모듈을 임포트 할 때 필요
+
+import django
+django.setup()
+
 from openstack.models import OpenstackInstance
 
 hostIP = "119.198.160.6"    #김영후 집 데스크탑 공인 ip

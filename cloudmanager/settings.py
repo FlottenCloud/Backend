@@ -44,7 +44,7 @@ INSTALLED_APPS = [
     'rest_framework',
     'account',
     'openstack',
-    'fileBoard'
+    'fileBoard',
 ]
 
 MIDDLEWARE = [
