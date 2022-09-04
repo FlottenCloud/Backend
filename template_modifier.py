@@ -2,16 +2,17 @@ import json
 import requests
 import openstack_controller as oc
 # 램, 디스크, 이미지, 네트워크 이름, 키페어 네임,
-def getUserRequirement(param_needs, param_os, param_package, param_num_people, param_data_size, param_instance_name, param_backup_time, request):
-    user_token = request.headers["X-Auth-Token"]
+def getUserRequirement(input_data, user_id, instance_num, token):
+    user_token = token
     admin_token = oc.admin_token()
-    user_needs = param_needs
-    user_os = param_os
-    user_package = param_package
-    disk_size = param_num_people * param_data_size
+    #input_data = json.loads(request.body)
+    #user_needs = input_data["needs"]#param_needs
+    user_os = input_data["os"]#param_os
+    user_package = input_data["package"]#param_package
+    disk_size = input_data["num_people"] * input_data["data_size"]#param_num_people * param_data_size
     flavor_payload = {
         "flavor": {
-            "name": "test_flavor",
+            "name": "flavor_" + user_id + "_" + str(instance_num),
             "ram": 4096,
             "vcpus": 2,
             "disk": disk_size,
@@ -19,10 +20,10 @@ def getUserRequirement(param_needs, param_os, param_package, param_num_people, p
         }
     }
 
-    flavor_make_req = requests.post("http://" + oc.hostIP + "/compute/v2.1/flavors/",
-            headers = {'X-Auth-Token' : admin_token},
-            data = json.dumps(flavor_payload))
-    flavor = flavor_make_req.json()["flavor"]["name"]
+    # flavor_make_req = requests.post("http://" + oc.hostIP + "/compute/v2.1/flavors/",
+    #         headers = {'X-Auth-Token' : admin_token},
+    #         data = json.dumps(flavor_payload))
+    flavor = "ds512M"#flavor_make_req.json()["flavor"]["name"]
     
     # if disk_size < 20:
     #     flavor = "m1.small"
@@ -31,15 +32,16 @@ def getUserRequirement(param_needs, param_os, param_package, param_num_people, p
     # else :
     #     flavor = "m1.large"
 
-    user_instance_name = param_instance_name
-    backup_time = param_backup_time
+    user_instance_name = input_data["instance_name"]#param_instance_name
+    backup_time = input_data["backup_time"]#param_backup_time
 
-    return user_needs, user_os, user_package, flavor, user_instance_name, backup_time
+    return user_os, user_package, flavor, user_instance_name, backup_time #user_needs, 
 
 
-def templateImageModify(template, user_id, user_instance_name, flavor, user_package, instance_num):
-    with open(template, 'r') as f:
-        template_data = json.load(f)
+def templateModify(template, user_id, user_instance_name, flavor, user_package, instance_num):
+    # with open(template, 'r') as f:
+    #     template_data = json.load(f)
+    template_data = template
     template_data["stack_name"] = str(user_instance_name)   # 스택 name 설정
     template_data["template"]["resources"]["mybox"]["properties"]["name"] = str(user_instance_name) # 인스턴스 name 설정
     template_data["template"]["resources"]["mybox"]["properties"]["flavor"] = flavor    # flavor 설정
@@ -50,14 +52,7 @@ def templateImageModify(template, user_id, user_instance_name, flavor, user_pack
     template_data["template"]["resources"]["mysecurity_group"]["properties"]["name"] = user_id + "-security_group" + str(instance_num) # 보안그룹 name 설정
     print(json.dumps(template_data))
 
-    # return(template_data)
-
-def templateFlavorModify(template, user_stack_num):
-    with open(template, 'r') as f:
-        template_data = json.load(f)
-    
-    template_data["stack_name"] = template_data["stack_name"] + str(user_stack_num)
-    print(json.dumps(template_data))
+    return(json.dumps(template_data))
 
 # def templateImageModify(template):
 #     with open(template, 'r') as f:
