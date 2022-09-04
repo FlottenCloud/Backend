@@ -22,7 +22,7 @@ from django.http import JsonResponse
 import time
 # Create your views here.
 openstack_hostIP = oc.hostIP
-openstack_user_token = openapi.Parameter(
+openstack_user_token = openapi.Parameter(   # for django swagger
         "X-Auth-Token",
         openapi.IN_HEADER,
         description = "access_token",
@@ -133,7 +133,8 @@ class Openstack(APIView):
             "flavor_name" : instance_flavor_name,
             "ram_size" : instance_ram_size,
             "disk_size" : instance_disk_size,
-            "num_cpu" : instance_num_cpu
+            "num_cpu" : instance_num_cpu,
+            "backup_time" : backup_time
         }
 
         #serializing을 통한 인스턴스 정보 db 저장
