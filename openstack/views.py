@@ -1,6 +1,5 @@
 from email import header
-import os
-from sqlite3 import OperationalError   #여기서 부터
+import os      #여기서 부터
 import sys
 sys.path.append(os.path.dirname(os.path.abspath(os.path.dirname(__file__))))    #여기까지는 상위 디렉토리 모듈 import 하기 위한 코드
 
@@ -8,6 +7,7 @@ import openstack_controller as oc    #백엔드 루트 디렉토리에 openstack
 import template_modifier as tm
 import json
 import requests
+from sqlite3 import OperationalError
 from .models import OpenstackInstance
 import account.models
 from django.db.models import Sum
@@ -39,7 +39,9 @@ class Openstack(APIView):
         user_id = oc.getUserID(token)
         instance_num = OpenstackInstance.objects.filter(user_id=user_id).count() + 1
         # system_num = input_data["system_num"]
-        user_os, user_package, flavor, user_instance_name, _ = tm.getUserRequirement(input_data, user_id, instance_num, token)
+        user_os, user_package, flavor, user_instance_name, backup_time = tm.getUserRequirement(input_data, user_id, instance_num, token)
+        if backup_time != 6 or 12 or 24:
+            return JsonResponse({"message" : "백업 주기는 6시간, 12시간, 24시간 중에서만 선택할 수 있습니다."})
         
 
         openstack_tenant_id = account.models.Account_info.objects.get(user_id=user_id).openstack_user_project_id
