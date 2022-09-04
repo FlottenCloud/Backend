@@ -150,7 +150,7 @@ class Openstack(APIView):
         user_id = oc.getUserID(token)
 
         try:
-            print
+            #print
             user_instance_info = OpenstackInstance.objects.filter(user_id=user_id)
             for instance_info in user_instance_info:
                 # while(True):

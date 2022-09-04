@@ -1,13 +1,20 @@
+import os   #여기서부터 장고와 환경을 맞추기 위한 import
+import django
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", "cloudmanager.settings")    # INSTALLED_APPS에 등록된 앱 내의 함수가 아니기 때문에, INSTALLED APPS에 있는 모듈을 임포트 할 때 필요
+
+
+django.setup()
+
 import requests
 import json
 from django.http import JsonResponse
 
 from openstack.models import OpenstackInstance
 
-hostIP = "119.198.160.6"    #김영후 집 데스크탑 공인 ip
-admin_project_id = "701cf15572054817928f095a71be1289" #김영후 데탑에 깔린 오픈스택 서버의 id들
-admins_group_id = "912a9d39fab54b43b889aa9d203d2af5"
-admin_role_id = "db5dba97c7f64874a278e31e030a7b0e"
+hostIP = "192.168.56.135"    #김영후 집 데스크탑 공인 ip
+admin_project_id = "d19996ca7b054308bb26a469eae58d92" #김영후 데탑에 깔린 오픈스택 서버의 id들
+admins_group_id = "0153b62c0e194a88b4cccaa7dcb50ff8"
+admin_role_id = "fe20f13ea1ac4ee6b2f8883eb5b8b150"
 
 def admin_token():  # admin user의 token을 발급받는 함수
     token_payload = {   # admin user token 발급 Body
@@ -65,18 +72,21 @@ def user_token(user_data):  # user의 토큰을 발급받는 함수
                                 data=json.dumps(user_token_payload))
     
     # 발급받은 token 출력
+    print(auth_req.json())
     user_token = auth_req.headers["X-Subject-Token"]
     print("openstack user token : ", user_token)  #디버깅 용, 나중에 지우기
 
     return user_token
 
 def getUserInfoByToken(user_token): # admin token과 웹으로부터 request header로 받은 user token을 통해 유저의 정보를 반환받는 함수
+    #print("Before admin token")
     admin_token_value = admin_token()   # admin token 발급
-    
+    #print("getUserInfoByToken Start")
     # Openstack keystone API를 통한 token 발급
     auth_req = requests.get("http://" + hostIP + "/identity/v3/auth/tokens",
                                 headers={'X-Auth-Token': admin_token_value,
                                 "X-Subject-Token" : user_token}).json()
+    print(auth_req)
     return auth_req
 
 def getUserID(user_token):  # admin token과 user token을 통해 반환받은 유저의 정보 중 user_id를 추출해내는 함수
