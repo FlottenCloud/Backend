@@ -44,8 +44,14 @@ INSTALLED_APPS = [
     'rest_framework',
     'account',
     'openstack',
-    'fileBoard'
+    'fileBoard',
+    'django_apscheduler',
+    'room',
 ]
+
+APSCHEDULER_DATETIME_FORMAT = "N j, Y, f:s a"  # Default
+
+SCHEDULER_DEFAULT = True
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
