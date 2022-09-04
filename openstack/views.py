@@ -5,6 +5,7 @@ import sys
 sys.path.append(os.path.dirname(os.path.abspath(os.path.dirname(__file__))))    #여기까지는 상위 디렉토리 모듈 import 하기 위한 코드
 
 import openstack_controller as oc    #백엔드 루트 디렉토리에 openstack.py 생성했고, 그 안에 공통으로 사용될 함수, 변수들 넣을 것임.
+import template_modifier as tm
 import json
 import requests
 from .models import OpenstackInstance
@@ -36,29 +37,31 @@ class Openstack(APIView):
         stack_template_root = "templates/"
         token = request.headers["X-Auth-Token"]
         user_id = oc.getUserID(token)
-        system_num = input_data["system_num"]
+        instance_num = OpenstackInstance.objects.filter(user_id=user_id).count() + 1
+        # system_num = input_data["system_num"]
+        user_os, user_package, flavor, user_instance_name, _ = tm.getUserRequirement(input_data, user_id, instance_num, token)
+        
+
         openstack_tenant_id = account.models.Account_info.objects.get(user_id=user_id).openstack_user_project_id
         print("유저 프로젝트 id: ", openstack_tenant_id)
 
-        # stack_name= input("stack 이름 입력 : ")
-        # key_name= input("key 이름 입력 : ")
-        # server_name=1 input("server 이름 입력 : ") 
-        # num_user=int(input("사용자 수 입력: "))
-
-        if(system_num==1):
+        if(user_os == "ubuntu"):
             with open(stack_template_root + 'ubuntu_2204.json','r') as f:   # 아직 템플릿 구현 안됨
-                json_template=json.load(f)
-        elif(system_num==2):
+                json_template_skeleton = json.load(f)
+                json_template = tm.templateModify(json_template_skeleton, user_id, user_instance_name, flavor, user_package, instance_num)
+        elif(user_os == "cirros"):
             with open(stack_template_root + 'cirros.json','r') as f:    #일단 이거랑
-                json_template=json.load(f)
-        elif(system_num==3):
+                json_template_skeleton = json.load(f)
+                json_template = tm.templateModify(json_template_skeleton, user_id, user_instance_name, flavor, user_package, instance_num)
+        elif(user_os == "fedora"):
             with open(stack_template_root + 'fedora.json','r') as f:    #이걸로 생성 test
-                json_template=json.load(f)
+                json_template_skeleton = json.load(f)
+                json_template = tm.templateModify(json_template_skeleton, user_id, user_instance_name, flavor, user_package, instance_num)
         
         #address heat-api v1 프로젝트 id stacks
         stack_req = requests.post("http://" + openstack_hostIP + "/heat-api/v1/" + openstack_tenant_id + "/stacks",
             headers = {'X-Auth-Token' : token},
-            data = json.dumps(json_template))
+            data = json_template)
         print("stack생성", stack_req.json())
         stack_id = stack_req.json()["stack"]["id"]
         stack_name_req = requests.get("http://" + openstack_hostIP + "/heat-api/v1/" + openstack_tenant_id + "/stacks?id=" + stack_id,
@@ -91,7 +94,7 @@ class Openstack(APIView):
 
         instance_name = instance_info_req.json()["server"]["name"]
         print("인스턴스 이름: ", instance_name)
-        instance_ip_address = instance_info_req.json()["server"]["addresses"]["management-net"][0]["addr"]
+        instance_ip_address = instance_info_req.json()["server"]["addresses"][user_id + "-net" + str(instance_num)][0]["addr"]
         print("인스턴스 ip: ",instance_ip_address)
         instance_status =  instance_info_req.json()["server"]["status"]
         print("인스턴스 상태: ",instance_status)
