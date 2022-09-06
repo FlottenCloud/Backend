@@ -1,9 +1,11 @@
 import json
+from re import S
 import time
 from sqlite3 import OperationalError
 import requests
 from apscheduler.schedulers.background import BackgroundScheduler
 from openstack.models import OpenstackBackupImage, OpenstackInstance
+from openstack.serializers import OpenstackBackupImageSerializer
 
 
 def backup6():
@@ -22,17 +24,17 @@ def backup6():
 
         for instance in backup_instance_list:
             print("인스턴스 오브젝트: ", instance)
-            instance_id = instance.instance_id
-            print("인스턴스 id: ", instance_id)
+            backup_instance_id = instance.instance_id
+            print("인스턴스 id: ", backup_instance_id)
             backup_payload = {
                 "createBackup": {
-                    "name": "Backup " + instance_id,
+                    "name": "Backup " + backup_instance_id,
                     "backup_type": "daily",
                     "rotation": 1
                 }
             }
             backup_req = requests.post("http://" + openstack_hostIP + "/compute/v2.1/servers/" +
-                instance_id + "/action",
+                backup_instance_id + "/action",
                 headers={"X-Auth-Token": token},    # admin토큰임 ㅋㅋ
                 data=json.dumps(backup_payload))
 
@@ -41,11 +43,21 @@ def backup6():
             instance_image_ID = instance_image_URL.split("/")[6]
             print("image_ID : " + instance_image_ID)
 
-            OpenstackBackupImage.objects.create(
-                instance_id = instance_id,
-                image_id = instance_image_ID,
-                image_url = instance_image_URL
-            )
+            backup_image_data = {
+                "instance_id" : backup_instance_id,
+                "image_id" : instance_image_ID,
+                "image_url" : instance_image_URL
+            }
+
+            serializer = OpenstackBackupImageSerializer(data=backup_image_data)
+    
+            if serializer.is_valid():
+                serializer.save()
+                print("saved")
+                print(serializer.data)
+            else:
+                print("not saved")
+                print(serializer.errors)
 
             while(True):
                 image_status_req = requests.get("http://" + openstack_hostIP + "/image/v2/images/" + instance_image_ID,
@@ -58,7 +70,7 @@ def backup6():
 
             image_download_req = requests.get("http://" + openstack_hostIP + "/image/v2/images/" + instance_image_ID + "/file",
                 headers = {"X-Auth-Token" : token})
-            file = open("C:/Users/YOUNGHOO KIM/Desktop/PNU/Graduation/codes/cloudmanager/back_imgs/" + instance_id + ".qcow2", "wb")
+            file = open("C:/Users/YOUNGHOO KIM/Desktop/PNU/Graduation/codes/cloudmanager/back_imgs/" + backup_instance_id + ".qcow2", "wb")
             file.write(image_download_req.content)
             file.close()
 
@@ -84,17 +96,17 @@ def backup12():
 
         for instance in backup_instance_list:
             print("인스턴스 오브젝트: ", instance)
-            instance_id = instance.instance_id
-            print("인스턴스 id: ", instance_id)
+            backup_instance_id = instance.instance_id
+            print("인스턴스 id: ", backup_instance_id)
             backup_payload = {
                 "createBackup": {
-                    "name": "Backup " + instance_id,
+                    "name": "Backup " + backup_instance_id,
                     "backup_type": "daily",
                     "rotation": 1
                 }
             }
             backup_req = requests.post("http://" + openstack_hostIP + "/compute/v2.1/servers/" +
-                instance_id + "/action",
+                backup_instance_id + "/action",
                 headers={"X-Auth-Token": token},    # admin토큰임 ㅋㅋ
                 data=json.dumps(backup_payload))
 
@@ -103,11 +115,22 @@ def backup12():
             instance_image_URL = instance_image_ID.split("/")[6]
             print("image_ID : " + instance_image_URL)
 
-            OpenstackBackupImage.objects.create(
-                instance_id = instance_id,
-                image_id = instance_image_ID,
-                image_url = instance_image_URL
-            )
+
+            backup_image_data = {
+                "instance_id" : backup_instance_id,
+                "image_id" : instance_image_ID,
+                "image_url" : instance_image_URL
+            }
+
+            serializer = OpenstackBackupImageSerializer(data=backup_image_data)
+    
+            if serializer.is_valid():
+                serializer.save()
+                print("saved")
+                print(serializer.data)
+            else:
+                print("not saved")
+                print(serializer.errors)
 
             while(True):
                 image_status_req = requests.get("http://" + openstack_hostIP + "/image/v2/images/" + instance_image_URL,
@@ -120,7 +143,7 @@ def backup12():
 
             image_download_req = requests.get("http://" + openstack_hostIP + "/image/v2/images/" + instance_image_URL + "/file",
                 headers = {"X-Auth-Token" : token})
-            file = open("C:/Users/YOUNGHOO KIM/Desktop/PNU/Graduation/codes/cloudmanager/back_imgs/" + instance_id + ".qcow2", "wb")
+            file = open("C:/Users/YOUNGHOO KIM/Desktop/PNU/Graduation/codes/cloudmanager/back_imgs/" + backup_instance_id + ".qcow2", "wb")
             file.write(image_download_req.content)
             file.close()
 
