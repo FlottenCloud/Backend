@@ -6,7 +6,7 @@ import requests
 import json
 from django.http import JsonResponse
 
-from openstack.models import OpenstackInstance
+# from openstack.models import OpenstackInstance
 
 hostIP = "119.198.160.6"    #김영후 집 데스크탑 공인 ip
 admin_project_id = "701cf15572054817928f095a71be1289" #김영후 데탑에 깔린 오픈스택 서버의 id들
@@ -101,12 +101,12 @@ def getRequestParams(request):  # 웹으로부터 request body가 없는 요청�
 
     return token, user_id   # request의 header로 받은 user token, token을 통해 정보를 얻어온 user ID를 반환
 
-def checkDataBaseInstanceID(input_data):  # DB에서 Instance의 ID를 가져 오는 함수(request를 통해 받은 instance_id가 DB에 존재하는지 유효성 검증을 위해 존재)
-    instance_id = input_data["instance_id"]
+# def checkDataBaseInstanceID(input_data):  # DB에서 Instance의 ID를 가져 오는 함수(request를 통해 받은 instance_id가 DB에 존재하는지 유효성 검증을 위해 존재)
+#     instance_id = input_data["instance_id"]
 
-    try:
-        instance_id = OpenstackInstance.objects.get(instance_id=instance_id).instance_id    # DB에 request로 받은 instance_id와 일치하는 instance_id가 있으면 instance_id 반환
-    except :
-        return None # DB에 일치하는 instance_id가 없으면 None(NULL) 반환
+#     try:
+#         instance_id = OpenstackInstance.objects.get(instance_id=instance_id).instance_id    # DB에 request로 받은 instance_id와 일치하는 instance_id가 있으면 instance_id 반환
+#     except :
+#         return None # DB에 일치하는 instance_id가 없으면 None(NULL) 반환
 
-    return instance_id
+#     return instance_id

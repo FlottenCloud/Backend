@@ -40,15 +40,17 @@ class Openstack(APIView):
         instance_num = OpenstackInstance.objects.filter(user_id=user_id).count() + 1
         # system_num = input_data["system_num"]
         user_os, user_package, flavor, user_instance_name, backup_time = tm.getUserRequirement(input_data, user_id, instance_num, token)
+        if flavor == "EXCEEDED":
+            return JsonResponse({"message" : "인원 수 X 인원 당 예상 용량 값은 20G를 넘지 못합니다."}, status=405)
         if backup_time != 6 or 12 or 24:
-            return JsonResponse({"message" : "백업 주기는 6시간, 12시간, 24시간 중에서만 선택할 수 있습니다."})
+            return JsonResponse({"message" : "백업 주기는 6시간, 12시간, 24시간 중에서만 선택할 수 있습니다."}, status=405)
         
 
         openstack_tenant_id = account.models.Account_info.objects.get(user_id=user_id).openstack_user_project_id
         print("유저 프로젝트 id: ", openstack_tenant_id)
 
         if(user_os == "ubuntu"):
-            with open(stack_template_root + 'ubuntu_2204.json','r') as f:   # 아직 템플릿 구현 안됨
+            with open(stack_template_root + 'ubuntu_1804.json','r') as f:   # 아직 템플릿 구현 안됨
                 json_template_skeleton = json.load(f)
                 json_template = tm.templateModify(json_template_skeleton, user_id, user_instance_name, flavor, user_package, instance_num)
         elif(user_os == "cirros"):
@@ -234,12 +236,23 @@ class DashBoard(APIView):
 
         return JsonResponse(dashboard_data)
 
-class InstanceStart(APIView):
+
+class Instance(APIView):
+    def checkDataBaseInstanceID(self, input_data):  # DB에서 Instance의 ID를 가져 오는 함수(request를 통해 받은 instance_id가 DB에 존재하는지 유효성 검증을 위해 존재)
+        instance_id = input_data["instance_id"]
+        try:
+            instance_id = OpenstackInstance.objects.get(instance_id=instance_id).instance_id    # DB에 request로 받은 instance_id와 일치하는 instance_id가 있으면 instance_id 반환
+        except :
+            return None # DB에 일치하는 instance_id가 없으면 None(NULL) 반환
+
+        return instance_id
+
+class InstanceStart(Instance, APIView):
     @swagger_auto_schema(tags=['Instance api'], manual_parameters=[openstack_user_token], request_body=InstanceIDSerializer, responses={200: 'Success'})
     def post(self, request):
         input_data, token, _ = oc.getRequestParamsWithBody(request)
         
-        start_instance_id = oc.checkDataBaseInstanceID(input_data)
+        start_instance_id = super().checkDataBaseInstanceID(input_data)
         if start_instance_id == None :
             return JsonResponse({"message" : "인스턴스를 찾을 수 없습니다."}, status=404)
         elif OpenstackInstance.objects.filter(instance_id=start_instance_id).status == "ERROR" :
@@ -257,12 +270,12 @@ class InstanceStart(APIView):
         return JsonResponse({"message" : "가상머신 시작"}, status=200)#Response(instance_start_req)
 
 
-class InstanceStop(APIView):
+class InstanceStop(Instance, APIView):
     @swagger_auto_schema(tags=['Instance api'], manual_parameters=[openstack_user_token], request_body=InstanceIDSerializer, responses={200: 'Success'})
     def post(self, request):
         input_data, token, _ = oc.getRequestParamsWithBody(request)
 
-        stop_instance_id = oc.checkDataBaseInstanceID(input_data)
+        stop_instance_id = super().checkDataBaseInstanceID(input_data)
         if stop_instance_id == None :
             return JsonResponse({"message" : "인스턴스를 찾을 수 없습니다."}, status=404)
 
@@ -278,12 +291,12 @@ class InstanceStop(APIView):
         return JsonResponse({"message" : "가상머신 전원 끔"}, status=200)#Response(instance_start_req)
 
 
-class InstanceConsole(APIView):
+class InstanceConsole(Instance, APIView):
     @swagger_auto_schema(tags=['Instance api'], manual_parameters=[openstack_user_token], request_body=InstanceIDSerializer, responses={200: 'Success'})
     def post(self, request):
         input_data, token, _ = oc.getRequestParamsWithBody(request)
 
-        console_for_instance_id = oc.checkDataBaseInstanceID(input_data)
+        console_for_instance_id = super().checkDataBaseInstanceID(input_data)
         if console_for_instance_id == None :
             return JsonResponse({"message" : "인스턴스를 찾을 수 없습니다."}, status=404)
         

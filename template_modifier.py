@@ -9,21 +9,16 @@ def getUserRequirement(input_data, user_id, instance_num, token):
     #user_needs = input_data["needs"]#param_needs
     user_os = input_data["os"]#param_os
     user_package = input_data["package"]#param_package
-    disk_size = input_data["num_people"] * input_data["data_size"]#param_num_people * param_data_size
-    flavor_payload = {
-        "flavor": {
-            "name": "flavor_" + user_id + "_" + str(instance_num),
-            "ram": 4096,
-            "vcpus": 2,
-            "disk": disk_size,
-            "description": "test description"
-        }
-    }
-
-    # flavor_make_req = requests.post("http://" + oc.hostIP + "/compute/v2.1/flavors/",
-    #         headers = {'X-Auth-Token' : admin_token},
-    #         data = json.dumps(flavor_payload))
-    flavor = "ds512M"#flavor_make_req.json()["flavor"]["name"]
+    disk_size = round(input_data["num_people"] * input_data["data_size"])#param_num_people * param_data_size
+    
+    if disk_size < 5:
+        flavor = "ds512M"#flavor_make_req.json()["flavor"]["name"]
+    elif 5 <= disk_size <= 10:
+        flavor = "ds2G"
+    # elif 10 <= disk_size <= 20:
+    #     flavor = "ds4G"
+    elif 10 < disk_size :
+        flavor = "EXCEEDED"
     
     # if disk_size < 20:
     #     flavor = "m1.small"

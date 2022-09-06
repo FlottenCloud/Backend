@@ -1,0 +1,40 @@
+{
+	"stack_name" : "test",
+	"template" : {
+		"heat_template_version": "2018-08-31T00:00:00.000Z",
+		"resources": {
+			"mybox": {
+				"type": "OS::Nova::Server",
+				"properties": {
+					"name": "VM_of_Orchestration_test2",
+					"flavor": "d1",
+					"networks": [
+						{
+							"network": "36c81b78-8f43-4b31-bf8b-af3fb9f21b95"
+						}
+					],
+					"block_device_mapping_v2": [
+						{
+							"volume_id": "d20f2b61-7f6d-4395-8fb1-cb5d029086a1",
+							"device_name": "vda"
+						}
+					],
+					"user_data": {
+						"get_resource": "myconfig"
+					},
+					"user_data_format": "RAW"
+				}
+			},
+			"myconfig": {
+				"type": "OS::Heat::CloudConfig",
+				"properties": {
+					"cloud_config": {
+						"packages": [
+							"vim pwgen apache2"
+						]
+					}
+				}
+			}
+		}
+	}
+}
