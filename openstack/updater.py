@@ -64,7 +64,7 @@ def backup(cycle):
             backup_image_data = {
                 "instance_id" : backup_instance_id,
                 "image_id" : instance_image_ID,
-                "image_url" : instance_image_ID
+                "image_url" : instance_image_URL
             }
 
             print(backup_image_data)
@@ -80,15 +80,10 @@ def backup(cycle):
                     print(serializer.errors)
 
             else:   # 해당 이미지가 DB에 저장돼있으면 update()
-                serializer = OpenstackBackupImageSerializer(data=backup_image_data)
-                OpenstackBackupImage.objects.get(instance_id=backup_instance_id).delete()   # 시리얼라이저 업데이트 구현이 아직 안돼서 이렇게 구현
-                if serializer.is_valid():
-                    serializer.save()
-                    print("updated image info")
-                    print(serializer.data)
-                else:
-                    print("not updated")
-                    print(serializer.errors)
+                backup_img_to_update = OpenstackBackupImage.objects.filter(instance_id=backup_instance_id)
+                backup_img_to_update.update(image_id=instance_image_ID)
+                backup_img_to_update.update(image_url=instance_image_URL)
+                print("updated")
 
             return "image file download response is ", backup_req
 
@@ -106,6 +101,7 @@ def backup12():
 
 def deleter():
     OpenstackBackupImage.objects.all().delete()
+    print("all-deleted")
 
 def start():
     scheduler = BackgroundScheduler()
