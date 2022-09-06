@@ -23,7 +23,7 @@ class OpenstackInstanceSerializer(serializers.ModelSerializer):
         instance.ram_size = validated_data.get('ram_size', instance.ram_size)
         instance.disk_size = validated_data.get('disk_size', instance.disk_size)
         instance.num_cpu = validated_data.get('num_cpu', instance.num_cpu)
-        instance.backup_time = validated_data.get('num_cpu', instance.backup_time)
+        instance.backup_time = validated_data.get('backup_time', instance.backup_time)
         instance.save()
         
         return instance

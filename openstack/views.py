@@ -41,8 +41,8 @@ class Openstack(APIView):
         # system_num = input_data["system_num"]
         user_os, user_package, flavor, user_instance_name, backup_time = tm.getUserRequirement(input_data, user_id, instance_num, token)
         if flavor == "EXCEEDED":
-            return JsonResponse({"message" : "인원 수 X 인원 당 예상 용량 값은 20G를 넘지 못합니다."}, status=405)
-        if backup_time != 6 or 12 or 24:
+            return JsonResponse({"message" : "인원 수 X 인원 당 예상 용량 값은 10G를 넘지 못합니다."}, status=405)
+        if backup_time != 6 and backup_time != 12 and backup_time != 24:
             return JsonResponse({"message" : "백업 주기는 6시간, 12시간, 24시간 중에서만 선택할 수 있습니다."}, status=405)
         
 
@@ -237,7 +237,7 @@ class DashBoard(APIView):
         return JsonResponse(dashboard_data)
 
 
-class Instance(APIView):
+class Instance(APIView):    # 인스턴스 요청에 대한 공통 요소 클래스
     def checkDataBaseInstanceID(self, input_data):  # DB에서 Instance의 ID를 가져 오는 함수(request를 통해 받은 instance_id가 DB에 존재하는지 유효성 검증을 위해 존재)
         instance_id = input_data["instance_id"]
         try:
@@ -255,7 +255,7 @@ class InstanceStart(Instance, APIView):
         start_instance_id = super().checkDataBaseInstanceID(input_data)
         if start_instance_id == None :
             return JsonResponse({"message" : "인스턴스를 찾을 수 없습니다."}, status=404)
-        elif OpenstackInstance.objects.filter(instance_id=start_instance_id).status == "ERROR" :
+        elif OpenstackInstance.objects.get(instance_id=start_instance_id).status == "ERROR" :
             return JsonResponse({"message" : "인스턴스가 ERROR 상태입니다."}, status=202)
 
         server_start_payload = {
@@ -265,9 +265,8 @@ class InstanceStart(Instance, APIView):
             + "/action",
             headers = {'X-Auth-Token' : token},
             data = json.dumps(server_start_payload))
-        #OpenstackInstance.objects.filter(instance_id=start_instance_id).update(status="ACTIVE")
         
-        return JsonResponse({"message" : "가상머신 시작"}, status=200)#Response(instance_start_req)
+        return JsonResponse({"message" : "가상머신 시작"}, status=200)
 
 
 class InstanceStop(Instance, APIView):
@@ -286,9 +285,8 @@ class InstanceStop(Instance, APIView):
             + "/action",
             headers = {'X-Auth-Token' : token},
             data = json.dumps(server_stop_payload))
-        #OpenstackInstance.objects.filter(instance_id=stop_instance_id).update(status="SHUTOFF")
         
-        return JsonResponse({"message" : "가상머신 전원 끔"}, status=200)#Response(instance_start_req)
+        return JsonResponse({"message" : "가상머신 전원 끔"}, status=200)
 
 
 class InstanceConsole(Instance, APIView):
@@ -311,4 +309,4 @@ class InstanceConsole(Instance, APIView):
             data=json.dumps(instance_console_payload))
         instance_url = str(instance_console_req.json()["console"]["url"])[0:7] + oc.hostIP + str(instance_console_req.json()["console"]["url"])[18:]
 
-        return JsonResponse({"instance_url" : instance_url}, status=200)#Response(instance_console_req.json()["console"]["url"])
+        return JsonResponse({"instance_url" : instance_url}, status=200)

@@ -9,9 +9,9 @@ from django.http import JsonResponse
 # from openstack.models import OpenstackInstance
 
 hostIP = "119.198.160.6"    #김영후 집 데스크탑 공인 ip
-admin_project_id = "701cf15572054817928f095a71be1289" #김영후 데탑에 깔린 오픈스택 서버의 id들
-admins_group_id = "912a9d39fab54b43b889aa9d203d2af5"
-admin_role_id = "db5dba97c7f64874a278e31e030a7b0e"
+admin_project_id = "6f405ca329ac44a9856888397f1de8f5" #김영후 데탑에 깔린 오픈스택 서버의 id들
+admins_group_id = "b6de7de7311147afaac289adbf5876bb"
+admin_role_id = "614ba9d7720948f6b524d3a2fa6084d2"
 
 def admin_token():  # admin user의 token을 발급받는 함수
     token_payload = {   # admin user token 발급 Body

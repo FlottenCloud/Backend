@@ -14,7 +14,7 @@ def getUserRequirement(input_data, user_id, instance_num, token):
     if disk_size < 5:
         flavor = "ds512M"#flavor_make_req.json()["flavor"]["name"]
     elif 5 <= disk_size <= 10:
-        flavor = "ds2G"
+        flavor = "ds1G"
     # elif 10 <= disk_size <= 20:
     #     flavor = "ds4G"
     elif 10 < disk_size :
@@ -41,7 +41,7 @@ def templateModify(template, user_id, user_instance_name, flavor, user_package, 
     template_data["template"]["resources"]["mybox"]["properties"]["name"] = str(user_instance_name) # 인스턴스 name 설정
     template_data["template"]["resources"]["mybox"]["properties"]["flavor"] = flavor    # flavor 설정
     template_data["template"]["resources"]["myconfig"]["properties"]["cloud_config"]["packages"] = user_package    # package 설정
-    template_data["template"]["resources"]["demo_key"]["properties"]["name"] = user_id + str(instance_num)  # 키페어 name 설정
+    template_data["template"]["resources"]["demo_key"]["properties"]["name"] = user_id + "_" + str(instance_num)  # 키페어 name 설정
     template_data["template"]["resources"]["mynet"]["properties"]["name"] = user_id + "-net" + str(instance_num)    # 네트워크 name 설정
     template_data["template"]["resources"]["mysub_net"]["properties"]["name"] = user_id + "-subnet" + str(instance_num) # sub네트워크 name 설정
     template_data["template"]["resources"]["mysecurity_group"]["properties"]["name"] = user_id + "-security_group" + str(instance_num) # 보안그룹 name 설정
