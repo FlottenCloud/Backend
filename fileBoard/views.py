@@ -10,12 +10,9 @@ from openstack.models import OpenstackInstance
 class InstanceImg(APIView):
     def post(self, request):
         # Saving the information in the database
-        print("a")
-
         document = InstanceImgBoard(
             instance_img_file = request.FILES["imgFile"]
         )
-        print("b)")
         document.save()
         documents = InstanceImgBoard.objects.all()
         print(list(documents))
