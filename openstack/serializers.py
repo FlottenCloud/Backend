@@ -40,7 +40,6 @@ class OpenstackBackupImageSerializer(serializers.ModelSerializer):
         instance.instance_id = validated_data.get('instance_id', instance.instance_id)
         instance.image_id = validated_data.get('image_id', instance.image_id)
         instance.image_url = validated_data.get('image_url', instance.image_url)
-        
         instance.save()
         
         return instance
