@@ -13,10 +13,10 @@ class OpenstackInstance(models.Model):  #유저와 연관짓기 위한 외래키
     # Foreign key(user - stack info)
     user_id = models.ForeignKey("account.Account_info", related_name="user_resource_info", on_delete=models.CASCADE, db_column="user_id", null = True)
     # stack info
-    stack_id = models.CharField(max_length = 50, primary_key = True)
-    stack_name = models.CharField(max_length = 50, null = True)
-    instance_id = models.CharField(max_length = 50, null = True)
+    instance_id = models.CharField(max_length = 50, primary_key = True) # backup image에서 외래키로 참조
     instance_name = models.CharField(max_length = 50, null = True)
+    stack_id = models.CharField(max_length = 50, null = True, unique =  True)
+    stack_name = models.CharField(max_length = 50, null = True)
     ip_address = models.GenericIPAddressField(null = True)
     status = models.CharField(max_length = 50, null = True)
     image_name = models.CharField(max_length = 50, null = True)
@@ -31,4 +31,4 @@ class OpenstackBackupImage(models.Model):
     instance_id = models.ForeignKey("OpenstackInstance", related_name="instance_backup_img", on_delete=models.CASCADE, db_column="instance_id", null = True)
     # backup image info
     image_id = models.CharField(max_length = 50, primary_key = True)
-    image_url = models.CharField(max_length = 50, null = True)
+    image_url = models.CharField(max_length = 100, null = True)

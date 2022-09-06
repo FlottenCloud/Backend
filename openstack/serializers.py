@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import OpenstackInstance
+from .models import OpenstackInstance, OpenstackBackupImage
 
 class OpenstackInstanceSerializer(serializers.ModelSerializer):
     class Meta:
@@ -24,6 +24,23 @@ class OpenstackInstanceSerializer(serializers.ModelSerializer):
         instance.disk_size = validated_data.get('disk_size', instance.disk_size)
         instance.num_cpu = validated_data.get('num_cpu', instance.num_cpu)
         instance.backup_time = validated_data.get('backup_time', instance.backup_time)
+        instance.save()
+        
+        return instance
+
+class OpenstackBackupImageSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = OpenstackBackupImage
+        fields = ["instance_id", "image_id", "image_url"]
+
+    def create(self, validated_data):
+        return OpenstackBackupImage.objects.create(**validated_data)
+
+    def update(self, instance, validated_data):
+        instance.instance_id = validated_data.get('instance_id', instance.instance_id)
+        instance.image_id = validated_data.get('image_id', instance.image_id)
+        instance.image_url = validated_data.get('image_url', instance.image_url)
+        
         instance.save()
         
         return instance
