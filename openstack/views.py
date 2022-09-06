@@ -40,15 +40,17 @@ class Openstack(APIView):
         instance_num = OpenstackInstance.objects.filter(user_id=user_id).count() + 1
         # system_num = input_data["system_num"]
         user_os, user_package, flavor, user_instance_name, backup_time = tm.getUserRequirement(input_data, user_id, instance_num, token)
+        if flavor == "EXCEEDED":
+            return JsonResponse({"message" : "인원 수 X 인원 당 예상 용량 값은 20G를 넘지 못합니다."}, status=405)
         if backup_time != 6 or 12 or 24:
-            return JsonResponse({"message" : "백업 주기는 6시간, 12시간, 24시간 중에서만 선택할 수 있습니다."})
+            return JsonResponse({"message" : "백업 주기는 6시간, 12시간, 24시간 중에서만 선택할 수 있습니다."}, status=405)
         
 
         openstack_tenant_id = account.models.Account_info.objects.get(user_id=user_id).openstack_user_project_id
         print("유저 프로젝트 id: ", openstack_tenant_id)
 
         if(user_os == "ubuntu"):
-            with open(stack_template_root + 'ubuntu_2204.json','r') as f:   # 아직 템플릿 구현 안됨
+            with open(stack_template_root + 'ubuntu_1804.json','r') as f:   # 아직 템플릿 구현 안됨
                 json_template_skeleton = json.load(f)
                 json_template = tm.templateModify(json_template_skeleton, user_id, user_instance_name, flavor, user_package, instance_num)
         elif(user_os == "cirros"):
