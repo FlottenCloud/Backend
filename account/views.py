@@ -81,8 +81,7 @@ class AccountView(View):
             email = input_data['email'],
             password = input_data['password'],
             openstack_user_id = openstack_created_user_id,
-            openstack_user_project_id = openstack_user_project_id
-            
+            openstack_user_project_id = openstack_user_project_id   
         )
 
         return response
