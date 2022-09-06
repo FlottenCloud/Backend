@@ -14,7 +14,7 @@ def getUserRequirement(input_data, user_id, instance_num, token):
     if disk_size < 5:
         flavor = "ds512M"#flavor_make_req.json()["flavor"]["name"]
     elif 5 <= disk_size <= 10:
-        flavor = "ds1G"
+        flavor = "m1.tiny"  # test한다고 tiny 준거임.
     # elif 10 <= disk_size <= 20:
     #     flavor = "ds4G"
     elif 10 < disk_size :
