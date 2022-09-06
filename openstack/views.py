@@ -236,12 +236,23 @@ class DashBoard(APIView):
 
         return JsonResponse(dashboard_data)
 
-class InstanceStart(APIView):
+
+class Instance(APIView):
+    def checkDataBaseInstanceID(self, input_data):  # DB에서 Instance의 ID를 가져 오는 함수(request를 통해 받은 instance_id가 DB에 존재하는지 유효성 검증을 위해 존재)
+        instance_id = input_data["instance_id"]
+        try:
+            instance_id = OpenstackInstance.objects.get(instance_id=instance_id).instance_id    # DB에 request로 받은 instance_id와 일치하는 instance_id가 있으면 instance_id 반환
+        except :
+            return None # DB에 일치하는 instance_id가 없으면 None(NULL) 반환
+
+        return instance_id
+
+class InstanceStart(Instance, APIView):
     @swagger_auto_schema(tags=['Instance api'], manual_parameters=[openstack_user_token], request_body=InstanceIDSerializer, responses={200: 'Success'})
     def post(self, request):
         input_data, token, _ = oc.getRequestParamsWithBody(request)
         
-        start_instance_id = oc.checkDataBaseInstanceID(input_data)
+        start_instance_id = super().checkDataBaseInstanceID(input_data)
         if start_instance_id == None :
             return JsonResponse({"message" : "인스턴스를 찾을 수 없습니다."}, status=404)
         elif OpenstackInstance.objects.filter(instance_id=start_instance_id).status == "ERROR" :
@@ -259,12 +270,12 @@ class InstanceStart(APIView):
         return JsonResponse({"message" : "가상머신 시작"}, status=200)#Response(instance_start_req)
 
 
-class InstanceStop(APIView):
+class InstanceStop(Instance, APIView):
     @swagger_auto_schema(tags=['Instance api'], manual_parameters=[openstack_user_token], request_body=InstanceIDSerializer, responses={200: 'Success'})
     def post(self, request):
         input_data, token, _ = oc.getRequestParamsWithBody(request)
 
-        stop_instance_id = oc.checkDataBaseInstanceID(input_data)
+        stop_instance_id = super().checkDataBaseInstanceID(input_data)
         if stop_instance_id == None :
             return JsonResponse({"message" : "인스턴스를 찾을 수 없습니다."}, status=404)
 
@@ -280,12 +291,12 @@ class InstanceStop(APIView):
         return JsonResponse({"message" : "가상머신 전원 끔"}, status=200)#Response(instance_start_req)
 
 
-class InstanceConsole(APIView):
+class InstanceConsole(Instance, APIView):
     @swagger_auto_schema(tags=['Instance api'], manual_parameters=[openstack_user_token], request_body=InstanceIDSerializer, responses={200: 'Success'})
     def post(self, request):
         input_data, token, _ = oc.getRequestParamsWithBody(request)
 
-        console_for_instance_id = oc.checkDataBaseInstanceID(input_data)
+        console_for_instance_id = super().checkDataBaseInstanceID(input_data)
         if console_for_instance_id == None :
             return JsonResponse({"message" : "인스턴스를 찾을 수 없습니다."}, status=404)
         
