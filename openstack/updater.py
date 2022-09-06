@@ -3,7 +3,7 @@ import time
 from sqlite3 import OperationalError
 import requests
 from apscheduler.schedulers.background import BackgroundScheduler
-from openstack.models import OpenstackInstance
+from openstack.models import OpenstackBackupImage, OpenstackInstance
 
 
 def backup6():
@@ -33,16 +33,22 @@ def backup6():
             }
             backup_req = requests.post("http://" + openstack_hostIP + "/compute/v2.1/servers/" +
                 instance_id + "/action",
-                headers={'X-Auth-Token': token},    # admin토큰임 ㅋㅋ
+                headers={"X-Auth-Token": token},    # admin토큰임 ㅋㅋ
                 data=json.dumps(backup_payload))
 
-            image_URL = backup_req.headers["Location"]
-            print("image_URL : " + image_URL)
-            image_ID = image_URL.split("/")[6]
-            print("image_ID : " + image_ID)
+            instance_image_URL = backup_req.headers["Location"]
+            print("image_URL : " + instance_image_URL)
+            instance_image_ID = instance_image_URL.split("/")[6]
+            print("image_ID : " + instance_image_ID)
+
+            OpenstackBackupImage.objects.create(
+                instance_id = instance_id,
+                image_id = instance_image_ID,
+                image_url = instance_image_URL
+            )
 
             while(True):
-                image_status_req = requests.get("http://" + openstack_hostIP + "/image/v2/images/" + image_ID,
+                image_status_req = requests.get("http://" + openstack_hostIP + "/image/v2/images/" + instance_image_ID,
                 headers = {"X-Auth-Token" : token})
                 print("이미지 상태 조회 리스폰스: ", image_status_req.json())
                 image_status = image_status_req.json()["status"]
@@ -50,15 +56,13 @@ def backup6():
                     break
                 time.sleep(2)
 
-            image_download_req = requests.get("http://" + openstack_hostIP + "/image/v2/images/" + image_ID + "/file",
+            image_download_req = requests.get("http://" + openstack_hostIP + "/image/v2/images/" + instance_image_ID + "/file",
                 headers = {"X-Auth-Token" : token})
             file = open("C:/Users/YOUNGHOO KIM/Desktop/PNU/Graduation/codes/cloudmanager/back_imgs/" + instance_id + ".qcow2", "wb")
             file.write(image_download_req.content)
             file.close()
 
             print("image file download response is", backup_req)
-
-            # 장고 fileboard에 post로 보내고 모델 추가!!
     
     except OperationalError:
         return print("인스턴스가 없습니다.")
@@ -91,16 +95,22 @@ def backup12():
             }
             backup_req = requests.post("http://" + openstack_hostIP + "/compute/v2.1/servers/" +
                 instance_id + "/action",
-                headers={'X-Auth-Token': token},    # admin토큰임 ㅋㅋ
+                headers={"X-Auth-Token": token},    # admin토큰임 ㅋㅋ
                 data=json.dumps(backup_payload))
 
-            image_URL = backup_req.headers["Location"]
-            print("image_URL : " + image_URL)
-            image_ID = image_URL.split("/")[6]
-            print("image_ID : " + image_ID)
+            instance_image_ID = backup_req.headers["Location"]
+            print("image_URL : " + instance_image_ID)
+            instance_image_URL = instance_image_ID.split("/")[6]
+            print("image_ID : " + instance_image_URL)
+
+            OpenstackBackupImage.objects.create(
+                instance_id = instance_id,
+                image_id = instance_image_ID,
+                image_url = instance_image_URL
+            )
 
             while(True):
-                image_status_req = requests.get("http://" + openstack_hostIP + "/image/v2/images/" + image_ID,
+                image_status_req = requests.get("http://" + openstack_hostIP + "/image/v2/images/" + instance_image_URL,
                 headers = {"X-Auth-Token" : token})
                 print("이미지 상태 조회 리스폰스: ", image_status_req.json())
                 image_status = image_status_req.json()["status"]
@@ -108,7 +118,7 @@ def backup12():
                     break
                 time.sleep(2)
 
-            image_download_req = requests.get("http://" + openstack_hostIP + "/image/v2/images/" + image_ID + "/file",
+            image_download_req = requests.get("http://" + openstack_hostIP + "/image/v2/images/" + instance_image_URL + "/file",
                 headers = {"X-Auth-Token" : token})
             file = open("C:/Users/YOUNGHOO KIM/Desktop/PNU/Graduation/codes/cloudmanager/back_imgs/" + instance_id + ".qcow2", "wb")
             file.write(image_download_req.content)
@@ -123,5 +133,5 @@ def start():
     scheduler = BackgroundScheduler()
     scheduler.add_job(backup6, 'interval', seconds=30)
     scheduler.add_job(backup12, 'interval', seconds=60)
-    #scheduler.add_job(backup, 'interval', seconds=30)
+    
     scheduler.start()

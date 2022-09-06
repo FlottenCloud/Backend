@@ -25,3 +25,10 @@ class OpenstackInstance(models.Model):  #유저와 연관짓기 위한 외래키
     disk_size = models.FloatField(validators=[MaxValueValidator(100)], null = True)
     num_cpu = models.IntegerField(validators=[MaxValueValidator(12)], null = True)
     backup_time = models.IntegerField(validators=[MaxValueValidator(25)], null = True)
+
+class OpenstackBackupImage(models.Model):
+    # Foreign key(inatance - backup image)
+    instance_id = models.ForeignKey("OpenstackInstance", related_name="instance_backup_img", on_delete=models.CASCADE, db_column="instance_id", null = True)
+    # backup image info
+    image_id = models.CharField(max_length = 50, primary_key = True)
+    image_url = models.CharField(max_length = 50, null = True)
