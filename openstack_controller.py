@@ -35,12 +35,15 @@ def admin_token():  # admin user의 token을 발급받는 함수
     }
 
     # Openstack keystone API를 통한 token 발급
-    auth_req = requests.post("http://" + hostIP + "/identity/v3/auth/tokens",
-        headers = {'content-type' : 'application/json'},
-        data = json.dumps(admin_token_payload))
+    try:
+        auth_req = requests.post("http://" + hostIP + "/identity/v3/auth/tokens",
+            headers = {'content-type' : 'application/json'},
+            data = json.dumps(admin_token_payload))
 
-    admin_token = auth_req.headers["X-Subject-Token"]
-    print("openstack admin token : ", admin_token) #디버깅 용, 나중에 지우기
+        admin_token = auth_req.headers["X-Subject-Token"]
+        print("openstack admin token : ", admin_token) #디버깅 용, 나중에 지우기
+    except requests.exceptions.ConnectTimeout:
+        return None
 
     return admin_token
 
@@ -63,15 +66,17 @@ def user_token(user_data):  # user의 토큰을 발급받는 함수
             }
         }
     }
-
-    # Openstack keystone API를 통한 token 발급
-    auth_req = requests.post("http://" + hostIP + "/identity/v3/auth/tokens",
-                                headers={'content-type': 'application/json'},
-                                data=json.dumps(user_token_payload))
-    
-    # 발급받은 token 출력
-    user_token = auth_req.headers["X-Subject-Token"]
-    print("openstack user token : ", user_token)  #디버깅 용, 나중에 지우기
+    try:
+        # Openstack keystone API를 통한 token 발급
+        auth_req = requests.post("http://" + hostIP + "/identity/v3/auth/tokens",
+                                    headers={'content-type': 'application/json'},
+                                    data=json.dumps(user_token_payload))
+        
+        # 발급받은 token 출력
+        user_token = auth_req.headers["X-Subject-Token"]
+        print("openstack user token : ", user_token)  #디버깅 용, 나중에 지우기
+    except requests.exceptions.ConnectTimeout:
+        return None
 
     return user_token
 
@@ -79,9 +84,13 @@ def getUserInfoByToken(user_token): # admin token과 웹으로부터 request hea
     admin_token_value = admin_token()   # admin token 발급
     
     # Openstack keystone API를 통한 token 발급
-    auth_req = requests.get("http://" + hostIP + "/identity/v3/auth/tokens",
-                                headers={'X-Auth-Token': admin_token_value,
-                                "X-Subject-Token" : user_token}).json()
+    try:
+        auth_req = requests.get("http://" + hostIP + "/identity/v3/auth/tokens",
+                                    headers={'X-Auth-Token': admin_token_value,
+                                    "X-Subject-Token" : user_token}).json()
+    except requests.exceptions.ConnectTimeout:
+        return None
+
     return auth_req
 
 def getUserID(user_token):  # admin token과 user token을 통해 반환받은 유저의 정보 중 user_id를 추출해내는 함수

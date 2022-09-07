@@ -242,7 +242,9 @@ class DashBoard(APIView):
 class InstanceStart(Instance, APIView):
     @swagger_auto_schema(tags=['Instance api'], manual_parameters=[openstack_user_token], request_body=InstanceIDSerializer, responses={200: 'Success'})
     def post(self, request):
-        input_data, token, _ = oc.getRequestParamsWithBody(request)
+        input_data, token, user_id = oc.getRequestParamsWithBody(request)   # 요청에는 user_id를 안쓰지만, exception 처리를 위해 user_id None인지 체크용으로 받아옴.
+        if user_id == None:
+            return JsonResponse({"message" : "오픈스택 서버에 문제가 생겼습니다."})
         
         start_instance_id = super().checkDataBaseInstanceID(input_data)
         if start_instance_id == None :
@@ -264,7 +266,9 @@ class InstanceStart(Instance, APIView):
 class InstanceStop(Instance, APIView):
     @swagger_auto_schema(tags=['Instance api'], manual_parameters=[openstack_user_token], request_body=InstanceIDSerializer, responses={200: 'Success'})
     def post(self, request):
-        input_data, token, _ = oc.getRequestParamsWithBody(request)
+        input_data, token, user_id = oc.getRequestParamsWithBody(request)   # 요청에는 user_id를 안쓰지만, exception 처리를 위해 user_id None인지 체크용으로 받아옴.
+        if user_id == None:
+            return JsonResponse({"message" : "오픈스택 서버에 문제가 생겼습니다."})
 
         stop_instance_id = super().checkDataBaseInstanceID(input_data)
         if stop_instance_id == None :
@@ -284,7 +288,9 @@ class InstanceStop(Instance, APIView):
 class InstanceConsole(Instance, RequestChecker, APIView):
     @swagger_auto_schema(tags=['Instance api'], manual_parameters=[openstack_user_token], request_body=InstanceIDSerializer, responses={200: 'Success'})
     def post(self, request):
-        input_data, token, _ = oc.getRequestParamsWithBody(request)
+        input_data, token, user_id = oc.getRequestParamsWithBody(request)   # 요청에는 user_id를 안쓰지만, exception 처리를 위해 user_id None인지 체크용으로 받아옴.
+        if user_id == None:
+            return JsonResponse({"message" : "오픈스택 서버에 문제가 생겼습니다."})
 
         console_for_instance_id = super().checkDataBaseInstanceID(input_data)
         if console_for_instance_id == None :
@@ -295,16 +301,13 @@ class InstanceConsole(Instance, RequestChecker, APIView):
                 "type": "novnc"
             }
         }
-        instance_console_req = super().reqCheckerWithData("http://" + openstack_hostIP + "/compute/v2.1/servers/" + console_for_instance_id
+        instance_console_req = super().reqCheckerWithData("post", "http://" + openstack_hostIP + "/compute/v2.1/servers/" + console_for_instance_id
             + "/action", token, json.dumps(instance_console_payload))
-        if instance_console_req == None:
+        if instance_console_req == None:    # "오픈스택과 통신이 안됐을 시(timeout 시)"
             return JsonResponse({"message" : "오픈스택 서버에 문제가 생겼습니다."})
-        # instance_console_req = requests.post("http://" + openstack_hostIP + "/compute/v2.1/servers/" + console_for_instance_id
-        #     + "/action",
-        #     headers={'X-Auth-Token': token},
-        #     data=json.dumps(instance_console_payload))
+    
         splitted_url = instance_console_req.json()["console"]["url"].split("/") # 인스턴스 콘솔 접속 IP를 가상머신 내부 네트워크 IP가 아닌 포트포워딩 해놨던 PC의 공인 IP로 바꾸기 위한 로직
-        splitted_url[2] = oc.hostIP
-        instance_url = splitted_url.join("/")
+        splitted_url[2] = oc.hostIP+":6080"
+        instance_url = "/".join(splitted_url)
 
         return JsonResponse({"instance_url" : instance_url}, status=200)
