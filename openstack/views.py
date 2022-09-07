@@ -30,7 +30,6 @@ openstack_user_token = openapi.Parameter(   # for django swagger
     )
 
 class Openstack(APIView):
-
     @swagger_auto_schema(tags=['openstack api'], manual_parameters=[openstack_user_token], request_body=CreateStackSerializer, responses={200: 'Success'})
     def post(self, request):
         input_data = json.loads(request.body)   # user_id, password, system_num(추후에 요구사항 폼 등으로 바뀌면 수정할 것)
@@ -206,6 +205,8 @@ class Openstack(APIView):
         
         return JsonResponse({"message" : "가상머신 " + del_instance_name + " 삭제 완료"}, status=200)
 
+
+
 class DashBoard(APIView):
     @swagger_auto_schema(tags=['Instance api'], manual_parameters=[openstack_user_token], responses={200: 'Success'})
     def get(self, request):
@@ -235,6 +236,8 @@ class DashBoard(APIView):
             return JsonResponse({[]}, status=200)
 
         return JsonResponse(dashboard_data)
+
+
 
 class InstanceStart(Instance, APIView):
     @swagger_auto_schema(tags=['Instance api'], manual_parameters=[openstack_user_token], request_body=InstanceIDSerializer, responses={200: 'Success'})
@@ -278,7 +281,7 @@ class InstanceStop(Instance, APIView):
         return JsonResponse({"message" : "가상머신 전원 끔"}, status=200)
 
 
-class InstanceConsole(Instance, APIView):
+class InstanceConsole(Instance, RequestChecker, APIView):
     @swagger_auto_schema(tags=['Instance api'], manual_parameters=[openstack_user_token], request_body=InstanceIDSerializer, responses={200: 'Success'})
     def post(self, request):
         input_data, token, _ = oc.getRequestParamsWithBody(request)
@@ -292,10 +295,14 @@ class InstanceConsole(Instance, APIView):
                 "type": "novnc"
             }
         }
-        instance_console_req = requests.post("http://" + openstack_hostIP + "/compute/v2.1/servers/" + console_for_instance_id
-            + "/action",
-            headers={'X-Auth-Token': token},
-            data=json.dumps(instance_console_payload))
+        instance_console_req = super().reqCheckerWithData("http://" + openstack_hostIP + "/compute/v2.1/servers/" + console_for_instance_id
+            + "/action", token, json.dumps(instance_console_payload))
+        if instance_console_req == None:
+            return JsonResponse({"message" : "오픈스택 서버에 문제가 생겼습니다."})
+        # instance_console_req = requests.post("http://" + openstack_hostIP + "/compute/v2.1/servers/" + console_for_instance_id
+        #     + "/action",
+        #     headers={'X-Auth-Token': token},
+        #     data=json.dumps(instance_console_payload))
         splitted_url = instance_console_req.json()["console"]["url"].split("/") # 인스턴스 콘솔 접속 IP를 가상머신 내부 네트워크 IP가 아닌 포트포워딩 해놨던 PC의 공인 IP로 바꾸기 위한 로직
         splitted_url[2] = oc.hostIP
         instance_url = splitted_url.join("/")
