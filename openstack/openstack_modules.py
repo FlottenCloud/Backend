@@ -47,64 +47,74 @@ class RequestChecker():
             if method == "post":
                 req = requests.post(req_url,
                     headers = {'X-Auth-Token' : req_header},
-                    data = req_data)
+                    data = req_data,
+                    timeout = 5)
                 return req
 
             elif method == "get":
                 req = requests.get(req_url,
                     headers = {'X-Auth-Token' : req_header},
-                    data = req_data)
+                    data = req_data,
+                    timeout = 5)
                 return req
 
             elif method == "put":
                 req = requests.put(req_url,
                     headers = {'X-Auth-Token' : req_header},
-                    data = req_data)
+                    data = req_data,
+                    timeout = 5)
                 return req
 
             elif method == "patch":
                 req = requests.patch(req_url,
                     headers = {'X-Auth-Token' : req_header},
-                    data = req_data)
+                    data = req_data,
+                    timeout = 5)
                 return req
 
             elif method == "delete":
                 req = requests.delete(req_url,
                     headers = {'X-Auth-Token' : req_header},
-                    data = req_data)
+                    data = req_data,
+                    timeout = 5)
                 return req
 
-        except Exception:
+        except requests.exceptions.Timeout:
             return None
 
     def reqChecker(self, method, req_url, req_header):
         try:
             if method == "post":
                 req = requests.post(req_url,
-                    headers = {'X-Auth-Token' : req_header})
+                    headers = {'X-Auth-Token' : req_header},
+                    timeout = 5)
                 return req
 
             elif method == "get":
                 req = requests.get(req_url,
-                    headers = {'X-Auth-Token' : req_header})
+                    headers = {'X-Auth-Token' : req_header},
+                    timeout = 5)
                 return req
 
             elif method == "put":
                 req = requests.put(req_url,
-                    headers = {'X-Auth-Token' : req_header})
+                    headers = {'X-Auth-Token' : req_header},
+                    timeout = 5)
                 return req
 
             elif method == "patch":
                 req = requests.patch(req_url,
-                    headers = {'X-Auth-Token' : req_header})
+                    headers = {'X-Auth-Token' : req_header},
+                    timeout = 5)
                 return req
 
             elif method == "delete":
                 req = requests.delete(req_url,
-                    headers = {'X-Auth-Token' : req_header})
+                    headers = {'X-Auth-Token' : req_header},
+                    timeout = 5)
                 return req
             
-        except Exception:
+        except requests.exceptions.Timeout:
             return None
 
 
