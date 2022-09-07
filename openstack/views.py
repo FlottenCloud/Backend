@@ -28,7 +28,7 @@ openstack_user_token = openapi.Parameter(   # for django swagger
         type = openapi.TYPE_STRING
     )
 
-class Openstack(TemplateModifier, APIView):
+class Openstack(RequestChecker, TemplateModifier, APIView):
     @swagger_auto_schema(tags=['openstack api'], manual_parameters=[openstack_user_token], request_body=CreateStackSerializer, responses={200: "Success", 404: "Not Found", 405: "Method Not Allowed"})
     def post(self, request):
         input_data = json.loads(request.body)   # user_id, password, system_num(추후에 요구사항 폼 등으로 바뀌면 수정할 것)
@@ -37,8 +37,8 @@ class Openstack(TemplateModifier, APIView):
         user_id = oc.getUserID(token)
         if user_id == None:
             return JsonResponse({"message" : "오픈스택 서버에 문제가 생겼습니다."}, status=404)
+
         instance_num = OpenstackInstance.objects.filter(user_id=user_id).count() + 1
-        
         user_os, user_package, flavor, user_instance_name, backup_time = super().getUserRequirement(input_data)
         if flavor == "EXCEEDED":
             return JsonResponse({"message" : "인원 수 X 인원 당 예상 용량 값은 10G를 넘지 못합니다."}, status=405)
@@ -208,7 +208,7 @@ class Openstack(TemplateModifier, APIView):
 
 
 
-class DashBoard(APIView):
+class DashBoard(RequestChecker, APIView):
     @swagger_auto_schema(tags=['Instance api'], manual_parameters=[openstack_user_token], responses={200: 'Success'})
     def get(self, request):
         token, user_id = oc.getRequestParams(request)
@@ -240,12 +240,12 @@ class DashBoard(APIView):
 
 
 
-class InstanceStart(Instance, APIView):
-    @swagger_auto_schema(tags=['Instance api'], manual_parameters=[openstack_user_token], request_body=InstanceIDSerializer, responses={200: 'Success'})
+class InstanceStart(RequestChecker, Instance, APIView):
+    @swagger_auto_schema(tags=["Instance api"], manual_parameters=[openstack_user_token], request_body=InstanceIDSerializer, responses={202: "Accepted", 404: "Not Found"})
     def post(self, request):
         input_data, token, user_id = oc.getRequestParamsWithBody(request)   # 요청에는 user_id를 안쓰지만, exception 처리를 위해 user_id None인지 체크용으로 받아옴.
         if user_id == None:
-            return JsonResponse({"message" : "오픈스택 서버에 문제가 생겼습니다."})
+            return JsonResponse({"message" : "오픈스택 서버에 문제가 생겼습니다."}, status=404)
         
         start_instance_id = super().checkDataBaseInstanceID(input_data)
         if start_instance_id == None :
@@ -256,20 +256,19 @@ class InstanceStart(Instance, APIView):
         server_start_payload = {
             "os-start" : None
         }
-        instance_start_req = requests.post("http://"+openstack_hostIP + "/compute/v2.1/servers/" + start_instance_id
-            + "/action",
-            headers = {'X-Auth-Token' : token},
-            data = json.dumps(server_start_payload))
+        instance_start_req = super().reqCheckerWithData("post", "http://"+openstack_hostIP + "/compute/v2.1/servers/" + start_instance_id
+            + "/action", token, json.dumps(server_start_payload))
+        print(instance_start_req)    # 성공시 response 202 -> 시작하기 요청 수락, 처리 진행 중
         
-        return JsonResponse({"message" : "가상머신 시작"}, status=200)
+        return JsonResponse({"message" : "가상머신 시작"}, status=202)
 
 
-class InstanceStop(Instance, APIView):
-    @swagger_auto_schema(tags=['Instance api'], manual_parameters=[openstack_user_token], request_body=InstanceIDSerializer, responses={200: 'Success'})
+class InstanceStop(RequestChecker, Instance, APIView):
+    @swagger_auto_schema(tags=["Instance api"], manual_parameters=[openstack_user_token], request_body=InstanceIDSerializer, responses={202: "Accepted", 404: "Not Found"})
     def post(self, request):
         input_data, token, user_id = oc.getRequestParamsWithBody(request)   # 요청에는 user_id를 안쓰지만, exception 처리를 위해 user_id None인지 체크용으로 받아옴.
         if user_id == None:
-            return JsonResponse({"message" : "오픈스택 서버에 문제가 생겼습니다."})
+            return JsonResponse({"message" : "오픈스택 서버에 문제가 생겼습니다."}, status=404)
 
         stop_instance_id = super().checkDataBaseInstanceID(input_data)
         if stop_instance_id == None :
@@ -278,20 +277,19 @@ class InstanceStop(Instance, APIView):
         server_stop_payload = {
             "os-stop" : None
         }
-        instance_start_req = requests.post("http://"+openstack_hostIP + "/compute/v2.1/servers/" + stop_instance_id
-            + "/action",
-            headers = {'X-Auth-Token' : token},
-            data = json.dumps(server_stop_payload))
+        instance_stop_req = super().reqCheckerWithData("post", "http://"+openstack_hostIP + "/compute/v2.1/servers/" + stop_instance_id
+            + "/action", token, json.dumps(server_stop_payload))
+        print(instance_stop_req)    # 성공시 response 202 -> 멈추기 돌리고 있어서 그런 듯
         
-        return JsonResponse({"message" : "가상머신 전원 끔"}, status=200)
+        return JsonResponse({"message" : "가상머신 전원 끔"}, status=202)
 
 
-class InstanceConsole(Instance, RequestChecker, APIView):
-    @swagger_auto_schema(tags=['Instance api'], manual_parameters=[openstack_user_token], request_body=InstanceIDSerializer, responses={200: 'Success'})
+class InstanceConsole(RequestChecker, Instance, APIView):
+    @swagger_auto_schema(tags=["Instance api"], manual_parameters=[openstack_user_token], request_body=InstanceIDSerializer, responses={200: "Success", 404: "Not Found"})
     def post(self, request):
         input_data, token, user_id = oc.getRequestParamsWithBody(request)   # 요청에는 user_id를 안쓰지만, exception 처리를 위해 user_id None인지 체크용으로 받아옴.
         if user_id == None:
-            return JsonResponse({"message" : "오픈스택 서버에 문제가 생겼습니다."})
+            return JsonResponse({"message" : "오픈스택 서버에 문제가 생겼습니다."}, status=404)
 
         console_for_instance_id = super().checkDataBaseInstanceID(input_data)
         if console_for_instance_id == None :
