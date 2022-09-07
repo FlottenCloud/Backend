@@ -83,8 +83,8 @@ def user_token(user_data):  # user의 토큰을 발급받는 함수
 
 def getUserInfoByToken(user_token): # admin token과 웹으로부터 request header로 받은 user token을 통해 유저의 정보를 반환받는 함수
     admin_token_value = admin_token()   # admin token 발급
-    if admin_token == None:
-            return JsonResponse({"message" : "오픈스택 서버에 문제가 생겼습니다."})
+    if admin_token_value == None:
+        return None
     
     # Openstack keystone API를 통한 token 발급
     try:
@@ -98,7 +98,11 @@ def getUserInfoByToken(user_token): # admin token과 웹으로부터 request hea
     return auth_req
 
 def getUserID(user_token):  # admin token과 user token을 통해 반환받은 유저의 정보 중 user_id를 추출해내는 함수
-    user_id = getUserInfoByToken(user_token).json()["token"]["user"]["name"]
+    user_id_get = getUserInfoByToken(user_token)
+    if user_id_get == None:
+        return None
+
+    user_id = user_id_get.json()["token"]["user"]["name"]
 
     return user_id
 
