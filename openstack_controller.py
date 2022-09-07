@@ -38,11 +38,12 @@ def admin_token():  # admin user의 token을 발급받는 함수
     try:
         auth_req = requests.post("http://" + hostIP + "/identity/v3/auth/tokens",
             headers = {'content-type' : 'application/json'},
-            data = json.dumps(admin_token_payload))
+            data = json.dumps(admin_token_payload),
+            timeout = 5)
 
         admin_token = auth_req.headers["X-Subject-Token"]
         print("openstack admin token : ", admin_token) #디버깅 용, 나중에 지우기
-    except requests.exceptions.ConnectTimeout:
+    except requests.exceptions.Timeout:
         return None
 
     return admin_token
@@ -69,13 +70,13 @@ def user_token(user_data):  # user의 토큰을 발급받는 함수
     try:
         # Openstack keystone API를 통한 token 발급
         auth_req = requests.post("http://" + hostIP + "/identity/v3/auth/tokens",
-                                    headers={'content-type': 'application/json'},
-                                    data=json.dumps(user_token_payload))
-        
+            headers={'content-type': 'application/json'},
+            data=json.dumps(user_token_payload),
+            timeout = 5)
         # 발급받은 token 출력
         user_token = auth_req.headers["X-Subject-Token"]
         print("openstack user token : ", user_token)  #디버깅 용, 나중에 지우기
-    except requests.exceptions.ConnectTimeout:
+    except requests.exceptions.Timeout:
         return None
 
     return user_token
@@ -88,15 +89,16 @@ def getUserInfoByToken(user_token): # admin token과 웹으로부터 request hea
     # Openstack keystone API를 통한 token 발급
     try:
         auth_req = requests.get("http://" + hostIP + "/identity/v3/auth/tokens",
-                                    headers={'X-Auth-Token': admin_token_value,
-                                    "X-Subject-Token" : user_token}).json()
-    except requests.exceptions.ConnectTimeout:
+            headers={'X-Auth-Token': admin_token_value,
+            "X-Subject-Token" : user_token},
+            timeout = 5)
+    except requests.exceptions.Timeout:
         return None
 
     return auth_req
 
 def getUserID(user_token):  # admin token과 user token을 통해 반환받은 유저의 정보 중 user_id를 추출해내는 함수
-    user_id = getUserInfoByToken(user_token)["token"]["user"]["name"]
+    user_id = getUserInfoByToken(user_token).json()["token"]["user"]["name"]
 
     return user_id
 
