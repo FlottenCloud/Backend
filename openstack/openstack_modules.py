@@ -8,6 +8,9 @@ from rest_framework.views import APIView
 from .models import OpenstackInstance
 
 
+class TemplateModifier():
+    
+
 class RequestChecker():
     def reqCheckerWithData(self, method, req_url, req_header, req_data):
         try:

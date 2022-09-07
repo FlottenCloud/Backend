@@ -3,7 +3,6 @@ import sys
 sys.path.append(os.path.dirname(os.path.abspath(os.path.dirname(__file__))))    #여기까지는 상위 디렉토리 모듈 import 하기 위한 코드
 
 import openstack_controller as oc    #백엔드 루트 디렉토리에 openstack.py 생성했고, 그 안에 공통으로 사용될 함수, 변수들 넣을 것임.
-import template_modifier as tm
 from .openstack_modules import *
 import json
 import requests
@@ -29,7 +28,7 @@ openstack_user_token = openapi.Parameter(   # for django swagger
         type = openapi.TYPE_STRING
     )
 
-class Openstack(APIView):
+class Openstack(TemplateModifier, APIView):
     @swagger_auto_schema(tags=['openstack api'], manual_parameters=[openstack_user_token], request_body=CreateStackSerializer, responses={200: 'Success'})
     def post(self, request):
         input_data = json.loads(request.body)   # user_id, password, system_num(추후에 요구사항 폼 등으로 바뀌면 수정할 것)
@@ -38,7 +37,7 @@ class Openstack(APIView):
         user_id = oc.getUserID(token)
         instance_num = OpenstackInstance.objects.filter(user_id=user_id).count() + 1
         # system_num = input_data["system_num"]
-        user_os, user_package, flavor, user_instance_name, backup_time = tm.getUserRequirement(input_data, user_id, instance_num, token)
+        user_os, user_package, flavor, user_instance_name, backup_time = super().getUserRequirement(input_data)
         if flavor == "EXCEEDED":
             return JsonResponse({"message" : "인원 수 X 인원 당 예상 용량 값은 10G를 넘지 못합니다."}, status=405)
         if backup_time != 6 and backup_time != 12 and backup_time != 24:
@@ -51,15 +50,15 @@ class Openstack(APIView):
         if(user_os == "ubuntu"):
             with open(stack_template_root + 'ubuntu_1804.json','r') as f:   # 아직 템플릿 구현 안됨
                 json_template_skeleton = json.load(f)
-                json_template = tm.templateModify(json_template_skeleton, user_id, user_instance_name, flavor, user_package, instance_num)
+                json_template = super().templateModify(json_template_skeleton, user_id, user_instance_name, flavor, user_package, instance_num)
         elif(user_os == "cirros"):
             with open(stack_template_root + 'cirros.json','r') as f:    #일단 이거랑
                 json_template_skeleton = json.load(f)
-                json_template = tm.templateModify(json_template_skeleton, user_id, user_instance_name, flavor, user_package, instance_num)
+                json_template = super().templateModify(json_template_skeleton, user_id, user_instance_name, flavor, user_package, instance_num)
         elif(user_os == "fedora"):
             with open(stack_template_root + 'fedora.json','r') as f:    #이걸로 생성 test
                 json_template_skeleton = json.load(f)
-                json_template = tm.templateModify(json_template_skeleton, user_id, user_instance_name, flavor, user_package, instance_num)
+                json_template = super().templateModify(json_template_skeleton, user_id, user_instance_name, flavor, user_package, instance_num)
         
         #address heat-api v1 프로젝트 id stacks
         stack_req = requests.post("http://" + openstack_hostIP + "/heat-api/v1/" + openstack_tenant_id + "/stacks",
