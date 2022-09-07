@@ -1,23 +1,42 @@
 import json
 from re import S
 import time
+# import paramiko
 from sqlite3 import OperationalError
 import requests
 from apscheduler.schedulers.background import BackgroundScheduler
 from openstack.models import OpenstackBackupImage, OpenstackInstance
-from fileBoard.models import InstanceImgBoard
 from openstack.serializers import OpenstackBackupImageSerializer
 from openstack.openstack_modules import RequestChecker
+from fileBoard.models import InstanceImgBoard
 
 
-def imageSaver():
+def freezerBackup(cycle):
+    print("this function runs every", cycle, "seconds")
     pass
 
+
+def imageSaver(backup_img_file):
+    if InstanceImgBoard.objects.filter(instance_img_file=backup_img_file).exists():
+        backup_img_to_update = InstanceImgBoard.objects.filter(instance_img_file=backup_img_file)
+        # backup_img.update(instance_img_file=backup_img_file)
+
+    document = InstanceImgBoard(
+        instance_img_file = backup_img_file
+    )
+    document.save()
+    documents = InstanceImgBoard.objects.all()
+    # print(list(documents))
+
+    return list(documents)
+
+
 def backup(cycle):
-    req_checker = RequestChecker()
-    print("this function runs every", cycle, "seconds")
     import openstack_controller as oc                            # import는 여기 고정 -> 컴파일 시간에 circular import 때문에 걸려서
     openstack_hostIP = oc.hostIP
+
+    print("this function runs every", cycle, "seconds")
+    req_checker = RequestChecker()
 
     try:
         instance_count = OpenstackInstance.objects.filter(backup_time=cycle).count()
@@ -72,9 +91,9 @@ def backup(cycle):
 
             image_download_req = requests.get("http://" + openstack_hostIP + "/image/v2/images/" + instance_image_ID + "/file",
                 headers = {"X-Auth-Token" : admin_token})
-            file = open("C:/Users/YOUNGHOO KIM/Desktop/PNU/Graduation/codes/cloudmanager/back_imgs/" + backup_instance_id + ".qcow2", "wb")
-            file.write(image_download_req.content)
-            file.close()
+            backup_img_file = open("C:/Users/YOUNGHOO KIM/Desktop/PNU/Graduation/codes/cloudmanager/back_imgs/" + backup_instance_id + ".qcow2", "wb")
+            backup_img_file.write(image_download_req.content)
+            backup_img_file.close()
 
             backup_image_data = {
                 "instance_id" : backup_instance_id,
@@ -113,14 +132,15 @@ def backup6():
     backup_res = backup(6)
     print(backup_res)
 
-
 def backup12():
     backup_res = backup(12)
     print(backup_res)
 
+
 def deleter():
     OpenstackBackupImage.objects.all().delete()
     print("all-deleted")
+
 
 def start():
     scheduler = BackgroundScheduler() # ({'apscheduler.job_defaults.max_instances': 2}) # max_instance = 한 번에 실행할 수 있는 같은 job의 개수

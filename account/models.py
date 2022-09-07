@@ -4,11 +4,11 @@ from django.db import models
 class Account_info(models.Model):
     # user info
     user_id = models.CharField(max_length=50, primary_key=True)
-    email = models.EmailField(max_length=50, null=True)
+    email = models.EmailField(max_length=50)
     password = models.CharField(max_length=100)
-    openstack_user_id = models.CharField(max_length=100, null=True)
-    openstack_user_project_id = models.CharField(max_length=100, null=True)
-    token = models.CharField(max_length=200, null=True)
+    openstack_user_id = models.CharField(max_length=100)
+    openstack_user_project_id = models.CharField(max_length=100)
+    token = models.CharField(max_length=200)
     # api_key = models.CharField(max_length=200)
     # secret_key = models.CharField(max_length=200)
 
