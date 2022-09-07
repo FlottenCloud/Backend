@@ -7,7 +7,7 @@ import requests
 from .models import OpenstackInstance
 
 
-class TemplateModifier():
+class TemplateModifier:
     # 램, 디스크, 이미지, 네트워크 이름, 키페어 네임,
     def getUserRequirement(self, input_data):
         user_os = input_data["os"]
@@ -41,7 +41,7 @@ class TemplateModifier():
 
         return(json.dumps(template_data))
 
-class RequestChecker():
+class RequestChecker:
     def reqCheckerWithData(self, method, req_url, req_header, req_data):
         try:
             if method == "post":
@@ -119,7 +119,7 @@ class RequestChecker():
 
 
 
-class Instance():    # 인스턴스 요청에 대한 공통 요소 클래스
+class Instance:    # 인스턴스 요청에 대한 공통 요소 클래스
     def checkDataBaseInstanceID(self, input_data):  # DB에서 Instance의 ID를 가져 오는 함수(request를 통해 받은 instance_id가 DB에 존재하는지 유효성 검증을 위해 존재)
         instance_id = input_data["instance_id"]
         try:

@@ -5,13 +5,16 @@ from sqlite3 import OperationalError
 import requests
 from apscheduler.schedulers.background import BackgroundScheduler
 from openstack.models import OpenstackBackupImage, OpenstackInstance
-from openstack.serializers import OpenstackBackupImageSerializer
 from fileBoard.models import InstanceImgBoard
+from openstack.serializers import OpenstackBackupImageSerializer
+from openstack.openstack_modules import RequestChecker
+
 
 def imageSaver():
     pass
 
 def backup(cycle):
+    req_checker = RequestChecker()
     print("this function runs every", cycle, "seconds")
     import openstack_controller as oc                            # import는 여기 고정 -> 컴파일 시간에 circular import 때문에 걸려서
     openstack_hostIP = oc.hostIP
@@ -23,7 +26,7 @@ def backup(cycle):
 
         admin_token = oc.admin_token()
         if admin_token == None:
-            return "서버 고장"
+            return "오픈스택서버 고장"
         
         backup_instance_list = OpenstackInstance.objects.filter(backup_time=cycle)
         print(cycle, "시간짜리 리스트: ", backup_instance_list)
@@ -39,10 +42,15 @@ def backup(cycle):
                     "rotation": 1
                 }
             }
-            backup_req = requests.post("http://" + openstack_hostIP + "/compute/v2.1/servers/" +
-                backup_instance_id + "/action",
-                headers={"X-Auth-Token": admin_token},    # admin토큰임 ㅋㅋ
-                data=json.dumps(backup_payload))
+            backup_req = req_checker.reqCheckerWithData("post", "http://" + openstack_hostIP + "/compute/v2.1/servers/" +
+                backup_instance_id + "/action", admin_token,
+                json.dumps(backup_payload))
+            if backup_req == None:
+                raise requests.exceptions.Timeout
+            # backup_req = requests.post("http://" + openstack_hostIP + "/compute/v2.1/servers/" +
+            #     backup_instance_id + "/action",
+            #     headers={"X-Auth-Token": admin_token},    # admin토큰임 ㅋㅋ
+            #     data=json.dumps(backup_payload))
 
             instance_image_URL = backup_req.headers["Location"]
             print("image_URL : " + instance_image_URL)
@@ -50,9 +58,12 @@ def backup(cycle):
             print("image_ID : " + instance_image_ID)
 
             while(True):
-                image_status_req = requests.get("http://" + openstack_hostIP + "/image/v2/images/" + instance_image_ID,
-                headers = {"X-Auth-Token" : admin_token},
-                timeout=5)
+                image_status_req = req_checker.reqCheckerWithData("get", "http://" + openstack_hostIP + "/image/v2/images/" + instance_image_ID, admin_token)
+                if image_status_req == None:
+                    raise requests.exceptions.Timeout
+                # image_status_req = requests.get("http://" + openstack_hostIP + "/image/v2/images/" + instance_image_ID,
+                # headers = {"X-Auth-Token" : admin_token},
+                # timeout=5)
                 print("이미지 상태 조회 리스폰스: ", image_status_req.json())
                 image_status = image_status_req.json()["status"]
                 if image_status == "active":
@@ -94,7 +105,9 @@ def backup(cycle):
     except OperationalError:
             return "인스턴스가 없습니다."
     except requests.exceptions.Timeout:
-        return "timeout"
+        return "오픈스택서버 고장"
+    except requests.exceptions.ConnectionError:
+            return "요청이 거부되었습니다."
 
 def backup6():
     backup_res = backup(6)
@@ -110,7 +123,7 @@ def deleter():
     print("all-deleted")
 
 def start():
-    scheduler = BackgroundScheduler({'apscheduler.job_defaults.max_instances': 2}) # 모르겠다
+    scheduler = BackgroundScheduler() # ({'apscheduler.job_defaults.max_instances': 2}) # max_instance = 한 번에 실행할 수 있는 같은 job의 개수
     # scheduler.add_job(deleter, 'interval', seconds=5)
     scheduler.add_job(backup6, 'interval', seconds=5)
     scheduler.add_job(backup12, 'interval', seconds=120)
