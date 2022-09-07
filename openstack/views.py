@@ -1,10 +1,10 @@
-from email import header
 import os      #여기서 부터
 import sys
 sys.path.append(os.path.dirname(os.path.abspath(os.path.dirname(__file__))))    #여기까지는 상위 디렉토리 모듈 import 하기 위한 코드
 
 import openstack_controller as oc    #백엔드 루트 디렉토리에 openstack.py 생성했고, 그 안에 공통으로 사용될 함수, 변수들 넣을 것임.
 import template_modifier as tm
+from .openstack_modules import *
 import json
 import requests
 from sqlite3 import OperationalError
@@ -183,7 +183,7 @@ class Openstack(APIView):
     
     #@swagger_auto_schema(tags=['openstack api'], manual_parameters=[openstack_user_token], request_body=CreateOpenstack, responses={200: 'Success'})
     def patch(self, request):
-
+            
         pass
 
     @swagger_auto_schema(tags=['openstack api'], manual_parameters=[openstack_user_token], request_body=InstanceIDSerializer, responses={200: 'Success'})
@@ -235,17 +235,6 @@ class DashBoard(APIView):
             return JsonResponse({[]}, status=200)
 
         return JsonResponse(dashboard_data)
-
-
-class Instance(APIView):    # 인스턴스 요청에 대한 공통 요소 클래스
-    def checkDataBaseInstanceID(self, input_data):  # DB에서 Instance의 ID를 가져 오는 함수(request를 통해 받은 instance_id가 DB에 존재하는지 유효성 검증을 위해 존재)
-        instance_id = input_data["instance_id"]
-        try:
-            instance_id = OpenstackInstance.objects.get(instance_id=instance_id).instance_id    # DB에 request로 받은 instance_id와 일치하는 instance_id가 있으면 instance_id 반환
-        except :
-            return None # DB에 일치하는 instance_id가 없으면 None(NULL) 반환
-
-        return instance_id
 
 class InstanceStart(Instance, APIView):
     @swagger_auto_schema(tags=['Instance api'], manual_parameters=[openstack_user_token], request_body=InstanceIDSerializer, responses={200: 'Success'})
@@ -307,6 +296,8 @@ class InstanceConsole(Instance, APIView):
             + "/action",
             headers={'X-Auth-Token': token},
             data=json.dumps(instance_console_payload))
-        instance_url = str(instance_console_req.json()["console"]["url"])[0:7] + oc.hostIP + str(instance_console_req.json()["console"]["url"])[18:]
+        splitted_url = instance_console_req.json()["console"]["url"].split("/") # 인스턴스 콘솔 접속 IP를 가상머신 내부 네트워크 IP가 아닌 포트포워딩 해놨던 PC의 공인 IP로 바꾸기 위한 로직
+        splitted_url[2] = oc.hostIP
+        instance_url = splitted_url.join("/")
 
         return JsonResponse({"instance_url" : instance_url}, status=200)

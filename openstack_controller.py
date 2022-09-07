@@ -2,6 +2,7 @@ import os   #여기서부터 장고와 환경을 맞추기 위한 import
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "cloudmanager.settings")    # INSTALLED_APPS에 등록된 앱 내의 함수가 아니기 때문에, INSTALLED APPS에 있는 모듈을 임포트 할 때 필요
 import django
 django.setup()
+
 import requests
 import json
 from django.http import JsonResponse
@@ -14,7 +15,7 @@ admins_group_id = "b6de7de7311147afaac289adbf5876bb"
 admin_role_id = "614ba9d7720948f6b524d3a2fa6084d2"
 
 def admin_token():  # admin user의 token을 발급받는 함수
-    token_payload = {   # admin user token 발급 Body
+    admin_token_payload = {   # admin user token 발급 Body
         "auth": {
             "identity": {
                 "methods": [
@@ -36,7 +37,7 @@ def admin_token():  # admin user의 token을 발급받는 함수
     # Openstack keystone API를 통한 token 발급
     auth_req = requests.post("http://" + hostIP + "/identity/v3/auth/tokens",
         headers = {'content-type' : 'application/json'},
-        data = json.dumps(token_payload))
+        data = json.dumps(admin_token_payload))
 
     admin_token = auth_req.headers["X-Subject-Token"]
     print("openstack admin token : ", admin_token) #디버깅 용, 나중에 지우기
@@ -100,13 +101,3 @@ def getRequestParams(request):  # 웹으로부터 request body가 없는 요청�
     user_id = getUserID(token)
 
     return token, user_id   # request의 header로 받은 user token, token을 통해 정보를 얻어온 user ID를 반환
-
-# def checkDataBaseInstanceID(input_data):  # DB에서 Instance의 ID를 가져 오는 함수(request를 통해 받은 instance_id가 DB에 존재하는지 유효성 검증을 위해 존재)
-#     instance_id = input_data["instance_id"]
-
-#     try:
-#         instance_id = OpenstackInstance.objects.get(instance_id=instance_id).instance_id    # DB에 request로 받은 instance_id와 일치하는 instance_id가 있으면 instance_id 반환
-#     except :
-#         return None # DB에 일치하는 instance_id가 없으면 None(NULL) 반환
-
-#     return instance_id
