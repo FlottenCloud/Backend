@@ -29,14 +29,16 @@ openstack_user_token = openapi.Parameter(   # for django swagger
     )
 
 class Openstack(TemplateModifier, APIView):
-    @swagger_auto_schema(tags=['openstack api'], manual_parameters=[openstack_user_token], request_body=CreateStackSerializer, responses={200: 'Success'})
+    @swagger_auto_schema(tags=['openstack api'], manual_parameters=[openstack_user_token], request_body=CreateStackSerializer, responses={200: "Success", 404: "Not Found", 405: "Method Not Allowed"})
     def post(self, request):
         input_data = json.loads(request.body)   # user_id, password, system_num(추후에 요구사항 폼 등으로 바뀌면 수정할 것)
         stack_template_root = "templates/"
         token = request.headers["X-Auth-Token"]
         user_id = oc.getUserID(token)
+        if user_id == None:
+            return JsonResponse({"message" : "오픈스택 서버에 문제가 생겼습니다."}, status=404)
         instance_num = OpenstackInstance.objects.filter(user_id=user_id).count() + 1
-        # system_num = input_data["system_num"]
+        
         user_os, user_package, flavor, user_instance_name, backup_time = super().getUserRequirement(input_data)
         if flavor == "EXCEEDED":
             return JsonResponse({"message" : "인원 수 X 인원 당 예상 용량 값은 10G를 넘지 못합니다."}, status=405)
