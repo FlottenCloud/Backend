@@ -1,12 +1,14 @@
 import json
 import requests
 import openstack_controller as oc
+from django.http import JsonResponse
+
 # 램, 디스크, 이미지, 네트워크 이름, 키페어 네임,
 def getUserRequirement(input_data, user_id, instance_num, token):
     user_token = token
     admin_token = oc.admin_token()
-    #input_data = json.loads(request.body)
-    #user_needs = input_data["needs"]#param_needs
+    if admin_token == None:
+            return JsonResponse({"message" : "오픈스택 서버에 문제가 생겼습니다."})
     user_os = input_data["os"]#param_os
     user_package = input_data["package"]#param_package
     disk_size = round(input_data["num_people"] * input_data["data_size"])#param_num_people * param_data_size
@@ -15,22 +17,13 @@ def getUserRequirement(input_data, user_id, instance_num, token):
         flavor = "ds512M"#flavor_make_req.json()["flavor"]["name"]
     elif 5 <= disk_size <= 10:
         flavor = "m1.tiny"  # test한다고 tiny 준거임.
-    # elif 10 <= disk_size <= 20:
-    #     flavor = "ds4G"
     elif 10 < disk_size :
         flavor = "EXCEEDED"
-    
-    # if disk_size < 20:
-    #     flavor = "m1.small"
-    # elif 20 <= disk_size < 40:
-    #     flavor = "m1.medium"
-    # else :
-    #     flavor = "m1.large"
 
     user_instance_name = input_data["instance_name"]#param_instance_name
     backup_time = input_data["backup_time"]#param_backup_time
 
-    return user_os, user_package, flavor, user_instance_name, backup_time #user_needs, 
+    return user_os, user_package, flavor, user_instance_name, backup_time
 
 
 def templateModify(template, user_id, user_instance_name, flavor, user_package, instance_num):

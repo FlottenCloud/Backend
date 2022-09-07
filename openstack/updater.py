@@ -21,7 +21,7 @@ def backup(cycle):
         if instance_count == 0:
             return "백업 주기 ", cycle, "시간짜리 instance 없음"
 
-        token = oc.admin_token()
+        admin_token = oc.admin_token()
         backup_instance_list = OpenstackInstance.objects.filter(backup_time=cycle)
         print(cycle, "시간짜리 리스트: ", backup_instance_list)
 
@@ -38,7 +38,7 @@ def backup(cycle):
             }
             backup_req = requests.post("http://" + openstack_hostIP + "/compute/v2.1/servers/" +
                 backup_instance_id + "/action",
-                headers={"X-Auth-Token": token},    # admin토큰임 ㅋㅋ
+                headers={"X-Auth-Token": admin_token},    # admin토큰임 ㅋㅋ
                 data=json.dumps(backup_payload))
 
             instance_image_URL = backup_req.headers["Location"]
@@ -48,7 +48,7 @@ def backup(cycle):
 
             while(True):
                 image_status_req = requests.get("http://" + openstack_hostIP + "/image/v2/images/" + instance_image_ID,
-                headers = {"X-Auth-Token" : token})
+                headers = {"X-Auth-Token" : admin_token})
                 print("이미지 상태 조회 리스폰스: ", image_status_req.json())
                 image_status = image_status_req.json()["status"]
                 if image_status == "active":
@@ -56,7 +56,7 @@ def backup(cycle):
                 time.sleep(2)
 
             image_download_req = requests.get("http://" + openstack_hostIP + "/image/v2/images/" + instance_image_ID + "/file",
-                headers = {"X-Auth-Token" : token})
+                headers = {"X-Auth-Token" : admin_token})
             file = open("C:/Users/YOUNGHOO KIM/Desktop/PNU/Graduation/codes/cloudmanager/back_imgs/" + backup_instance_id + ".qcow2", "wb")
             file.write(image_download_req.content)
             file.close()
