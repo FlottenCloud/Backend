@@ -22,6 +22,9 @@ def backup(cycle):
             return "백업 주기 ", cycle, "시간짜리 instance 없음"
 
         admin_token = oc.admin_token()
+        if admin_token == None:
+            return "서버 고장"
+        
         backup_instance_list = OpenstackInstance.objects.filter(backup_time=cycle)
         print(cycle, "시간짜리 리스트: ", backup_instance_list)
 
@@ -48,7 +51,8 @@ def backup(cycle):
 
             while(True):
                 image_status_req = requests.get("http://" + openstack_hostIP + "/image/v2/images/" + instance_image_ID,
-                headers = {"X-Auth-Token" : admin_token})
+                headers = {"X-Auth-Token" : admin_token},
+                timeout=5)
                 print("이미지 상태 조회 리스폰스: ", image_status_req.json())
                 image_status = image_status_req.json()["status"]
                 if image_status == "active":
@@ -89,6 +93,8 @@ def backup(cycle):
 
     except OperationalError:
             return "인스턴스가 없습니다."
+    except requests.exceptions.Timeout:
+        return "timeout"
 
 def backup6():
     backup_res = backup(6)
@@ -104,9 +110,9 @@ def deleter():
     print("all-deleted")
 
 def start():
-    scheduler = BackgroundScheduler()
+    scheduler = BackgroundScheduler({'apscheduler.job_defaults.max_instances': 2}) # 모르겠다
     # scheduler.add_job(deleter, 'interval', seconds=5)
-    scheduler.add_job(backup6, 'interval', seconds=60)
+    scheduler.add_job(backup6, 'interval', seconds=5)
     scheduler.add_job(backup12, 'interval', seconds=120)
     
     scheduler.start()
