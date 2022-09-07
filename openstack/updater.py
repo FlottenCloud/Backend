@@ -106,7 +106,7 @@ def deleter():
 def start():
     scheduler = BackgroundScheduler()
     # scheduler.add_job(deleter, 'interval', seconds=5)
-    scheduler.add_job(backup6, 'interval', seconds=30)
-    scheduler.add_job(backup12, 'interval', seconds=60)
+    scheduler.add_job(backup6, 'interval', seconds=60)
+    scheduler.add_job(backup12, 'interval', seconds=120)
     
     scheduler.start()
