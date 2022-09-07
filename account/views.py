@@ -23,6 +23,8 @@ class AccountView(View):
     def post(self, request):
         input_data = json.loads(request.body)
         admin_token = oc.admin_token()
+        if admin_token == None:
+            return JsonResponse({"message" : "오픈스택 관리자 토큰을 받아올 수 없습니다."})
 
         # 사용자 생성 전 사용자 이름의 프로젝트 생성
         openstack_user_project_payload = {
@@ -64,13 +66,10 @@ class AccountView(View):
             "http://" + openstack_hostIP + "/identity/v3/projects/" + openstack_user_project_id + "/users/" + openstack_created_user_id + "/roles/" + openstack_admin_role_id,
             headers={'X-Auth-Token': admin_token})
 
-        #생성된 사용자를 admins 그룹에 추가
+        #생성된 사용자를 admins 그룹에 추가 # 일단 놔두기
         # group_res = requests.put(
         #     "http://" + openstack_hostIP + "/identity/v3/groups/" + openstack_admins_group_id + "/users/" + openstack_created_user_id,
         #     headers={'X-Auth-Token': admin_token})
-        #생성된 사용자에게 admin 역할 부여
-        # permission_req = requests.put(
-        #     "http://" + openstack_hostIP + "/identity/v3/domains/default/users/" + openstack_created_user_id + "/roles/" + openstack_admin_role_id)
 
         response = JsonResponse(input_data, status=200)
         response['Access-Control-Allow-Origin'] = '*'
@@ -87,9 +86,12 @@ class AccountView(View):
         return response
 
 
-    def get(self, request):                                   # instance list도 이런 식으로
+    def get(self, request):                                   # 이건 아직 안썼는데 일단 나중에 제대로 수정할 것
         input_data = json.loads(request.body)
         admin_token = oc.admin_token()
+        if admin_token == None:
+            return JsonResponse({"message" : "오픈스택 관리자 토큰을 받아올 수 없습니다."})
+        
         #Account_data = Account_info.objects.values()
         get_user_id = input_data["user_id"]
         Account_data_user_id = Account_info.objects.get(user_id = get_user_id)
@@ -98,12 +100,14 @@ class AccountView(View):
             headers={'X-Auth-Token': admin_token})
         print(user_res.json())
 
-        return HttpResponse(user_res.json())#JsonResponse({'accounts': list(Account_data)}, status=200)
+        return JsonResponse({'account_info': user_res.json()}, status=200)
 
 
-    def delete(self, request):  #그냥 api로 db랑 오픈스택에 유저 쌓인 거 정리하기 쉬우려고 만들었음.
+    def delete(self, request):  #그냥 api로 db랑 오픈스택에 유저 쌓인 거 정리하기 쉬우려고 만들었음. 후에 탈퇴기능 이용하려면 구현 제대로 할 것.
         input_data = json.loads(request.body)
-        token = oc.admin_token()
+        admin_token = oc.admin_token()
+        if admin_token == None:
+            return JsonResponse({"message" : "오픈스택 관리자 토큰을 받아올 수 없습니다."})
         del_user_id = input_data["user_id"]
         account_data = Account_info.objects.get(user_id = del_user_id)  #db에서 삭제할 유저 정보
         # print(account_data)
@@ -116,15 +120,15 @@ class AccountView(View):
         for resource in user_resource:  # 오픈스택에서 user의 stack 모두 삭제
             stack_del_req = requests.delete("http://" + openstack_hostIP + "/heat-api/v1/" + del_project_id_openstack + "/stacks/"
             + resource.stack_name + "/" + resource.stack_id,
-            headers = {'X-Auth-Token' : token})
+            headers = {'X-Auth-Token' : admin_token})
             print(stack_del_req)
 
         account_data.delete()
 
         project_del_req = requests.delete("http://" + openstack_hostIP + "/identity/v3/projects/" + del_project_id_openstack,
-            headers={'X-Auth-Token': token})     #오픈스택에 해당 프로젝트 삭제 request
+            headers={'X-Auth-Token': admin_token})     #오픈스택에 해당 프로젝트 삭제 request
         user_del_req = requests.delete("http://" + openstack_hostIP + "/identity/v3/users/" + del_user_id_openstack,
-            headers={'X-Auth-Token': token})     #오픈스택에 해당 유저 삭제 request
+            headers={'X-Auth-Token': admin_token})     #오픈스택에 해당 유저 삭제 request
         #print(user_del_res.json())
         #유저 삭제 시 -> 스택도 같이 삭제되지 않음.
 
@@ -141,6 +145,8 @@ class SignView(View):
                 user = Account_info.objects.get(user_id=input_data['user_id'])
                 if user.password == input_data['password']:
                     openstack_user_token = oc.user_token(input_data)
+                    if openstack_user_token == None:
+                        return JsonResponse({"message" : "오픈스택 유저 토큰을 받아올 수 없습니다."}, status=404)
                     #hash token 해줄 것
                     response = JsonResponse(
                         {"openstack_user_token" : openstack_user_token}, status=200
@@ -158,6 +164,6 @@ class SignView(View):
             return response
 
         except KeyError:
-            response = JsonResponse({'message': "Openstack 서버에 존재하지 않는 사용자입니다."}, status=400)
+            response = JsonResponse({'message': "서버에 존재하지 않는 사용자입니다."}, status=400)
             response['Access-Control-Allow-Origin'] = '*'
             return response
