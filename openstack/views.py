@@ -87,9 +87,6 @@ class Openstack(RequestChecker, TemplateModifier, APIView):
                 + stack_id + "/resources", token)
             if stack_resource_req == None:
                 return JsonResponse({"message" : "오픈스택 서버에 문제가 생겨 스택 리소스 정보를 가져올 수 없습니다."}, status=404)
-            # stack_resource_req = requests.get("http://" + openstack_hostIP + "/heat-api/v1/" + openstack_tenant_id + "/stacks/" + stack_name + "/" # 스택으로 만든 인스턴스가 생성 완료될 때까지 기다림
-            #     + stack_id + "/resources",
-            #     headers = {'X-Auth-Token' : token}).json()["resources"]
             stack_resource = stack_resource_req.json()["resources"]
 
             for resource in stack_resource: # 스택 리스폰스에서 리소스들의 순서가 바뀌어 오는 경우 발견. 순회로 해결함.
@@ -109,8 +106,6 @@ class Openstack(RequestChecker, TemplateModifier, APIView):
         instance_info_req = super().reqChecker("get", "http://" + openstack_hostIP + "/compute/v2.1/servers/" + instance_id, token)
         if instance_info_req == None:
             return JsonResponse({"message" : "오픈스택 서버에 문제가 생겨 인스턴스 정보를 가져올 수 없습니다."}, status=404)
-        # instance_info_req = requests.get("http://" + openstack_hostIP + "/compute/v2.1/servers/" + instance_id,
-        #     headers = {'X-Auth-Token' : token})
         print("인스턴스 정보: ", instance_info_req.json())
 
         instance_name = instance_info_req.json()["server"]["name"]
@@ -124,21 +119,19 @@ class Openstack(RequestChecker, TemplateModifier, APIView):
 
         image_req = super().reqChecker("get", "http://" + openstack_hostIP + "/compute/v2.1/images/" + image_id, token)
         if image_req == None:
-            return JsonResponse({"message" : "오픈스택 서버에 문제가 생겨 인스턴스의 이미지 정보를 가져올 수 없습니다."}, status=404)
-        # image_req = requests.get("http://" + openstack_hostIP + "/compute/v2.1/images/" + image_id,
-        #     headers = {'X-Auth-Token' : token})
+            return JsonResponse({"message" : "오픈스택 서버에 문제가 생겨 인스턴스의 이미지 정보를 가져올 수 없습니다."}, status=404)    
         instance_image_name = image_req.json()["image"]["name"]
         print("이미지 이름: ", instance_image_name)
 
         flavor_req = super().reqChecker("get", "http://" + openstack_hostIP + "/compute/v2.1/flavors/" + flavor_id, token)
         if flavor_req == None:
             return JsonResponse({"message" : "오픈스택 서버에 문제가 생겨 인스턴스의 플레이버 정보를 가져올 수 없습니다."}, status=404)
-        # flavor_req = requests.get("http://" + openstack_hostIP + "/compute/v2.1/flavors/" + flavor_id,
-        #     headers = {'X-Auth-Token' : token})
-        print(flavor_req)
+        print("flavor정보: ", flavor_req.json())
+
         instance_flavor_name = flavor_req.json()["flavor"]["name"]
         print("flavor 이름: ", instance_flavor_name)
         instance_ram_size = round(flavor_req.json()["flavor"]["ram"]/953.7, 2)
+        print("서버에서 넘겨주는 램 크기: ", flavor_req.json()["flavor"]["ram"])
         print("램 크기: ", instance_ram_size)
         instance_disk_size = flavor_req.json()["flavor"]["disk"]
         print("디스크 용량: ", instance_disk_size)
@@ -175,10 +168,12 @@ class Openstack(RequestChecker, TemplateModifier, APIView):
 
         return JsonResponse({"message" : "가상머신 생성 완료"}, status=201)
 
-    @swagger_auto_schema(tags=["openstack api"], manual_parameters=[openstack_user_token], responses={200:"Success"})
+    @swagger_auto_schema(tags=["openstack api"], manual_parameters=[openstack_user_token], responses={200:"Success", 404:"Not Found"})
     def get(self, request):
         token = request.headers["X-Auth-Token"]#oc.user_token(input_data)
         user_id = oc.getUserID(token)
+        if user_id == None:
+            return JsonResponse({"message" : "오픈스택 서버에 문제가 생겨 token으로 오픈스택 유저의 정보를 얻어올 수 없습니다."}, status=404)
 
         try:
             user_instance_info = OpenstackInstance.objects.filter(user_id=user_id)
@@ -189,8 +184,9 @@ class Openstack(RequestChecker, TemplateModifier, APIView):
                 #     instance_status = instance_req.json()["server"]["status"]
                 #     if instance_status == OpenstackInstance.objects.filter(instance_id=instance_info.instance_id).status:
                 #         break
-                instance_req = requests.get("http://" + openstack_hostIP + "/compute/v2.1/servers/" + instance_info.instance_id,
-                    headers = {'X-Auth-Token' : token})
+                instance_req = super().reqChecker("get", "http://" + openstack_hostIP + "/compute/v2.1/servers/" + instance_info.instance_id, token)
+                if instance_req == None:
+                    return JsonResponse({"message" : "오픈스택 서버에 문제가 생겨 인스턴스의 상태 정보를 가져올 수 없습니다."}, status=404)
                 instance_status = instance_req.json()["server"]["status"]
                 OpenstackInstance.objects.filter(instance_id=instance_info.instance_id).update(status=instance_status)
 
