@@ -1,15 +1,29 @@
-{                   
+{
     "stack_name": "ubuntu1",
     "template": {
         "heat_template_version": "2018-08-31",
         "description": "This template demonstrates the different ways configuration resources can be used to specify boot-time cloud-init configuration.",
-        "resources": {
+        "parameters":{
+            "flavor": {
+                "default": "m1.tiny",
+                "type": "string"
+            },
+            "packages":{
+                "default" :[],
+                "type" : "comma_delimited_list"
+            },
+            "image":{
+                "default": "ubuntu",
+                "type":"string"
+            }
+        },
+		"resources": {
             "mybox": {
                 "type": "OS::Nova::Server",
                 "properties": {
 					"name": "server_0526",
-					"flavor": "ds512M",
-					"image": "ubuntu",
+					"flavor": {"get_param":"flavor"},
+					"image": {"get_param":"image"},
 					"key_name": {
 						"get_resource": "demo_key"
 					},
@@ -30,36 +44,11 @@
                 "type": "OS::Heat::CloudConfig",
                 "properties": {
 					"cloud_config": {
-						"package_update": true,
-						"package_upgrade": true,
-						"users": [
-							"default","bong","hun"      
-						],
-						"ssh_pwauth": true,
-						"write_files": [
-						{
-							"path": "/tmp/one",
-							"content": "The one is bar"
-						}
-						],
-						"bootcmd": [
-							"mkdir /home/ubuntu/bong"
-						],
-						"chpasswd": {
-							"list": ["root:0000"],
-							"expired": "false"
-						},
-						"manage_home_ubuntu": "false",
-						"packages": [
-							"apache2",
-							"net-tools",
-							"pwgen",
-							"pastebinit",
-							"libguestfs-tools"
-						]
+						"packages": {"get_param" : "packages"}
 					}
-                }
-            },
+				}
+			},
+
             "demo_key": {
                 "type": "OS::Nova::KeyPair",
                 "properties": {
@@ -153,6 +142,11 @@
                 }
             }
         }
+    },
+      "parameters":{
+        "flavor" : "ds512M",
+        "packages" : ["vim", "pwgen"],
+        "image" : "ubuntu"
     }
-    
+
 }

@@ -38,7 +38,7 @@ class Openstack(RequestChecker, TemplateModifier, APIView):
         if user_id == None:
             return JsonResponse({"message" : "오픈스택 서버에 문제가 생겼습니다."}, status=404)
 
-        instance_num = OpenstackInstance.objects.filter(user_id=user_id).count() + 1
+        # instance_num = OpenstackInstance.objects.filter(user_id=user_id).count() + 1  # 스택 생성 때 키페어 네임 주려고 했던 건데 필요없는 거 확인되면 지울 것
         user_os, user_package, flavor, user_instance_name, backup_time = super().getUserRequirement(input_data)
         if flavor == "EXCEEDED":
             return JsonResponse({"message" : "인원 수 X 인원 당 예상 용량 값은 10G를 넘지 못합니다."}, status=405)
@@ -52,15 +52,15 @@ class Openstack(RequestChecker, TemplateModifier, APIView):
         if(user_os == "ubuntu"):
             with open(stack_template_root + 'ubuntu_1804.json','r') as f:   # 아직 템플릿 구현 안됨
                 json_template_skeleton = json.load(f)
-                json_template = super().templateModify(json_template_skeleton, user_id, user_instance_name, flavor, user_package, instance_num)
+                json_template = super().templateModify(json_template_skeleton, user_id, user_instance_name, flavor, user_package)
         elif(user_os == "cirros"):
             with open(stack_template_root + 'cirros.json','r') as f:    #일단 이거랑
                 json_template_skeleton = json.load(f)
-                json_template = super().templateModify(json_template_skeleton, user_id, user_instance_name, flavor, user_package, instance_num)
+                json_template = super().templateModify(json_template_skeleton, user_id, user_instance_name, flavor, user_package)
         elif(user_os == "fedora"):
             with open(stack_template_root + 'fedora.json','r') as f:    #이걸로 생성 test
                 json_template_skeleton = json.load(f)
-                json_template = super().templateModify(json_template_skeleton, user_id, user_instance_name, flavor, user_package, instance_num)
+                json_template = super().templateModify(json_template_skeleton, user_id, user_instance_name, flavor, user_package)
         
         #address heat-api v1 프로젝트 id stacks
         stack_req = super().reqCheckerWithData("post", "http://" + openstack_hostIP + "/heat-api/v1/" + openstack_tenant_id + "/stacks",
@@ -110,7 +110,7 @@ class Openstack(RequestChecker, TemplateModifier, APIView):
 
         instance_name = instance_info_req.json()["server"]["name"]
         print("인스턴스 이름: ", instance_name)
-        instance_ip_address = instance_info_req.json()["server"]["addresses"][user_id + "-net" + str(instance_num)][0]["addr"]
+        instance_ip_address = instance_info_req.json()["server"]["addresses"][user_id + "-net" + instance_name][0]["addr"]
         print("인스턴스 ip: ",instance_ip_address)
         instance_status =  instance_info_req.json()["server"]["status"]
         print("인스턴스 상태: ",instance_status)
