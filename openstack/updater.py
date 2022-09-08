@@ -17,21 +17,6 @@ def freezerBackup(cycle):
     pass
 
 
-# def imageSaver(backup_img_file):
-#     if InstanceImgBoard.objects.filter(instance_img_file=backup_img_file).exists():
-#         backup_img_to_update = InstanceImgBoard.objects.filter(instance_img_file=backup_img_file)
-#         # backup_img.update(instance_img_file=backup_img_file)
-
-#     document = InstanceImgBoard(
-#         instance_img_file = backup_img_file
-#     )
-#     document.save()
-#     documents = InstanceImgBoard.objects.all()
-#     # print(list(documents))
-
-#     return list(documents)
-
-
 def backup(cycle):
     import openstack_controller as oc                            # import는 여기 고정 -> 컴파일 시간에 circular import 때문에 걸려서
     openstack_hostIP = oc.hostIP
@@ -67,10 +52,6 @@ def backup(cycle):
                 json.dumps(backup_payload))
             if backup_req == None:
                 raise requests.exceptions.Timeout
-            # backup_req = requests.post("http://" + openstack_hostIP + "/compute/v2.1/servers/" +
-            #     backup_instance_id + "/action",
-            #     headers={"X-Auth-Token": admin_token},    # admin토큰임 ㅋㅋ
-            #     data=json.dumps(backup_payload))
 
             instance_image_URL = backup_req.headers["Location"]
             print("image_URL : " + instance_image_URL)
@@ -118,10 +99,8 @@ def backup(cycle):
                     print(serializer.errors)
                     backup_img_file_to_db.close()
                     os.remove(backup_instance_id + ".qcow2")
-
-                    print("not updated")# return "not updated"
+                    print("not updated")
                     pass
-
 
                 backup_img_file_to_db.close()
                 print("updated")
@@ -139,12 +118,11 @@ def backup(cycle):
                     print(serializer.errors)
                     backup_img_file_to_db.close()                    
                     os.remove(backup_instance_id + ".qcow2")
-
                     print("not saved")# return "not saved"
                     pass
-            
-            # return "image file download response is ", backup_req
+        
             print("Backup for " + backup_instance_id + " is completed")
+
         return "All backup has completed."
 
     except OperationalError:
