@@ -2,6 +2,20 @@
     "stack_name": "fedora1",
     "template": {
 		"heat_template_version": "2018-08-31",
+		"parameters":{
+            "flavor": {
+                "default": "m1.tiny",
+                "type": "string"
+            },
+            "packages":{
+                "default" :["vim"],
+                "type" : "comma_delimited_list"
+            },
+            "image":{
+                "default": "ubuntu",
+                "type":"string"
+            },
+        },
 		"resources": {
 			"mybox": {
 				"type": "OS::Nova::Server",
@@ -151,6 +165,11 @@
 					}
 				}
 			}
+		},
+		"parameters":{
+			"flavor" : "user_flavor",
+			"packages" : "user_packages",
+			"image" : "user_os"
 		}
 	}
 }

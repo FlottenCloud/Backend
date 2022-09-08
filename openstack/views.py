@@ -31,7 +31,7 @@ openstack_user_token = openapi.Parameter(   # for django swagger
 class Openstack(RequestChecker, TemplateModifier, APIView):
     @swagger_auto_schema(tags=["openstack api"], manual_parameters=[openstack_user_token], request_body=CreateStackSerializer, responses={200:"Success", 404:"Not Found", 405:"Method Not Allowed"})
     def post(self, request):
-        input_data = json.loads(request.body)   # user_id, password, system_num(추후에 요구사항 폼 등으로 바뀌면 수정할 것)
+        input_data = json.loads(request.body)   # header: user_token, body: os, package, num_people, data_size, instance_name, backup_time
         stack_template_root = "templates/"
         token = request.headers["X-Auth-Token"]
         user_id = oc.getUserID(token)
@@ -42,8 +42,8 @@ class Openstack(RequestChecker, TemplateModifier, APIView):
         user_os, user_package, flavor, user_instance_name, backup_time = super().getUserRequirement(input_data)
         if flavor == "EXCEEDED":
             return JsonResponse({"message" : "인원 수 X 인원 당 예상 용량 값은 10G를 넘지 못합니다."}, status=405)
-        if backup_time != 6 and backup_time != 12 and backup_time != 24:
-            return JsonResponse({"message" : "백업 주기는 6시간, 12시간, 24시간 중에서만 선택할 수 있습니다."}, status=405)
+        if backup_time != 6 and backup_time != 12:
+            return JsonResponse({"message" : "백업 주기는 6시간, 12시간 중에서만 선택할 수 있습니다."}, status=405)
         
 
         openstack_tenant_id = account.models.AccountInfo.objects.get(user_id=user_id).openstack_user_project_id
@@ -202,8 +202,43 @@ class Openstack(RequestChecker, TemplateModifier, APIView):
     
     # @swagger_auto_schema(tags=["openstack api"], manual_parameters=[openstack_user_token], responses={200:"Success"})
     def patch(self, request):
+        input_data = json.loads(request.body)   # header: user_token, body: instance_id, 요구사항: {package, num_people, data_size, backup_time}
+        stack_template_root = "templates/"
+        token = request.headers["X-Auth-Token"]
+        user_id = oc.getUserID(token)
+        if user_id == None:
+            return JsonResponse({"message" : "오픈스택 서버에 문제가 생겼습니다."}, status=404)
+
+        # instance_num = OpenstackInstance.objects.filter(user_id=user_id).count() + 1
+        user_package, flavor, backup_time = super().getUserUpdateRequirement(input_data)
+        if flavor == "EXCEEDED":
+            return JsonResponse({"message" : "인원 수 X 인원 당 예상 용량 값은 10G를 넘지 못합니다."}, status=405)
+        if backup_time != 6 and backup_time != 12:
+            return JsonResponse({"message" : "백업 주기는 6시간, 12시간 중에서만 선택할 수 있습니다."}, status=405)
         
-        pass
+        print("요청 정보: ", user_package, flavor, backup_time)
+
+        update_openstack_tenant_id = account.models.AccountInfo.objects.get(user_id=user_id).openstack_user_project_id
+        stack_data = OpenstackInstance.objects.get(instance_id=input_data["instance_id"])
+        # instance_id = stack_data.instance_id
+        update_stack_id = stack_data.stack_id
+        update_stack_name = stack_data.stack_name
+
+        stack_environment_req = super().reqChecker("get", "http://" + openstack_hostIP + "/heat-api/v1/" + update_openstack_tenant_id + "/stacks/" 
+            + update_stack_name + "/" + update_stack_id + "/environment", token)
+        if stack_environment_req == None:
+            return JsonResponse({"message" : "오픈스택 서버에 문제가 생겨 인스턴스(스택)을 삭제할 수 없습니다."}, status=404)
+
+        print("기존 스택의 템플릿: ", stack_environment_req.json())
+        before_update_template_package = stack_environment_req.json()["parameters"]["packages"]
+        print("기존 스택의 템플릿 패키지: ", before_update_template_package)
+
+        return JsonResponse({"message" : "업데이트 완료"}, status=201)
+
+
+
+
+        
 
     @swagger_auto_schema(tags=["openstack api"], manual_parameters=[openstack_user_token], request_body=InstanceIDSerializer, responses={200:"Success", 404:"Not Found"})
     def delete(self, request):
@@ -215,8 +250,8 @@ class Openstack(RequestChecker, TemplateModifier, APIView):
 
         stack_data = OpenstackInstance.objects.get(instance_id=input_data["instance_id"])
         del_instance_name = stack_data.instance_name
-        del_stack_name = stack_data.stack_name
         del_stack_id = stack_data.stack_id
+        del_stack_name = stack_data.stack_name
         print("삭제한 가상머신 이름: " + del_instance_name + "\n삭제한 스택 이름: " + del_stack_name + "\n삭제한 스택 ID: " + del_stack_id)
         stack_data.delete() # DB에서 해당 stack row 삭제
 
