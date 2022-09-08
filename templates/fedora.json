@@ -2,27 +2,28 @@
     "stack_name": "fedora1",
     "template": {
 		"heat_template_version": "2018-08-31",
-		"parameters":{
-            "flavor": {
-                "default": "m1.tiny",
-                "type": "string"
-            },
-            "packages":{
-                "default" :["vim"],
-                "type" : "comma_delimited_list"
-            },
-            "image":{
-                "default": "ubuntu",
-                "type":"string"
-            },
-        },
+        "description": "This template demonstrates the different ways configuration resources can be used to specify boot-time cloud-init configuration.\n",
+        "parameters":{
+              "flavor": {
+                  "default": "ds512M",
+                  "type": "string"
+              },
+              "packages":{
+                  "default" :[],
+                  "type" : "comma_delimited_list"
+              },
+              "image":{
+                  "default": "Fedora-Cloud-Base-36-1.5.x86_64",
+                  "type":"string"
+              }
+          },
 		"resources": {
 			"mybox": {
 				"type": "OS::Nova::Server",
 				"properties": {
 					"name": "fedora_instance",
-					"flavor": "ds512M",
-					"image": "Fedora-Cloud-Base-36-1.5.x86_64",
+					"flavor": {"get_param":"flavor"},
+					"image": {"get_param":"image"},
 					"key_name": {
 						"get_resource": "demo_key"
 					},
@@ -43,34 +44,8 @@
 				"type": "OS::Heat::CloudConfig",
 				"properties": {
 					"cloud_config": {
-						"package_update": true,
-						"package_upgrade": true,
-						"users": [
-							"default",
-							{
-								"name": "bong",
-								"shell": "/bin/bash",
-								"sudo": "ALL=(ALL) NOPASSWD:ALL"
-							}
-						],
-						"ssh_pwauth": true,
-						"write_files": [
-							{
-								"path": "/tmp/one",
-								"content": "The one is bar"
-							}
-						],
-						"bootcmd": [
-							"mkdir /home/ubuntu"
-						],
-						"chpasswd": {
-							"list": ["root:0000"],
-							"expired": false
-						},
-						"packages": [
-							"httpd"
-						]
-					}
+                      "packages": {"get_param" : "packages"}
+                    }
 				}
 			},
 			"demo_key": {
@@ -165,11 +140,11 @@
 					}
 				}
 			}
-		},
-		"parameters":{
-			"flavor" : "user_flavor",
-			"packages" : "user_packages",
-			"image" : "user_os"
 		}
-	}
+	},
+      "parameters":{
+        "flavor" : "ds512M",
+        "packages" : ["vim", "pwgen"],
+        "image" : "Fedora-Cloud-Base-36-1.5.x86_64"
+    }
 }

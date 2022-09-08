@@ -45,6 +45,7 @@ INSTALLED_APPS = [
     'django_apscheduler',
     'account',
     'openstack',
+    'django_cleanup.apps.CleanupConfig',
 ]
 
 APSCHEDULER_DATETIME_FORMAT = "N j, Y, f:s a"  # Default

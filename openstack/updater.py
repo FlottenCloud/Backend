@@ -91,96 +91,61 @@ def backup(cycle):
             if image_download_req == None:
                 raise requests.exceptions.Timeout
             print("오픈스택에서의 이미지 다운로드에 대한 리스폰스: ", image_download_req)
-            # backup_img_file = open(backup_instance_id + "_" + ".qcow2", "wb")
-            # backup_img_file.write(image_download_req.content)
-            # backup_img_file.close()
+            backup_img_file = open(backup_instance_id + ".qcow2", "wb")
+            backup_img_file.write(image_download_req.content)
+            backup_img_file.close()
 
-            # backup_img_file_to_db = open(backup_instance_id + instance_image_ID[:5] + ".qcow2", "rb")
-            # backup_img_data = {
-            #     "instance_id" : backup_instance_id,
-            #     "image_id" : instance_image_ID,
-            #     "image_url" : instance_image_URL,
-            #     "instance_img_file" : File(backup_img_file_to_db)
-            # }
-            # print(backup_img_data)
+            backup_img_file_to_db = open(backup_instance_id + ".qcow2", "rb")
+            backup_image_data = {
+                "instance_id" : backup_instance_id,
+                "image_id" : instance_image_ID,
+                "image_url" : instance_image_URL,
+                "instance_img_file" : File(backup_img_file_to_db)
+            }
+            print(backup_image_data)
 
             if OpenstackBackupImage.objects.filter(instance_id=backup_instance_id).exists():
-                backup_img_to_update = OpenstackBackupImage.objects.filter(instance_id=backup_instance_id)
-                backup_img_file = open(backup_instance_id + "_" + str(backup_img_to_update[0].updated_at) + ".qcow2", "wb")
-                backup_img_file.write(image_download_req.content)
-                backup_img_file.close()
-                backup_img_file_to_db = open(backup_instance_id + "_" + str(backup_img_to_update[0].updated_at) + ".qcow2", "rb")
+                OpenstackBackupImage.objects.filter(instance_id=backup_instance_id).delete()
+                serializer = OpenstackBackupImageSerializer(data=backup_image_data)
+                if serializer.is_valid():
+                    serializer.save()
+                    print("updated image info")
+                    print(serializer.data)
+                    backup_img_file_to_db.close()
+                    os.remove(backup_instance_id + ".qcow2")
+                else:
+                    print("not updated")
+                    print(serializer.errors)
+                    backup_img_file_to_db.close()
+                    os.remove(backup_instance_id + ".qcow2")
 
-                backup_img_to_update.update(image_id=instance_image_ID)
-                backup_img_to_update.update(image_url=instance_image_URL)
-                backup_img_to_update.update(instance_img_file=File(backup_img_file_to_db))  # => 업데이트로는 파일 상태 감지 못하는 듯. cleanup 모듈 써볼 것
-                # OpenstackBackupImage.objects.filter(instance_id=backup_instance_id).delete()
-                # serializer = OpenstackBackupImageSerializer(data=backup_image_data)
-                # if serializer.is_valid():
-                #     serializer.save()
-                #     print("updated image info")
-                #     print(serializer.data)
-                #     backup_img_file_to_db.close()
-                # else:
-                #     print("not updated")
-                #     print(serializer.errors)
-                #     backup_img_file_to_db.close()
-                #     return "not updated"
+                    print("not updated")# return "not updated"
+                    pass
+
+
                 backup_img_file_to_db.close()
-                print("sleep for 2 seconds")
-                time.sleep(2)
-                os.remove(backup_instance_id + "_" + str(backup_img_to_update[0].updated_at) + ".qcow2")
                 print("updated")
 
             else:
-                backup_img_file = open(backup_instance_id + "_1.qcow2", "wb")
-                backup_img_file.write(image_download_req.content)
-                backup_img_file.close()
-
-                backup_img_file_to_db = open(backup_instance_id + "_1.qcow2", "rb")
-                backup_img_data = {
-                    "instance_id" : backup_instance_id,
-                    "image_id" : instance_image_ID,
-                    "image_url" : instance_image_URL,
-                    "instance_img_file" : File(backup_img_file_to_db)
-                }
-                print("백업 이미지의 데이터: ", backup_img_data)
-
-                serializer = OpenstackBackupImageSerializer(data=backup_img_data)
+                serializer = OpenstackBackupImageSerializer(data=backup_image_data)
                 if serializer.is_valid():
                     serializer.save()
                     print("saved image info")
                     print(serializer.data)
                     backup_img_file_to_db.close()
-                    print("sleep for 2 seconds")
-                    time.sleep(2)
-                    os.remove(backup_instance_id + "_1.qcow2")
+                    os.remove(backup_instance_id + ".qcow2")
                 else:
                     print("not saved")
                     print(serializer.errors)
-                    backup_img_file_to_db.close()
-                    print("sleep for 2 seconds")
-                    time.sleep(2)
-                    os.remove(backup_instance_id + "_1.qcow2")
-                    return "not saved"
+                    backup_img_file_to_db.close()                    
+                    os.remove(backup_instance_id + ".qcow2")
 
-            # if OpenstackBackupImage.objects.filter(instance_id=backup_instance_id).count() == 0:   # 해당 이미지가 DB에 저장 안돼있으면 create()
-            #     serializer = OpenstackBackupImageSerializer(data=backup_image_data)
-            #     if serializer.is_valid():
-            #         serializer.save()
-            #         print("saved image info")
-            #         print(serializer.data)
-            #     else:
-            #         print("not saved")
-            #         print(serializer.errors)
-
-            # else:   # 해당 이미지가 DB에 저장돼있으면 update()
-            #     backup_img_to_update = OpenstackBackupImage.objects.filter(instance_id=backup_instance_id)
-            #     backup_img_to_update.update(image_id=instance_image_ID)
-            #     backup_img_to_update.update(image_url=instance_image_URL)
-            #     print("updated")
+                    print("not saved")# return "not saved"
+                    pass
             
-            return "image file download response is ", backup_req
+            # return "image file download response is ", backup_req
+            print("Backup for " + backup_instance_id + " is completed")
+        return "All backup has completed."
 
     except OperationalError:
             return "인스턴스가 없습니다."

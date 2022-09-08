@@ -45,7 +45,7 @@ class TemplateModifier:
 
         return user_package, flavor, backup_time, # user_os, user_instance_name
 
-    def templateModify(self, template, user_id, user_instance_name, flavor, user_package, instance_num):
+    def templateModify(self, template, user_id, user_instance_name, flavor, user_package):
         template_data = template
         template_data["stack_name"] = str(user_instance_name)   # 스택 name 설정
         template_data["template"]["resources"]["mybox"]["properties"]["name"] = str(user_instance_name) # 인스턴스 name 설정
@@ -55,10 +55,10 @@ class TemplateModifier:
         template_data["parameters"]["flavor"] = flavor    # flavor 설정
         template_data["parameters"]["packages"] = user_package    # package 설정
 
-        template_data["template"]["resources"]["demo_key"]["properties"]["name"] = user_id + "_" + str(instance_num)  # 키페어 name 설정
-        template_data["template"]["resources"]["mynet"]["properties"]["name"] = user_id + "-net" + str(instance_num)    # 네트워크 name 설정
-        template_data["template"]["resources"]["mysub_net"]["properties"]["name"] = user_id + "-subnet" + str(instance_num) # sub네트워크 name 설정
-        template_data["template"]["resources"]["mysecurity_group"]["properties"]["name"] = user_id + "-security_group" + str(instance_num) # 보안그룹 name 설정
+        template_data["template"]["resources"]["demo_key"]["properties"]["name"] = user_id + "_" + user_instance_name  # 키페어 name 설정
+        template_data["template"]["resources"]["mynet"]["properties"]["name"] = user_id + "-net" + user_instance_name    # 네트워크 name 설정
+        template_data["template"]["resources"]["mysub_net"]["properties"]["name"] = user_id + "-subnet" + user_instance_name # sub네트워크 name 설정
+        template_data["template"]["resources"]["mysecurity_group"]["properties"]["name"] = user_id + "-security_group" + user_instance_name # 보안그룹 name 설정
         
         print(json.dumps(template_data))
 
