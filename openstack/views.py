@@ -46,7 +46,7 @@ class Openstack(RequestChecker, TemplateModifier, APIView):
             return JsonResponse({"message" : "백업 주기는 6시간, 12시간, 24시간 중에서만 선택할 수 있습니다."}, status=405)
         
 
-        openstack_tenant_id = account.models.Account_info.objects.get(user_id=user_id).openstack_user_project_id
+        openstack_tenant_id = account.models.AccountInfo.objects.get(user_id=user_id).openstack_user_project_id
         print("유저 프로젝트 id: ", openstack_tenant_id)
 
         if(user_os == "ubuntu"):
@@ -202,12 +202,12 @@ class Openstack(RequestChecker, TemplateModifier, APIView):
     
     # @swagger_auto_schema(tags=["openstack api"], manual_parameters=[openstack_user_token], responses={200:"Success"})
     def patch(self, request):
-            
+        
         pass
 
     @swagger_auto_schema(tags=["openstack api"], manual_parameters=[openstack_user_token], request_body=InstanceIDSerializer, responses={200:"Success", 404:"Not Found"})
     def delete(self, request):
-        input_data = json.loads(request.body)   # user_id, password, instance_id
+        input_data = json.loads(request.body)   # instance_id
         token = request.headers["X-Auth-Token"]
         user_id = oc.getUserID(token)
         if user_id == None:
@@ -220,7 +220,7 @@ class Openstack(RequestChecker, TemplateModifier, APIView):
         print("삭제한 가상머신 이름: " + del_instance_name + "\n삭제한 스택 이름: " + del_stack_name + "\n삭제한 스택 ID: " + del_stack_id)
         stack_data.delete() # DB에서 해당 stack row 삭제
 
-        del_openstack_tenant_id = account.models.Account_info.objects.get(user_id=user_id).openstack_user_project_id
+        del_openstack_tenant_id = account.models.AccountInfo.objects.get(user_id=user_id).openstack_user_project_id
         stack_del_req = super().reqChecker("delete", "http://" + openstack_hostIP + "/heat-api/v1/" + del_openstack_tenant_id + "/stacks/"
             + del_stack_name + "/" + del_stack_id, token)
         if stack_del_req == None:

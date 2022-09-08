@@ -45,7 +45,6 @@ INSTALLED_APPS = [
     'django_apscheduler',
     'account',
     'openstack',
-    'fileBoard',
 ]
 
 APSCHEDULER_DATETIME_FORMAT = "N j, Y, f:s a"  # Default

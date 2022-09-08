@@ -5,7 +5,7 @@ sys.path.append(os.path.dirname(os.path.abspath(os.path.dirname(__file__))))    
 import openstack_controller as oc    #백엔드 루트 디렉토리에 openstack.py 생성했고, 그 안에 공통으로 사용될 함수, 변수들 넣을 것임. 아직은 클래스화 안 했음.
 import json
 import requests
-from .models import Account_info
+from .models import AccountInfo
 from django.shortcuts import render
 from django.views import View
 from django.http import HttpResponse, JsonResponse
@@ -75,7 +75,7 @@ class AccountView(View):
         response['Access-Control-Allow-Origin'] = '*'
 
         #장고 ORM 업데이트
-        Account_info.objects.create(
+        AccountInfo.objects.create(
             user_id = input_data['user_id'],
             email = input_data['email'],
             password = input_data['password'],
@@ -94,7 +94,7 @@ class AccountView(View):
         
         #Account_data = Account_info.objects.values()
         get_user_id = input_data["user_id"]
-        Account_data_user_id = Account_info.objects.get(user_id = get_user_id)
+        Account_data_user_id = AccountInfo.objects.get(user_id = get_user_id)
         openstack_user_id = Account_data_user_id.openstack_user_id
         user_res = requests.get("http://" + openstack_hostIP + "/identity/v3/users/" + openstack_user_id,
             headers={'X-Auth-Token': admin_token})
@@ -109,7 +109,7 @@ class AccountView(View):
         if admin_token == None:
             return JsonResponse({"message" : "오픈스택 관리자 토큰을 받아올 수 없습니다."})
         del_user_id = input_data["user_id"]
-        account_data = Account_info.objects.get(user_id = del_user_id)  #db에서 삭제할 유저 정보
+        account_data = AccountInfo.objects.get(user_id = del_user_id)  #db에서 삭제할 유저 정보
         # print(account_data)
         del_project_id_openstack = account_data.openstack_user_project_id
         del_user_id_openstack = account_data.openstack_user_id  #해당 유저의 openstack user id
@@ -141,8 +141,8 @@ class SignView(View):
         input_data = json.loads(request.body)
         # 사용자의 openstack 정보
         try:
-            if Account_info.objects.filter(user_id=input_data['user_id']).exists():
-                user = Account_info.objects.get(user_id=input_data['user_id'])
+            if AccountInfo.objects.filter(user_id=input_data['user_id']).exists():
+                user = AccountInfo.objects.get(user_id=input_data['user_id'])
                 if user.password == input_data['password']:
                     openstack_user_token = oc.user_token(input_data)
                     if openstack_user_token == None:

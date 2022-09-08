@@ -31,7 +31,7 @@ class OpenstackInstanceSerializer(serializers.ModelSerializer):
 class OpenstackBackupImageSerializer(serializers.ModelSerializer):
     class Meta:
         model = OpenstackBackupImage
-        fields = ["instance_id", "image_id", "image_url"]
+        fields = ["instance_id", "image_id", "image_url", "instance_img_file"]
 
     def create(self, validated_data):
         return OpenstackBackupImage.objects.create(**validated_data)
@@ -40,6 +40,7 @@ class OpenstackBackupImageSerializer(serializers.ModelSerializer):
         instance.instance_id = validated_data.get('instance_id', instance.instance_id)
         instance.image_id = validated_data.get('image_id', instance.image_id)
         instance.image_url = validated_data.get('image_url', instance.image_url)
+        instance.instance_img_file = validated_data.get('instance_img_file', instance.instance_img_file)
         instance.save()
         
         return instance

@@ -1,23 +1,43 @@
+import os
 import json
 from re import S
 import time
+# import paramiko
 from sqlite3 import OperationalError
 import requests
 from apscheduler.schedulers.background import BackgroundScheduler
+from django.core.files import File
 from openstack.models import OpenstackBackupImage, OpenstackInstance
-from fileBoard.models import InstanceImgBoard
 from openstack.serializers import OpenstackBackupImageSerializer
 from openstack.openstack_modules import RequestChecker
 
 
-def imageSaver():
+def freezerBackup(cycle):
+    print("this function runs every", cycle, "seconds")
     pass
 
+
+# def imageSaver(backup_img_file):
+#     if InstanceImgBoard.objects.filter(instance_img_file=backup_img_file).exists():
+#         backup_img_to_update = InstanceImgBoard.objects.filter(instance_img_file=backup_img_file)
+#         # backup_img.update(instance_img_file=backup_img_file)
+
+#     document = InstanceImgBoard(
+#         instance_img_file = backup_img_file
+#     )
+#     document.save()
+#     documents = InstanceImgBoard.objects.all()
+#     # print(list(documents))
+
+#     return list(documents)
+
+
 def backup(cycle):
-    req_checker = RequestChecker()
-    print("this function runs every", cycle, "seconds")
     import openstack_controller as oc                            # import는 여기 고정 -> 컴파일 시간에 circular import 때문에 걸려서
     openstack_hostIP = oc.hostIP
+
+    print("this function runs every", cycle, "seconds")
+    req_checker = RequestChecker()
 
     try:
         instance_count = OpenstackInstance.objects.filter(backup_time=cycle).count()
@@ -58,48 +78,108 @@ def backup(cycle):
             print("image_ID : " + instance_image_ID)
 
             while(True):
-                image_status_req = req_checker.reqCheckerWithData("get", "http://" + openstack_hostIP + "/image/v2/images/" + instance_image_ID, admin_token)
+                image_status_req = req_checker.reqChecker("get", "http://" + openstack_hostIP + "/image/v2/images/" + instance_image_ID, admin_token)
                 if image_status_req == None:
                     raise requests.exceptions.Timeout
-                # image_status_req = requests.get("http://" + openstack_hostIP + "/image/v2/images/" + instance_image_ID,
-                # headers = {"X-Auth-Token" : admin_token},
-                # timeout=5)
                 print("이미지 상태 조회 리스폰스: ", image_status_req.json())
+
                 image_status = image_status_req.json()["status"]
                 if image_status == "active":
                     break
                 time.sleep(2)
+            image_download_req = req_checker.reqChecker("get", "http://" + openstack_hostIP + "/image/v2/images/" + instance_image_ID + "/file", admin_token)
+            if image_download_req == None:
+                raise requests.exceptions.Timeout
+            print("오픈스택에서의 이미지 다운로드에 대한 리스폰스: ", image_download_req)
+            # backup_img_file = open(backup_instance_id + "_" + ".qcow2", "wb")
+            # backup_img_file.write(image_download_req.content)
+            # backup_img_file.close()
 
-            image_download_req = requests.get("http://" + openstack_hostIP + "/image/v2/images/" + instance_image_ID + "/file",
-                headers = {"X-Auth-Token" : admin_token})
-            file = open("C:/Users/YOUNGHOO KIM/Desktop/PNU/Graduation/codes/cloudmanager/back_imgs/" + backup_instance_id + ".qcow2", "wb")
-            file.write(image_download_req.content)
-            file.close()
+            # backup_img_file_to_db = open(backup_instance_id + instance_image_ID[:5] + ".qcow2", "rb")
+            # backup_img_data = {
+            #     "instance_id" : backup_instance_id,
+            #     "image_id" : instance_image_ID,
+            #     "image_url" : instance_image_URL,
+            #     "instance_img_file" : File(backup_img_file_to_db)
+            # }
+            # print(backup_img_data)
 
-            backup_image_data = {
-                "instance_id" : backup_instance_id,
-                "image_id" : instance_image_ID,
-                "image_url" : instance_image_URL
-            }
+            if OpenstackBackupImage.objects.filter(instance_id=backup_instance_id).exists():
+                backup_img_to_update = OpenstackBackupImage.objects.filter(instance_id=backup_instance_id)
+                backup_img_file = open(backup_instance_id + "_" + str(backup_img_to_update[0].updated_at) + ".qcow2", "wb")
+                backup_img_file.write(image_download_req.content)
+                backup_img_file.close()
+                backup_img_file_to_db = open(backup_instance_id + "_" + str(backup_img_to_update[0].updated_at) + ".qcow2", "rb")
 
-            print(backup_image_data)
+                backup_img_to_update.update(image_id=instance_image_ID)
+                backup_img_to_update.update(image_url=instance_image_URL)
+                backup_img_to_update.update(instance_img_file=File(backup_img_file_to_db))  # => 업데이트로는 파일 상태 감지 못하는 듯. cleanup 모듈 써볼 것
+                # OpenstackBackupImage.objects.filter(instance_id=backup_instance_id).delete()
+                # serializer = OpenstackBackupImageSerializer(data=backup_image_data)
+                # if serializer.is_valid():
+                #     serializer.save()
+                #     print("updated image info")
+                #     print(serializer.data)
+                #     backup_img_file_to_db.close()
+                # else:
+                #     print("not updated")
+                #     print(serializer.errors)
+                #     backup_img_file_to_db.close()
+                #     return "not updated"
+                backup_img_file_to_db.close()
+                print("sleep for 2 seconds")
+                time.sleep(2)
+                os.remove(backup_instance_id + "_" + str(backup_img_to_update[0].updated_at) + ".qcow2")
+                print("updated")
 
-            if OpenstackBackupImage.objects.filter(instance_id=backup_instance_id).count() == 0:   # 해당 이미지가 DB에 저장 안돼있으면 create()
-                serializer = OpenstackBackupImageSerializer(data=backup_image_data)
+            else:
+                backup_img_file = open(backup_instance_id + "_1.qcow2", "wb")
+                backup_img_file.write(image_download_req.content)
+                backup_img_file.close()
+
+                backup_img_file_to_db = open(backup_instance_id + "_1.qcow2", "rb")
+                backup_img_data = {
+                    "instance_id" : backup_instance_id,
+                    "image_id" : instance_image_ID,
+                    "image_url" : instance_image_URL,
+                    "instance_img_file" : File(backup_img_file_to_db)
+                }
+                print("백업 이미지의 데이터: ", backup_img_data)
+
+                serializer = OpenstackBackupImageSerializer(data=backup_img_data)
                 if serializer.is_valid():
                     serializer.save()
                     print("saved image info")
                     print(serializer.data)
+                    backup_img_file_to_db.close()
+                    print("sleep for 2 seconds")
+                    time.sleep(2)
+                    os.remove(backup_instance_id + "_1.qcow2")
                 else:
                     print("not saved")
                     print(serializer.errors)
+                    backup_img_file_to_db.close()
+                    print("sleep for 2 seconds")
+                    time.sleep(2)
+                    os.remove(backup_instance_id + "_1.qcow2")
+                    return "not saved"
 
-            else:   # 해당 이미지가 DB에 저장돼있으면 update()
-                backup_img_to_update = OpenstackBackupImage.objects.filter(instance_id=backup_instance_id)
-                backup_img_to_update.update(image_id=instance_image_ID)
-                backup_img_to_update.update(image_url=instance_image_URL)
-                print("updated")
+            # if OpenstackBackupImage.objects.filter(instance_id=backup_instance_id).count() == 0:   # 해당 이미지가 DB에 저장 안돼있으면 create()
+            #     serializer = OpenstackBackupImageSerializer(data=backup_image_data)
+            #     if serializer.is_valid():
+            #         serializer.save()
+            #         print("saved image info")
+            #         print(serializer.data)
+            #     else:
+            #         print("not saved")
+            #         print(serializer.errors)
 
+            # else:   # 해당 이미지가 DB에 저장돼있으면 update()
+            #     backup_img_to_update = OpenstackBackupImage.objects.filter(instance_id=backup_instance_id)
+            #     backup_img_to_update.update(image_id=instance_image_ID)
+            #     backup_img_to_update.update(image_url=instance_image_URL)
+            #     print("updated")
+            
             return "image file download response is ", backup_req
 
     except OperationalError:
@@ -113,19 +193,20 @@ def backup6():
     backup_res = backup(6)
     print(backup_res)
 
-
 def backup12():
     backup_res = backup(12)
     print(backup_res)
+
 
 def deleter():
     OpenstackBackupImage.objects.all().delete()
     print("all-deleted")
 
+
 def start():
     scheduler = BackgroundScheduler() # ({'apscheduler.job_defaults.max_instances': 2}) # max_instance = 한 번에 실행할 수 있는 같은 job의 개수
     # scheduler.add_job(deleter, 'interval', seconds=5)
-    scheduler.add_job(backup6, 'interval', seconds=5)
-    scheduler.add_job(backup12, 'interval', seconds=120)
+    scheduler.add_job(backup6, 'interval', seconds=30)
+    # scheduler.add_job(backup12, 'interval', seconds=120)
     
     scheduler.start()
