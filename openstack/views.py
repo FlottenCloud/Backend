@@ -202,7 +202,7 @@ class Openstack(RequestChecker, TemplateModifier, APIView):
     
     # @swagger_auto_schema(tags=["openstack api"], manual_parameters=[openstack_user_token], responses={200:"Success"})
     def patch(self, request):
-            
+        
         pass
 
     @swagger_auto_schema(tags=["openstack api"], manual_parameters=[openstack_user_token], request_body=InstanceIDSerializer, responses={200:"Success", 404:"Not Found"})
