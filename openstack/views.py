@@ -233,6 +233,76 @@ class Openstack(RequestChecker, TemplateModifier, APIView):
         before_update_template_package = stack_environment_req.json()["parameters"]["packages"]
         print("기존 스택의 템플릿 패키지: ", before_update_template_package)
 
+
+        #----------작업 시작--------------기존 패키지와 비교, 하나의 패키지 리스트로 반환
+
+        listtest=user_package+ before_update_template_package
+        onlyone_packagelist = []  # 처음 등장한 패키지 리스트
+        duplicate_packagelist = []  # 중복된 패키지 넣는 리스트
+
+        for i in listtest:
+            if i not in onlyone_packagelist:  # 처음 등장한 패키지
+                onlyone_packagelist.append(i)
+            else:
+                if i not in duplicate_packagelist:  # 이미 중복 원소로 판정된 경우는 제외
+                    duplicate_packagelist.append(i)
+
+        for duplicate in duplicate_packagelist:
+            user_package.remove(duplicate)
+        print("onlyone list is ",onlyone_packagelist)
+        print("duplicate list is ",duplicate_packagelist)   # 2회 이상 등장한 값들만 담긴 리스트
+        print("기존 패키지는 요구사항 리스트에서 빼기: ", user_package)
+
+        #인스턴스의 스냅샷 이미지 만들기
+        openstack_img_payload = {
+            "createImage": {
+                "name": "image_backdup_test"        #TODO 이미지 이름 자동 할당해야함
+            }
+        }
+        instance_id=input_data["instance_id"]
+                        # 인스턴스 바탕으로 이미지 생성
+        # user_res = requests.post("http://" + address + "/compute/v2.1/servers/" + instance_id + "/action",
+        #                          headers={'X-Auth-Token': admin_token},
+        #                          data=json.dumps(openstack_img_payload))
+
+        snapshot_req = super().reqCheckerWithData("post", "http://" + openstack_hostIP + "/compute/v2.1/servers/" + instance_id + "/action"
+            , token,json.dumps(openstack_img_payload))
+
+        if snapshot_req == None:
+            return JsonResponse({"message" : "오픈스택 서버에 문제가 생겨 인스턴스(스택)을 삭제할 수 없습니다."}, status=404)
+        print("인스턴스로부터 이미지 생성 ", snapshot_req)
+        # while true:
+
+            #TODO 이미지 생성 complet까지 기다리기
+
+        #이미지와 요구사항을 반영한 템플릿 생성
+        update_template={
+            "parameters": {
+                "image": "image_backdup_test"
+
+            }
+        }
+        if len(user_package)!= 0 :
+            update_template["parameters"]["packages"]=user_package
+
+        if len(flavor) != 0 :
+            update_template["parameters"]["flavor"]= flavor
+
+        print("완성된 Template : ",update_template)
+        #해당 템플릿으로 업데이트 요청
+        # user_res = requests.patch(
+        #     "http://" + address + "/heat-api/v1/" + tenet_id + "/stacks/" + stackName + "/" + stackID,
+        #     headers={'X-Auth-Token': admin_token},
+        #     data=json.dumps(json_data))
+
+        stack_update_req = super().reqCheckerWithData("patch", "http://" + openstack_hostIP + "/heat-api/v1/" + update_openstack_tenant_id + "/stacks/" + update_stack_name +"/"+update_stack_id
+            , token,json.dumps(update_template))
+
+        if stack_update_req == None:
+            return JsonResponse({"message" : "오픈스택 서버에 문제가 생겨 인스턴스(스택)을 삭제할 수 없습니다."}, status=404)
+        print("stack 업데이트 ", stack_update_req)
+
+
         return JsonResponse({"message" : "업데이트 완료"}, status=201)
 
 
