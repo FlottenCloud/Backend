@@ -6,12 +6,10 @@ from django.db import models
 from django.core.validators import MaxValueValidator
 #import account
 
-#account_model_info = "account_model.Account_info"
-
 # Create your models here.
 class OpenstackInstance(models.Model):  #유저와 연관짓기 위한 외래키 등록
     # Foreign key(user - stack info)
-    user_id = models.ForeignKey("account.Account_info", related_name="user_resource_info", on_delete=models.CASCADE, db_column="user_id")
+    user_id = models.ForeignKey("account.AccountInfo", related_name="user_resource_info", on_delete=models.CASCADE, db_column="user_id")
     # stack info
     instance_id = models.CharField(max_length=50, primary_key=True) # backup image에서 외래키로 참조
     instance_name = models.CharField(max_length=50)
@@ -26,9 +24,18 @@ class OpenstackInstance(models.Model):  #유저와 연관짓기 위한 외래키
     num_cpu = models.IntegerField(validators=[MaxValueValidator(12)])
     backup_time = models.IntegerField(validators=[MaxValueValidator(25)])
 
+    class Meta:
+        db_table = 'openstack_instance'
+
 class OpenstackBackupImage(models.Model):
-    # Foreign key(instance - backup image)
-    instance_id = models.ForeignKey("OpenstackInstance", related_name="instance_backup_img", on_delete=models.CASCADE, db_column="instance_id")
-    # backup image info
+    # Foreign key(instance - image-file)
+    instance_id = models.ForeignKey("OpenstackInstance", related_name="instance_backup_img_file", on_delete=models.CASCADE, db_column="instance_id")
+    # backup image file info
     image_id = models.CharField(max_length=50, primary_key=True)
     image_url = models.CharField(max_length=100)
+    instance_img_file = models.FileField(max_length=255, blank=True, upload_to="img-files")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'openstack_backup_image'
