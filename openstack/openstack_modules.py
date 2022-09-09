@@ -4,6 +4,7 @@ sys.path.append(os.path.dirname(os.path.abspath(os.path.dirname(__file__))))    
 
 import json
 import requests
+import time
 from .models import OpenstackInstance
 
 
@@ -30,13 +31,11 @@ class TemplateModifier:
         # user_os = input_data["os"]
         user_package = input_data["package"]
         disk_size = round(input_data["num_people"] * input_data["data_size"])   # flavor select에 쓰일 값
-
-
-
+        
         if disk_size < 5:   # flavor select 로직
             flavor = "ds512M"
         elif 5 <= disk_size <= 10:
-            flavor = "m1.tiny"  # test한다고 tiny 준거임.
+            flavor = "ds1G"  # test한다고 tiny 준거임.
         elif 10 < disk_size :
             flavor = "EXCEEDED"
 
@@ -135,6 +134,76 @@ class RequestChecker:
         except requests.exceptions.Timeout:
             return None
 
+
+class Stack(RequestChecker):
+    def stackResourceGetter(self, openstack_hostIP, openstack_tenant_id, user_id, stack_name, stack_id, token):
+        time.sleep(3)
+        while(True):
+            while(True):
+                print("a")
+                stack_status_req = super().reqChecker("get", "http://" + openstack_hostIP + "/heat-api/v1/" + openstack_tenant_id + "/stacks?id=" + stack_id, token)
+                if stack_status_req == None:
+                    return None
+                print(stack_status_req.json()["stacks"][0]["stack_status"])
+                if stack_status_req.json()["stacks"][0]["stack_status"] == "UPDATE_COMPLETE":
+                    break
+                time.sleep(2)
+            stack_resource_req = super().reqChecker("get", "http://" + openstack_hostIP + "/heat-api/v1/" + openstack_tenant_id + "/stacks/" + stack_name + "/" # 스택으로 만든 인스턴스가 생성 완료될 때까지 기다림
+                + stack_id + "/resources", token)
+            if stack_resource_req == None:
+                return None
+            stack_resource = stack_resource_req.json()["resources"]
+
+            for resource in stack_resource: # 스택 리스폰스에서 리소스들의 순서가 바뀌어 오는 경우 발견. 순회로 해결함.
+                if resource["resource_type"] == "OS::Nova::Server":
+                    print("리소스 정보: ", resource)
+                    resource_instance = resource
+                    break
+            if resource_instance["resource_status"] == "CREATE_COMPLETE":
+                instance_id = resource_instance["physical_resource_id"]
+                break
+            time.sleep(2)
+
+        print("인스턴스 id: ", instance_id)
+
+        time.sleep(1)
+        #인스턴스 정보 get, 여기서 image id, flavor id 받아와서 다시 get 요청해서 세부 정보 받아와야 함
+        instance_info_req = super().reqChecker("get", "http://" + openstack_hostIP + "/compute/v2.1/servers/" + instance_id, token)
+        if instance_info_req == None:
+            return None
+        print("인스턴스 정보: ", instance_info_req.json())
+
+        instance_name = instance_info_req.json()["server"]["name"]
+        print("인스턴스 이름: ", instance_name)
+        instance_ip_address = instance_info_req.json()["server"]["addresses"][user_id + "-net" + instance_name][0]["addr"]
+        print("인스턴스 ip: ",instance_ip_address)
+        instance_status =  instance_info_req.json()["server"]["status"]
+        print("인스턴스 상태: ",instance_status)
+        image_id = instance_info_req.json()["server"]["image"]["id"]
+        flavor_id = instance_info_req.json()["server"]["flavor"]["id"]
+
+        image_req = super().reqChecker("get", "http://" + openstack_hostIP + "/compute/v2.1/images/" + image_id, token)
+        if image_req == None:
+            return None
+        instance_image_name = image_req.json()["image"]["name"]
+        print("이미지 이름: ", instance_image_name)
+
+        flavor_req = super().reqChecker("get", "http://" + openstack_hostIP + "/compute/v2.1/flavors/" + flavor_id, token)
+        if flavor_req == None:
+            return None
+        print("flavor정보: ", flavor_req.json())
+
+        instance_flavor_name = flavor_req.json()["flavor"]["name"]
+        print("flavor 이름: ", instance_flavor_name)
+        instance_ram_size = round(flavor_req.json()["flavor"]["ram"]/953.7, 2)
+        print("서버에서 넘겨주는 램 크기: ", flavor_req.json()["flavor"]["ram"])
+        print("램 크기: ", instance_ram_size)
+        instance_disk_size = flavor_req.json()["flavor"]["disk"]
+        print("디스크 용량: ", instance_disk_size)
+        instance_num_cpu = flavor_req.json()["flavor"]["vcpus"]
+        print("CPU 개수: ", instance_num_cpu)
+
+        return instance_id, instance_name, instance_ip_address, instance_status, instance_image_name, instance_flavor_name, instance_ram_size, instance_disk_size, instance_num_cpu
 
 
 class Instance:    # 인스턴스 요청에 대한 공통 요소 클래스
