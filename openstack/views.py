@@ -28,7 +28,7 @@ openstack_user_token = openapi.Parameter(   # for django swagger
         type = openapi.TYPE_STRING
     )
 
-class Openstack(RequestChecker, TemplateModifier, APIView):
+class Openstack(TemplateModifier, Stack, APIView):
     @swagger_auto_schema(tags=["openstack api"], manual_parameters=[openstack_user_token], request_body=CreateStackSerializer, responses={200:"Success", 404:"Not Found", 405:"Method Not Allowed"})
     def post(self, request):
         input_data = json.loads(request.body)   # header: user_token, body: os, package, num_people, data_size, instance_name, backup_time
@@ -67,17 +67,13 @@ class Openstack(RequestChecker, TemplateModifier, APIView):
             token, json_template)
         if stack_req == None:
             return JsonResponse({"message" : "오픈스택 서버에 문제가 생겨 스택 정보를 가져올 수 없습니다."}, status=404)
-        # stack_req = requests.post("http://" + openstack_hostIP + "/heat-api/v1/" + openstack_tenant_id + "/stacks",
-        #     headers = {'X-Auth-Token' : token},
-        #     data = json_template)
         print("stack생성", stack_req.json())
         stack_id = stack_req.json()["stack"]["id"]
+
         stack_name_req = super().reqChecker("get", "http://" + openstack_hostIP + "/heat-api/v1/" + openstack_tenant_id + "/stacks?id=" + stack_id,
             token)
         if stack_name_req == None:
             return JsonResponse({"message" : "오픈스택 서버에 문제가 생겨 스택 이름을 가져올 수 없습니다."}, status=404)
-        # stack_name_req = requests.get("http://" + openstack_hostIP + "/heat-api/v1/" + openstack_tenant_id + "/stacks?id=" + stack_id,
-        #                     headers={'X-Auth-Token': token})
         print("스택 이름 정보: ", stack_name_req.json())
         stack_name = stack_name_req.json()["stacks"][0]["stack_name"]
 
@@ -152,8 +148,7 @@ class Openstack(RequestChecker, TemplateModifier, APIView):
             "ram_size" : instance_ram_size,
             "disk_size" : instance_disk_size,
             "num_cpu" : instance_num_cpu,
-            "backup_time" : backup_time,
-            "update_image_name" : None
+            "backup_time" : backup_time
         }
 
         #serializing을 통한 인스턴스 정보 db 저장
@@ -196,10 +191,6 @@ class Openstack(RequestChecker, TemplateModifier, APIView):
             return JsonResponse({[]}, status=200)
 
         return JsonResponse({"instances" : user_stack_data}, status=200)
-
-    # @swagger_auto_schema(tags=["openstack api"], manual_parameters=[openstack_user_token], responses={200:"Success"})
-    def put(self, request):
-        pass
     
     # @swagger_auto_schema(tags=["openstack api"], manual_parameters=[openstack_user_token], responses={200:"Success"})
     def patch(self, request):
@@ -209,45 +200,39 @@ class Openstack(RequestChecker, TemplateModifier, APIView):
         user_id = oc.getUserID(token)
         if user_id == None:
             return JsonResponse({"message" : "오픈스택 서버에 문제가 생겼습니다."}, status=404)
-
-        user_package, flavor, backup_time = super().getUserUpdateRequirement(input_data)
-        if flavor == "EXCEEDED":
-            return JsonResponse({"message" : "인원 수 X 인원 당 예상 용량 값은 10G를 넘지 못합니다."}, status=405)
-        if backup_time != 6 and backup_time != 12:
-            return JsonResponse({"message" : "백업 주기는 6시간, 12시간 중에서만 선택할 수 있습니다."}, status=405)
         
-        print("요청 정보: ", user_package, flavor, backup_time)
-
         update_openstack_tenant_id = account.models.AccountInfo.objects.get(user_id=user_id).openstack_user_project_id
         stack_data = OpenstackInstance.objects.get(instance_id=input_data["instance_id"])
         instance_id = stack_data.instance_id
         update_stack_id = stack_data.stack_id
         update_stack_name = stack_data.stack_name
+        flavor_before_update = stack_data.flavor_name   # 요구사항 변경에 따른 플레이버가 변경되는지 체크용
+        image_used_for_update = stack_data.update_image_ID
+
+        user_req_package, user_req_flavor, user_req_backup_time = super().getUserUpdateRequirement(input_data)
+        if user_req_flavor == "EXCEEDED":
+            return JsonResponse({"message" : "인원 수 X 인원 당 예상 용량 값은 10G를 넘지 못합니다."}, status=405)
+        elif user_req_flavor == flavor_before_update:
+            user_req_flavor = "NOTUPDATE"
+
+        if user_req_backup_time != 6 and user_req_backup_time != 12:
+            return JsonResponse({"message" : "백업 주기는 6시간, 12시간 중에서만 선택할 수 있습니다."}, status=405)
+        
+        print("요청 정보: ", user_req_package, user_req_flavor, user_req_backup_time)
 
         stack_environment_req = super().reqChecker("get", "http://" + openstack_hostIP + "/heat-api/v1/" + update_openstack_tenant_id + "/stacks/" 
             + update_stack_name + "/" + update_stack_id + "/environment", token)
         if stack_environment_req == None:
             return JsonResponse({"message" : "오픈스택 서버에 문제가 생겨 인스턴스(스택)을 삭제할 수 없습니다."}, status=404)
-
         print("기존 스택의 템플릿: ", stack_environment_req.json())
+
         before_update_template_package = stack_environment_req.json()["parameters"]["packages"]
         print("기존 스택의 템플릿 패키지: ", before_update_template_package)
-
-        duplicate_package_test_list = user_package + before_update_template_package
-        not_duplicated_package = []  # 처음 등장한 패키지 리스트
-        duplicated_package = []  # 중복된 패키지 넣는 리스트
-
-        for package in duplicate_package_test_list:
-            if package not in not_duplicated_package:  # 처음 등장한 패키지
-                not_duplicated_package.append(package)
-            else:
-                if package not in duplicated_package:  # 이미 중복 원소로 판정된 경우는 제외
-                    duplicated_package.append(package)
-
-        for duplicate in duplicated_package:
-            user_package.remove(duplicate)
-        print("중복되지 않은 요구 패키지: ", not_duplicated_package)
-        print("중복된 요구 패키지: ", duplicated_package)   # 2회 이상 등장한 값들만 담긴 리스트
+        duplicated_package = list(set(before_update_template_package).intersection(user_req_package))
+        print("중복된 패키지: ", duplicated_package)
+        for package in duplicated_package :
+            user_req_package.remove(package)
+        print("요청 패키지에서 기존의 패키지를 뺀 패키지: ", user_req_package)
 
         openstack_img_payload = { # 인스턴스의 스냅샷 이미지 만들기위한 payload
             "createImage": {
@@ -259,13 +244,13 @@ class Openstack(RequestChecker, TemplateModifier, APIView):
         if snapshot_req == None:
             return JsonResponse({"message" : "오픈스택 서버에 문제가 생겨 인스턴스(스택)을 삭제할 수 없습니다."}, status=404)
         print("인스턴스로부터 이미지 생성 리스폰스: ", snapshot_req)
-        instance_image_ID = snapshot_req.headers["Location"].split("/")[6]
-        print("image_ID : " + instance_image_ID)
+        snapshotID_for_update = snapshot_req.headers["Location"].split("/")[6]
+        print("image_ID : " + snapshotID_for_update)
 
         while(True):
-            image_status_req = super().reqChecker("get", "http://" + openstack_hostIP + "/image/v2/images/" + instance_image_ID, token)
+            image_status_req = super().reqChecker("get", "http://" + openstack_hostIP + "/image/v2/images/" + snapshotID_for_update, token)
             if image_status_req == None:
-                raise requests.exceptions.Timeout
+                return JsonResponse({"message" : "오픈스택 서버에 문제가 생겨 이미지 정보를 조회할 수 없습니다."}, status=404)
             print("이미지 상태 조회 리스폰스: ", image_status_req.json())
 
             image_status = image_status_req.json()["status"]
@@ -273,28 +258,39 @@ class Openstack(RequestChecker, TemplateModifier, APIView):
                 break
             time.sleep(2)
 
-        update_template={   # 이미지와 요구사항을 반영한 템플릿 생성
+        update_template = {   # 이미지와 요구사항을 반영한 템플릿 생성
             "parameters": {
                 "image": "backup_for_update_" + instance_id
-
             }
         }
-        if len(user_package)!= 0 :
-            update_template["parameters"]["packages"]=user_package
-        if len(flavor) != 0 :
-            update_template["parameters"]["flavor"]= flavor
-        print("완성된 Template : ", update_template)
+        if len(user_req_package) != 0:
+            update_template["parameters"]["packages"] = user_req_package
+        if user_req_flavor != "NOTUPDATE":
+            update_template["parameters"]["flavor"] = user_req_flavor
+        print("업데이트용 Template : ", json.dumps(update_template))
 
-        stack_update_req = super().reqCheckerWithData("patch", "http://" + openstack_hostIP + "/heat-api/v1/" + update_openstack_tenant_id + "/stacks/" + update_stack_name +"/"+update_stack_id,
+        stack_update_req = super().reqCheckerWithData("patch", "http://" + openstack_hostIP + "/heat-api/v1/" + update_openstack_tenant_id + "/stacks/" + update_stack_name + "/" + update_stack_id,
             token, json.dumps(update_template))
         if stack_update_req == None:
-            return JsonResponse({"message" : "오픈스택 서버에 문제가 생겨 인스턴스(스택)을 삭제할 수 없습니다."}, status=404)
+            return JsonResponse({"message" : "오픈스택 서버에 문제가 생겨 인스턴스(스택)를 업데이트 할 수 없습니다."}, status=404)
         print("stack 업데이트 결과: ", stack_update_req)
+        print("stack 업데이트 결과 헤더: ", stack_update_req.headers)
 
-        # img_used_for_update_del_req = super().reqChecker("delete", "http://" + openstack_hostIP + "/image/v2/images/" + instance_image_ID, token)
-        # if img_used_for_update_del_req == None:
-        #     return JsonResponse({"message" : "오픈스택 서버에 문제가 생겨 이미지를 삭제할 수 없습니다."}, status=404)
-        # print("이미지 삭제 요청 결과: ", img_used_for_update_del_req)
+        if image_used_for_update != None:
+            image_used_for_update_del_req = super().reqChecker("delete", "http://" + openstack_hostIP + "/image/v2/images/" + image_used_for_update, token)
+            if image_used_for_update_del_req == None:
+                return JsonResponse({"message" : "오픈스택 서버에 문제가 생겨 이미지를 삭제할 수 없습니다."}, status=404)
+            print("업데이트용 이미지의 이전 버전 삭제 요청 결과: ", image_used_for_update_del_req)
+
+        try:
+            updated_instance_id, updated_instance_name, updated_instance_ip_address, updated_instance_status, updated_instance_image_name, updated_instance_flavor_name, updated_instance_ram_size, updated_disk_size, updated_num_cpu = super().stackResourceGetter(openstack_hostIP, update_openstack_tenant_id, user_id, update_stack_name, update_stack_id, token)
+        except Exception as e:
+            print("예외 발생: ", e)
+            return JsonResponse({"message" : "오픈스택 서버에 문제가 생겨 업데이트 된 스택의 정보를 불러올 수 없습니다."}, status=404)
+
+        OpenstackInstance.objects.filter(instance_id=instance_id).update(instance_id=updated_instance_id, instance_name=updated_instance_name,
+            ip_address=str(updated_instance_ip_address), status=updated_instance_status, image_name=updated_instance_image_name, flavor_name=updated_instance_flavor_name,
+            ram_size=updated_instance_ram_size, disk_size=updated_disk_size, num_cpu=updated_num_cpu, backup_time=user_req_backup_time, update_image_ID=snapshotID_for_update)
 
         return JsonResponse({"message" : "업데이트 완료"}, status=201)
 
