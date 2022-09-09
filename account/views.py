@@ -124,7 +124,7 @@ class AccountView(View):
             print(stack_del_req)
 
         account_data.delete()
-
+        #여기에 스택 인스턴스가 쓰고있는 이미지 삭제 로직 구현
         project_del_req = requests.delete("http://" + openstack_hostIP + "/identity/v3/projects/" + del_project_id_openstack,
             headers={'X-Auth-Token': admin_token})     #오픈스택에 해당 프로젝트 삭제 request
         user_del_req = requests.delete("http://" + openstack_hostIP + "/identity/v3/users/" + del_user_id_openstack,

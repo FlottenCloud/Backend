@@ -317,7 +317,7 @@ class Openstack(TemplateModifier, Stack, APIView):
         # stack_del_req = requests.delete("http://" + openstack_hostIP + "/heat-api/v1/" + del_openstack_tenant_id + "/stacks/"
         #     + del_stack_name + "/" + del_stack_id,
         #     headers = {'X-Auth-Token' : token})
-        
+        # 여기에 해당 이미지 삭제 로직도 추가할 것.
         return JsonResponse({"message" : "가상머신 " + del_instance_name + " 삭제 완료"}, status=200)
 
 
