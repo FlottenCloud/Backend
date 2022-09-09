@@ -28,6 +28,7 @@ openstack_user_token = openapi.Parameter(   # for django swagger
         type = openapi.TYPE_STRING
     )
 
+# request django url = /openstack/      인스턴스 CRUD 로직
 class Openstack(TemplateModifier, Stack, APIView):
     @swagger_auto_schema(tags=["openstack api"], manual_parameters=[openstack_user_token], request_body=CreateStackSerializer, responses={200:"Success", 404:"Not Found", 405:"Method Not Allowed"})
     def post(self, request):
@@ -77,62 +78,11 @@ class Openstack(TemplateModifier, Stack, APIView):
         print("스택 이름 정보: ", stack_name_req.json())
         stack_name = stack_name_req.json()["stacks"][0]["stack_name"]
 
-        time.sleep(3)
-        while(True):
-            stack_resource_req = super().reqChecker("get", "http://" + openstack_hostIP + "/heat-api/v1/" + openstack_tenant_id + "/stacks/" + stack_name + "/" # 스택으로 만든 인스턴스가 생성 완료될 때까지 기다림
-                + stack_id + "/resources", token)
-            if stack_resource_req == None:
-                return JsonResponse({"message" : "오픈스택 서버에 문제가 생겨 스택 리소스 정보를 가져올 수 없습니다."}, status=404)
-            stack_resource = stack_resource_req.json()["resources"]
-
-            for resource in stack_resource: # 스택 리스폰스에서 리소스들의 순서가 바뀌어 오는 경우 발견. 순회로 해결함.
-                if resource["resource_type"] == "OS::Nova::Server":
-                    print("리소스 정보: ", resource)
-                    resource_instance = resource
-                    break
-            if resource_instance["resource_status"] == "CREATE_COMPLETE":
-                instance_id = resource_instance["physical_resource_id"]
-                break
-            time.sleep(2)
-
-        print("인스턴스 id: ", instance_id)
-
-        time.sleep(1)
-        #인스턴스 정보 get, 여기서 image id, flavor id 받아와서 다시 get 요청해서 세부 정보 받아와야 함
-        instance_info_req = super().reqChecker("get", "http://" + openstack_hostIP + "/compute/v2.1/servers/" + instance_id, token)
-        if instance_info_req == None:
-            return JsonResponse({"message" : "오픈스택 서버에 문제가 생겨 인스턴스 정보를 가져올 수 없습니다."}, status=404)
-        print("인스턴스 정보: ", instance_info_req.json())
-
-        instance_name = instance_info_req.json()["server"]["name"]
-        print("인스턴스 이름: ", instance_name)
-        instance_ip_address = instance_info_req.json()["server"]["addresses"][user_id + "-net" + instance_name][0]["addr"]
-        print("인스턴스 ip: ",instance_ip_address)
-        instance_status =  instance_info_req.json()["server"]["status"]
-        print("인스턴스 상태: ",instance_status)
-        image_id = instance_info_req.json()["server"]["image"]["id"]
-        flavor_id = instance_info_req.json()["server"]["flavor"]["id"]
-
-        image_req = super().reqChecker("get", "http://" + openstack_hostIP + "/compute/v2.1/images/" + image_id, token)
-        if image_req == None:
-            return JsonResponse({"message" : "오픈스택 서버에 문제가 생겨 인스턴스의 이미지 정보를 가져올 수 없습니다."}, status=404)    
-        instance_image_name = image_req.json()["image"]["name"]
-        print("이미지 이름: ", instance_image_name)
-
-        flavor_req = super().reqChecker("get", "http://" + openstack_hostIP + "/compute/v2.1/flavors/" + flavor_id, token)
-        if flavor_req == None:
-            return JsonResponse({"message" : "오픈스택 서버에 문제가 생겨 인스턴스의 플레이버 정보를 가져올 수 없습니다."}, status=404)
-        print("flavor정보: ", flavor_req.json())
-
-        instance_flavor_name = flavor_req.json()["flavor"]["name"]
-        print("flavor 이름: ", instance_flavor_name)
-        instance_ram_size = round(flavor_req.json()["flavor"]["ram"]/953.7, 2)
-        print("서버에서 넘겨주는 램 크기: ", flavor_req.json()["flavor"]["ram"])
-        print("램 크기: ", instance_ram_size)
-        instance_disk_size = flavor_req.json()["flavor"]["disk"]
-        print("디스크 용량: ", instance_disk_size)
-        instance_num_cpu = flavor_req.json()["flavor"]["vcpus"]
-        print("CPU 개수: ", instance_num_cpu)
+        try:
+            instance_id, instance_name, instance_ip_address, instance_status, instance_image_name, instance_flavor_name, instance_ram_size, instance_disk_size, instance_num_cpu = super().stackResourceGetter("create", openstack_hostIP, openstack_tenant_id, user_id, stack_name, stack_id, token)
+        except Exception as e:
+            print("에러 발생: ", e)
+            return "error"
 
         # db에 저장 할 인스턴스 정보
         instance_data = {
@@ -283,7 +233,7 @@ class Openstack(TemplateModifier, Stack, APIView):
             print("업데이트용 이미지의 이전 버전 삭제 요청 결과: ", image_used_for_update_del_req)
 
         try:
-            updated_instance_id, updated_instance_name, updated_instance_ip_address, updated_instance_status, updated_instance_image_name, updated_instance_flavor_name, updated_instance_ram_size, updated_disk_size, updated_num_cpu = super().stackResourceGetter(openstack_hostIP, update_openstack_tenant_id, user_id, update_stack_name, update_stack_id, token)
+            updated_instance_id, updated_instance_name, updated_instance_ip_address, updated_instance_status, updated_instance_image_name, updated_instance_flavor_name, updated_instance_ram_size, updated_disk_size, updated_num_cpu = super().stackResourceGetter("update", openstack_hostIP, update_openstack_tenant_id, user_id, update_stack_name, update_stack_id, token)
         except Exception as e:
             print("예외 발생: ", e)
             return JsonResponse({"message" : "오픈스택 서버에 문제가 생겨 업데이트 된 스택의 정보를 불러올 수 없습니다."}, status=404)
@@ -306,6 +256,7 @@ class Openstack(TemplateModifier, Stack, APIView):
         del_instance_name = stack_data.instance_name
         del_stack_id = stack_data.stack_id
         del_stack_name = stack_data.stack_name
+        del_update_image_id = stack_data.update_image_ID
         print("삭제한 가상머신 이름: " + del_instance_name + "\n삭제한 스택 이름: " + del_stack_name + "\n삭제한 스택 ID: " + del_stack_id)
         stack_data.delete() # DB에서 해당 stack row 삭제
 
@@ -314,14 +265,17 @@ class Openstack(TemplateModifier, Stack, APIView):
             + del_stack_name + "/" + del_stack_id, token)
         if stack_del_req == None:
             return JsonResponse({"message" : "오픈스택 서버에 문제가 생겨 인스턴스(스택)을 삭제할 수 없습니다."}, status=404)
-        # stack_del_req = requests.delete("http://" + openstack_hostIP + "/heat-api/v1/" + del_openstack_tenant_id + "/stacks/"
-        #     + del_stack_name + "/" + del_stack_id,
-        #     headers = {'X-Auth-Token' : token})
-        # 여기에 해당 이미지 삭제 로직도 추가할 것.
+        
+        if del_update_image_id != None: # 업데이트를 한 번이라도 했을 시 업데이트에 쓰인 이미지도 삭제
+            update_image_del_req = super().reqChecker("delete", "http://" + openstack_hostIP + "/image/v2/images/" + del_update_image_id, token)
+            print("업데이트에 쓰인 이미지 삭제 리스폰스: ", update_image_del_req)
+            if update_image_del_req == None:
+                return JsonResponse({"message" : "오픈스택 서버에 문제가 생겨 업데이트 때 사용한 이미지를 삭제할 수 없습니다."}, status=404)
+
         return JsonResponse({"message" : "가상머신 " + del_instance_name + " 삭제 완료"}, status=200)
 
 
-
+# request django url = /openstack/dashboard/            대쉬보드에 리소스 사용량 보여주기 용
 class DashBoard(RequestChecker, APIView):
     @swagger_auto_schema(tags=["Instance api"], manual_parameters=[openstack_user_token], responses={200:"Success", 404:"Not Found"})
     def get(self, request):

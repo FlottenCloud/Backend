@@ -115,22 +115,24 @@ class AccountView(View):
         del_user_id_openstack = account_data.openstack_user_id  #해당 유저의 openstack user id
         # print(del_project_id_openstack)
         # print(del_user_id_openstack)
-        user_resource = account_data.user_resource_info.all()   #해당 유저의 stack 정보
+        user_resource = account_data.user_resource_info.all()   #해당 유저의 stack 정보(from 외래키 related name)
 
         for resource in user_resource:  # 오픈스택에서 user의 stack 모두 삭제
             stack_del_req = requests.delete("http://" + openstack_hostIP + "/heat-api/v1/" + del_project_id_openstack + "/stacks/"
-            + resource.stack_name + "/" + resource.stack_id,
-            headers = {'X-Auth-Token' : admin_token})
-            print(stack_del_req)
+                + resource.stack_name + "/" + resource.stack_id,
+                headers = {'X-Auth-Token' : admin_token})
+            print("스택 삭제 리스폰스: ", stack_del_req)
+            if resource.update_image_ID != None:
+                image_del_req = requests.delete("http://" + openstack_hostIP + "/image/v2/images/" + resource.update_image_ID,
+                    headers = {'X-Auth-Token' : admin_token})
+                print("업데이트에 쓰인 이미지 삭제 리스폰스: ", image_del_req)
 
         account_data.delete()
-        #여기에 스택 인스턴스가 쓰고있는 이미지 삭제 로직 구현
         project_del_req = requests.delete("http://" + openstack_hostIP + "/identity/v3/projects/" + del_project_id_openstack,
             headers={'X-Auth-Token': admin_token})     #오픈스택에 해당 프로젝트 삭제 request
         user_del_req = requests.delete("http://" + openstack_hostIP + "/identity/v3/users/" + del_user_id_openstack,
             headers={'X-Auth-Token': admin_token})     #오픈스택에 해당 유저 삭제 request
         #print(user_del_res.json())
-        #유저 삭제 시 -> 스택도 같이 삭제되지 않음.
 
         return HttpResponse("Delete Success")
 
