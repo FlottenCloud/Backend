@@ -11,13 +11,13 @@ from openstack.models import OpenstackBackupImage, OpenstackInstance
 from openstack.serializers import OpenstackBackupImageSerializer
 from openstack.openstack_modules import RequestChecker
 
-def writeTxtFile(mode, instanceid):
+def writeTxtFile(mode, instance_id):
     file = open("freezer_" + mode +"_template.txt", "w", encoding="UTF-8")
     file.write('source admin-openrc.sh')                         #환경에 맞게 설정해야됨 본인 리눅스 환경
     file.write('\nfreezer-agent --action ' + mode + ' --nova-inst-id ')
-    file.write(instanceid)
+    file.write(instance_id)
     file.write(
-    ' --storage local --container /home/kojunsung/' + instanceid + '_backup' + ' --backup-name ' + instanceid + '_backup' + ' --mode nova --engine nova --no-incremental true')
+    ' --storage local --container /home/hoo/' + instance_id + '_backup' + ' --backup-name ' + instance_id + '_backup' + ' --mode nova --engine nova --no-incremental true')
     file.close()
 
 def readTxtFile(mode):               #mode : backup, restore
@@ -39,17 +39,17 @@ def readTxtFile(mode):               #mode : backup, restore
     print(data)
     return data
 
-def freezerBackup(instanceid):
+def freezerBackup(instance_id):
     cli = paramiko.SSHClient()
     cli.set_missing_host_key_policy(paramiko.AutoAddPolicy)
 
     server = "119.198.160.6"
-    user = "kojunsung"                                      #리눅스 Host ID
-    pwd = "kojunsung"                                       #리눅스 Host Password
+    user = "hoo"                                      #리눅스 Host ID
+    pwd = "0000"                                       #리눅스 Host Password
 
-    cli.connect(server, port=22, username=user, password=pwd)
+    cli.connect(server, port=10022, username=user, password=pwd)
 
-    writeTxtFile("backup", instanceid)
+    writeTxtFile("backup", instance_id)
     # # 3 try
     commandLines = readTxtFile("backup") # 메모장 파일에 적어놨던 명령어 텍스트 읽어옴
     print(commandLines)
@@ -60,16 +60,16 @@ def freezerBackup(instanceid):
     print(resultData) # 결과 확인
     cli.close()
 
-def freezerRestore(instanceid):
+def freezerRestore(instance_id):
     cli = paramiko.SSHClient()
     cli.set_missing_host_key_policy(paramiko.AutoAddPolicy)
 
     server = "119.198.160.6"
-    user = "kojunsung"
-    pwd = "kojunsung"
+    user = "hoo"
+    pwd = "0000"
 
-    cli.connect(server, port=22, username=user, password=pwd)
-    writeTxtFile("restore", instanceid)
+    cli.connect(server, port=10022, username=user, password=pwd)
+    writeTxtFile("restore", instance_id)
 
     commandLines = readTxtFile("restore") # 메모장 파일에 적어놨던 명령어 텍스트 읽어옴
     print(commandLines)
@@ -117,10 +117,10 @@ def freezerBackupWithCycle(cycle):
                     cli = paramiko.SSHClient()
                     cli.set_missing_host_key_policy(paramiko.AutoAddPolicy)
                     server = "119.198.160.6"
-                    user = "kojunsung"  # 리눅스 Host ID
-                    pwd = "kojunsung"  # 리눅스 Host Password
-                    cli.connect(server, port=22, username=user, password=pwd)
-                    stdin, stdout, stderr = cli.exec_command("rm -rf " + instance_id_for_OSremove)
+                    user = "hoo"  # 리눅스 Host ID
+                    pwd = "0000"  # 리눅스 Host Password
+                    cli.connect(server, port=10022, username=user, password=pwd)
+                    stdin, stdout, stderr = cli.exec_command("rm -rf " + instance_id_for_OSremove + "_backup")
                     print("리눅스 명령 수행 결과")
                     print(''.join(stdout.readlines()))
                     cli.close()
@@ -147,11 +147,9 @@ def freezerBackupWithCycle(cycle):
     except OperationalError:
         return "인스턴스가 없습니다."
 
-
-
-
-
-
+def freezerBackup6():
+    freezer_backup_res = freezerBackupWithCycle(6)
+    print(freezer_backup_res)
 
 
 
@@ -289,5 +287,6 @@ def start():
     # scheduler.add_job(deleter, 'interval', seconds=5)
     # scheduler.add_job(backup6, 'interval', seconds=30)
     # scheduler.add_job(backup12, 'interval', seconds=120)
+    scheduler.add_job(freezerBackup6, 'interval', seconds=30)
     
     scheduler.start()
