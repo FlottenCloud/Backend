@@ -11,73 +11,70 @@ from openstack.models import OpenstackBackupImage, OpenstackInstance
 from openstack.serializers import OpenstackBackupImageSerializer
 from openstack.openstack_modules import RequestChecker
 
+
+# ------------------------------Freezer Backup------------------------------ #
+
 def writeTxtFile(mode, instance_id):
     file = open("freezer_" + mode +"_template.txt", "w", encoding="UTF-8")
     file.write('source admin-openrc.sh')                         #환경에 맞게 설정해야됨 본인 리눅스 환경
     file.write('\nfreezer-agent --action ' + mode + ' --nova-inst-id ')
     file.write(instance_id)
     file.write(
-    ' --storage local --container /home/hoo/' + instance_id + '_backup' + ' --backup-name ' + instance_id + '_backup' + ' --mode nova --engine nova --no-incremental true')
+        ' --storage local --container /home/hoo/' + instance_id + '_backup' + ' --backup-name ' + instance_id + '_backup' + ' --mode nova --engine nova --no-incremental true')
     file.close()
 
 def readTxtFile(mode):               #mode : backup, restore
     file = open("freezer_" + mode +"_template.txt", "r", encoding="UTF-8")
-
     data = []
     while (1):
         line = file.readline()
-
         try:
             escape = line.index('\n')
         except:
             escape = len(line)
+
         if line:
             data.append(line[0:escape])
         else:
             break
     file.close()
     print(data)
+
     return data
 
 def freezerBackup(instance_id):
     cli = paramiko.SSHClient()
     cli.set_missing_host_key_policy(paramiko.AutoAddPolicy)
-
     server = "119.198.160.6"
     user = "hoo"                                      #리눅스 Host ID
     pwd = "0000"                                       #리눅스 Host Password
-
     cli.connect(server, port=10022, username=user, password=pwd)
 
     writeTxtFile("backup", instance_id)
-    # # 3 try
     commandLines = readTxtFile("backup") # 메모장 파일에 적어놨던 명령어 텍스트 읽어옴
     print(commandLines)
+
     stdin, stdout, stderr = cli.exec_command(";".join(commandLines)) # 명령어 실행
     lines = stdout.readlines() # 실행한 명령어에 대한 결과 텍스트
     resultData = ''.join(lines)
-
     print(resultData) # 결과 확인
     cli.close()
 
 def freezerRestore(instance_id):
     cli = paramiko.SSHClient()
     cli.set_missing_host_key_policy(paramiko.AutoAddPolicy)
-
     server = "119.198.160.6"
     user = "hoo"
     pwd = "0000"
-
     cli.connect(server, port=10022, username=user, password=pwd)
-    writeTxtFile("restore", instance_id)
 
+    writeTxtFile("restore", instance_id)
     commandLines = readTxtFile("restore") # 메모장 파일에 적어놨던 명령어 텍스트 읽어옴
     print(commandLines)
 
     stdin, stdout, stderr = cli.exec_command(";".join(commandLines)) # 명령어 실행
     lines = stdout.readlines() # 실행한 명령어에 대한 결과 텍스트
     resultData = ''.join(lines)
-
     print(resultData) # 결과 확인
     cli.close()
 
@@ -96,16 +93,12 @@ def freezerBackupWithCycle(cycle):
     try:
         instance_count = OpenstackInstance.objects.filter(backup_time=cycle).count()
         if instance_count == 0:
-            return "백업 주기 ", cycle, "시간짜리 instance 없음((freezer_backup_function)"
-
+            return "백업 주기 ", cycle, "시간짜리 instance 없음(freezer_backup_function)"
 
         backup_instance_list = OpenstackInstance.objects.filter(freezer_completed=True).filter(backup_time=cycle)
-        print(cycle, "시간짜리 리스트(freezer_backup_function) : ", backup_instance_list)
-
-
+        print(cycle, "시간짜리 리스트(freezer_backup_function): ", backup_instance_list)
         if not backup_instance_list:
-            print("리스트가 비어있음, 프리저 로컬 백업본 삭제 대상 없음.")
-
+            print("리스트가 비어있음. 프리저 로컬 백업본 삭제 대상 없음.")
         else:
             for instance in backup_instance_list:
                 print("인스턴스 오브젝트: ", instance)
@@ -121,16 +114,14 @@ def freezerBackupWithCycle(cycle):
                     pwd = "0000"  # 리눅스 Host Password
                     cli.connect(server, port=10022, username=user, password=pwd)
                     stdin, stdout, stderr = cli.exec_command("rm -rf " + instance_id_for_OSremove + "_backup")
-                    print("리눅스 명령 수행 결과")
-                    print(''.join(stdout.readlines()))
+                    print("리눅스 명령 수행 결과: ", ''.join(stdout.readlines()))
                     cli.close()
                 except:
-                    return "Error!!  when removing freezer backup container!!"
+                    return "Error!! When removing freezer backup container!!"
 
                 OpenstackInstance.objects.filter(instance_id=instance_id_for_OSremove).update(freezer_completed=False)
 
         backup_instance_list = OpenstackInstance.objects.filter(freezer_completed=False).filter(backup_time=cycle)
-
         for instance in backup_instance_list:
             print("인스턴스 오브젝트: ", instance)
             backup_instance_id = instance.instance_id
@@ -139,7 +130,7 @@ def freezerBackupWithCycle(cycle):
             try:
                 freezerBackup(backup_instance_id)
             except:
-                return ("Error !! when trying freezer Backup ")
+                return ("Error!! When trying freezer Backup")
 
             OpenstackInstance.objects.filter(instance_id=backup_instance_id).update(freezer_completed=True)
         return "All freezerBackupWithCycle has completed"
@@ -152,6 +143,7 @@ def freezerBackup6():
     print(freezer_backup_res)
 
 
+# ------------------------------Image Backup------------------------------ #
 
 def backup(cycle):
     import openstack_controller as oc                            # import는 여기 고정 -> 컴파일 시간에 circular import 때문에 걸려서
@@ -287,6 +279,6 @@ def start():
     # scheduler.add_job(deleter, 'interval', seconds=5)
     # scheduler.add_job(backup6, 'interval', seconds=30)
     # scheduler.add_job(backup12, 'interval', seconds=120)
-    scheduler.add_job(freezerBackup6, 'interval', seconds=30)
+    scheduler.add_job(freezerBackup6, 'interval', seconds=60)
     
     scheduler.start()
