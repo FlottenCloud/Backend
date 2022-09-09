@@ -136,18 +136,19 @@ class RequestChecker:
 
 
 class Stack(RequestChecker):
-    def stackResourceGetter(self, openstack_hostIP, openstack_tenant_id, user_id, stack_name, stack_id, token):
+    def stackResourceGetter(self, usage, openstack_hostIP, openstack_tenant_id, user_id, stack_name, stack_id, token):
         time.sleep(3)
         while(True):
-            while(True):
-                print("a")
-                stack_status_req = super().reqChecker("get", "http://" + openstack_hostIP + "/heat-api/v1/" + openstack_tenant_id + "/stacks?id=" + stack_id, token)
-                if stack_status_req == None:
-                    return None
-                print(stack_status_req.json()["stacks"][0]["stack_status"])
-                if stack_status_req.json()["stacks"][0]["stack_status"] == "UPDATE_COMPLETE":
-                    break
-                time.sleep(2)
+            if usage == "update":
+                while(True):
+                    stack_status_req = super().reqChecker("get", "http://" + openstack_hostIP + "/heat-api/v1/" + openstack_tenant_id + "/stacks?id=" + stack_id, token)
+                    if stack_status_req == None:
+                        return None
+                    print(stack_status_req.json()["stacks"][0]["stack_status"])
+                    if stack_status_req.json()["stacks"][0]["stack_status"] == "UPDATE_COMPLETE":
+                        break
+                    time.sleep(2)
+
             stack_resource_req = super().reqChecker("get", "http://" + openstack_hostIP + "/heat-api/v1/" + openstack_tenant_id + "/stacks/" + stack_name + "/" # 스택으로 만든 인스턴스가 생성 완료될 때까지 기다림
                 + stack_id + "/resources", token)
             if stack_resource_req == None:
@@ -161,6 +162,7 @@ class Stack(RequestChecker):
                     break
             if resource_instance["resource_status"] == "CREATE_COMPLETE":
                 instance_id = resource_instance["physical_resource_id"]
+                print("인스턴스 CREATE 완료")
                 break
             time.sleep(2)
 
@@ -195,7 +197,7 @@ class Stack(RequestChecker):
 
         instance_flavor_name = flavor_req.json()["flavor"]["name"]
         print("flavor 이름: ", instance_flavor_name)
-        instance_ram_size = round(flavor_req.json()["flavor"]["ram"]/953.7, 2)
+        instance_ram_size = round(flavor_req.json()["flavor"]["ram"]/1024, 2)
         print("서버에서 넘겨주는 램 크기: ", flavor_req.json()["flavor"]["ram"])
         print("램 크기: ", instance_ram_size)
         instance_disk_size = flavor_req.json()["flavor"]["disk"]
