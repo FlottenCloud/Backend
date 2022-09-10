@@ -1,6 +1,9 @@
 from rest_framework import serializers
 from .models import OpenstackInstance, OpenstackBackupImage
 
+
+#------------------For Instance Control------------------#
+
 class OpenstackInstanceSerializer(serializers.ModelSerializer):
     class Meta:
         model = OpenstackInstance
@@ -11,22 +14,25 @@ class OpenstackInstanceSerializer(serializers.ModelSerializer):
         return OpenstackInstance.objects.create(**validated_data)
 
     def update(self, instance, validated_data):
-        instance.user_id = validated_data.get('user_id', instance.user_id)
-        instance.stack_id = validated_data.get('stack_id', instance.stack_id)
-        instance.stack_name = validated_data.get('stack_name', instance.stack_name)
-        instance.instance_id = validated_data.get('instance_id', instance.instance_id)
-        instance.instance_name = validated_data.get('instance_name', instance.instance_name)
-        instance.ip_address = validated_data.get('instance_ip_address', instance.instance_ip_address)
-        instance.status = validated_data.get('instance_status', instance.instance_status)
-        instance.image_name = validated_data.get('instance_image_name', instance.instance_image_name)
-        instance.flavor_name = validated_data.get('flavor_name', instance.flavor_name)
-        instance.ram_size = validated_data.get('ram_size', instance.ram_size)
-        instance.disk_size = validated_data.get('disk_size', instance.disk_size)
-        instance.num_cpu = validated_data.get('num_cpu', instance.num_cpu)
-        instance.backup_time = validated_data.get('backup_time', instance.backup_time)
+        instance.user_id = validated_data.get("user_id", instance.user_id)
+        instance.stack_id = validated_data.get("stack_id", instance.stack_id)
+        instance.stack_name = validated_data.get("stack_name", instance.stack_name)
+        instance.instance_id = validated_data.get("instance_id", instance.instance_id)
+        instance.instance_name = validated_data.get("instance_name", instance.instance_name)
+        instance.ip_address = validated_data.get("instance_ip_address", instance.instance_ip_address)
+        instance.status = validated_data.get("instance_status", instance.instance_status)
+        instance.image_name = validated_data.get("instance_image_name", instance.instance_image_name)
+        instance.flavor_name = validated_data.get("flavor_name", instance.flavor_name)
+        instance.ram_size = validated_data.get("ram_size", instance.ram_size)
+        instance.disk_size = validated_data.get("disk_size", instance.disk_size)
+        instance.num_cpu = validated_data.get("num_cpu", instance.num_cpu)
+        instance.backup_time = validated_data.get("backup_time", instance.backup_time)
         instance.save()
         
         return instance
+
+
+#------------------For Instance Backup------------------#
 
 class OpenstackBackupImageSerializer(serializers.ModelSerializer):
     class Meta:
@@ -37,16 +43,30 @@ class OpenstackBackupImageSerializer(serializers.ModelSerializer):
         return OpenstackBackupImage.objects.create(**validated_data)
 
     def update(self, instance, validated_data):
-        instance.instance_id = validated_data.get('instance_id', instance.instance_id)
-        instance.image_id = validated_data.get('image_id', instance.image_id)
-        instance.image_url = validated_data.get('image_url', instance.image_url)
-        instance.instance_img_file = validated_data.get('instance_img_file', instance.instance_img_file)
+        instance.instance_id = validated_data.get("instance_id", instance.instance_id)
+        instance.image_id = validated_data.get("image_id", instance.image_id)
+        instance.image_url = validated_data.get("image_url", instance.image_url)
+        instance.instance_img_file = validated_data.get("instance_img_file", instance.instance_img_file)
         instance.save()
         
         return instance
 
+#------------------Swagger(For API specification)------------------#
+
 class CreateStackSerializer(serializers.Serializer):
-    system_num = serializers.IntegerField(help_text='system number', default="1")
+    os = serializers.CharField(help_text="OS(cirros, fedorra, ubuntu) user want to use.", default="cirros")
+    package = serializers.ListField(help_text="Package(apache2, default-jdk, ftp, libguestfs-tools, net-tools, pastebinit, pwgen, vim) user want to install.", allow_empty=True)
+    num_people = serializers.IntegerField(help_text="Number of people that might work with user.", default=1)
+    data_size = serializers.IntegerField(help_text="Data size that one participant might use(GB).", default=1)
+    instance_name = serializers.CharField(help_text="Instance name user want to set.")
+    backup_time = serializers.IntegerField(help_text="Instance's backup time(6, 12) user want to set.", default=6)
+
+class UpdateStackSerializer(serializers.Serializer):
+    package = serializers.ListField(help_text="Package(apache2, default-jdk, ftp, libguestfs-tools, net-tools, pastebinit, pwgen, vim) user want to install.", allow_empty=True)
+    num_people = serializers.IntegerField(help_text="Number of people that might work with user.", default=1)
+    data_size = serializers.IntegerField(help_text="Data size that one participant might use(GB).", default=1)
+    backup_time = serializers.IntegerField(help_text="Instance's backup time(6, 12) user want to set.", default=6)
+
 
 class InstanceIDSerializer(serializers.Serializer):
-    instance_id = serializers.CharField(help_text='instance id', default="1")
+    instance_id = serializers.CharField(help_text="Instance's ID want to control.")

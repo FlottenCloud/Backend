@@ -16,7 +16,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from drf_yasg.utils       import swagger_auto_schema
 from drf_yasg             import openapi
-from openstack.serializers import CreateStackSerializer, InstanceIDSerializer, OpenstackInstanceSerializer
+from openstack.serializers import CreateStackSerializer, UpdateStackSerializer, InstanceIDSerializer, OpenstackInstanceSerializer
 from django.http import JsonResponse
 import time
 # Create your views here.
@@ -142,10 +142,10 @@ class Openstack(TemplateModifier, Stack, APIView):
 
         return JsonResponse({"instances" : user_stack_data}, status=200)
     
-    # @swagger_auto_schema(tags=["openstack api"], manual_parameters=[openstack_user_token], responses={200:"Success"})
+    @swagger_auto_schema(tags=["openstack api"], manual_parameters=[openstack_user_token], request_body=UpdateStackSerializer, responses={200:"Success", 404:"Not Found", 405:"Method Not Allowed"})
     def patch(self, request):
         input_data = json.loads(request.body)   # header: user_token, body: instance_id, 요구사항: {package, num_people, data_size, backup_time}
-        stack_template_root = "templates/"
+        # stack_template_root = "templates/"
         token = request.headers["X-Auth-Token"]
         user_id = oc.getUserID(token)
         if user_id == None:
@@ -160,10 +160,13 @@ class Openstack(TemplateModifier, Stack, APIView):
         image_used_for_update = stack_data.update_image_ID
 
         user_req_package, user_req_flavor, user_req_backup_time = super().getUserUpdateRequirement(input_data)
-        if user_req_flavor == "EXCEEDED":
+        if user_req_flavor == "EXCEEDED":   # 용량이 10GB를 넘어간 경우
             return JsonResponse({"message" : "인원 수 X 인원 당 예상 용량 값은 10G를 넘지 못합니다."}, status=405)
-        elif user_req_flavor == flavor_before_update:
+        elif user_req_flavor == flavor_before_update:   # 원래 쓰려던 용량과 같은 범위 내의 용량을 요구사항으로 입력했을 경우
             user_req_flavor = "NOTUPDATE"
+        else:
+            if flavor_before_update == "ds1G" and user_req_flavor == "ds512M":  # 원래 쓰려던 용량보다 작은 용량을 요구사항으로 입력했을 경우
+                user_req_flavor = "NOTUPDATE"
 
         if user_req_backup_time != 6 and user_req_backup_time != 12:
             return JsonResponse({"message" : "백업 주기는 6시간, 12시간 중에서만 선택할 수 있습니다."}, status=405)
