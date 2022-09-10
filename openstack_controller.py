@@ -14,6 +14,10 @@ admin_project_id = "6f405ca329ac44a9856888397f1de8f5" #김영후 데탑에 깔�
 admins_group_id = "b6de7de7311147afaac289adbf5876bb"
 admin_role_id = "614ba9d7720948f6b524d3a2fa6084d2"
 
+class TokenExpiredError(Exception):
+    def __init__(self):
+        super().__init__("오픈스택의 토큰이 만료되었습니다.")
+
 def admin_token():  # admin user의 token을 발급받는 함수
     admin_token_payload = {   # admin user token 발급 Body
         "auth": {
@@ -99,6 +103,9 @@ def getUserInfoByToken(user_token): # admin token과 웹으로부터 request hea
 
 def getUserID(user_token):  # admin token과 user token을 통해 반환받은 유저의 정보 중 user_id를 추출해내는 함수
     user_id_get = getUserInfoByToken(user_token)
+    if user_id_get.status_code == 404:
+        raise TokenExpiredError
+
     if user_id_get == None:
         return None
 
