@@ -18,7 +18,7 @@ class TemplateModifier:
         if disk_size < 5:   # flavor select 로직
             flavor = "ds512M"
         elif 5 <= disk_size <= 10:
-            flavor = "m1.tiny"  # test한다고 tiny 준거임.
+            flavor = "ds1G"  # test한다고 tiny 준거임.
         elif 10 < disk_size :
             flavor = "EXCEEDED"
 

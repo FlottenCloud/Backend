@@ -55,14 +55,15 @@ class OpenstackBackupImageSerializer(serializers.ModelSerializer):
 
 class CreateStackSerializer(serializers.Serializer):
     os = serializers.CharField(help_text="OS(cirros, fedorra, ubuntu) user want to use.", default="cirros")
-    package = serializers.ListField(help_text="Package(apache2, default-jdk, ftp, libguestfs-tools, net-tools, pastebinit, pwgen, vim) user want to install.", allow_empty=True)
+    package = serializers.ListField(help_text="Package(apache2, default-jdk, ftp, libguestfs-tools, net-tools, pastebinit, pwgen, vim) user want to install. User can choice nothing.", default=[])
     num_people = serializers.IntegerField(help_text="Number of people that might work with user.", default=1)
     data_size = serializers.IntegerField(help_text="Data size that one participant might use(GB).", default=1)
     instance_name = serializers.CharField(help_text="Instance name user want to set.")
     backup_time = serializers.IntegerField(help_text="Instance's backup time(6, 12) user want to set.", default=6)
 
 class UpdateStackSerializer(serializers.Serializer):
-    package = serializers.ListField(help_text="Package(apache2, default-jdk, ftp, libguestfs-tools, net-tools, pastebinit, pwgen, vim) user want to install.", allow_empty=True)
+    instance_id = serializers.CharField(help_text="Instance's ID want to control.")
+    package = serializers.ListField(help_text="Package(apache2, default-jdk, ftp, libguestfs-tools, net-tools, pastebinit, pwgen, vim) user want to install. User can choice nothing.", default=[])
     num_people = serializers.IntegerField(help_text="Number of people that might work with user.", default=1)
     data_size = serializers.IntegerField(help_text="Data size that one participant might use(GB).", default=1)
     backup_time = serializers.IntegerField(help_text="Instance's backup time(6, 12) user want to set.", default=6)
