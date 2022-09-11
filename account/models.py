@@ -8,9 +8,8 @@ class AccountInfo(models.Model):
     password = models.CharField(max_length=100)
     openstack_user_id = models.CharField(max_length=100)
     openstack_user_project_id = models.CharField(max_length=100)
-    token = models.CharField(max_length=200)
-    # api_key = models.CharField(max_length=200)
-    # secret_key = models.CharField(max_length=200)
+    cloudstack_apiKey = models.CharField(max_length=200)
+    cloudstack_secretKey = models.CharField(max_length=200)
 
     class Meta:
         db_table = 'accounts_info'

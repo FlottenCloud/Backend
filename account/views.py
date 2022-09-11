@@ -3,6 +3,7 @@ import sys
 sys.path.append(os.path.dirname(os.path.abspath(os.path.dirname(__file__))))    #여기까지는 상위 디렉토리 모듈 import 하기 위한 코드
 
 import openstack_controller as oc    #백엔드 루트 디렉토리에 openstack.py 생성했고, 그 안에 공통으로 사용될 함수, 변수들 넣을 것임. 아직은 클래스화 안 했음.
+import cloudstack_controller as csc
 import json
 import requests
 from .models import AccountInfo
@@ -16,15 +17,20 @@ openstack_admin_project_id = oc.admin_project_id
 openstack_admins_group_id = oc.admins_group_id
 openstack_admin_role_id = oc.admin_role_id
 
-#클라우드스택 key 추가해야 된다.
+cloudstack_hostIP = csc.hostIP
+cloudstacK_api_base_url = csc.api_base_url
+cloudstack_admin_apiKey = csc.admin_apiKey
+cloudstack_admin_secretKey = csc.admin_secretKey
+
 #회원가입 view
 class AccountView(View):
     #회원등록 post 요청
-    def post(self, request):
-        input_data = json.loads(request.body)
+    def post(self, cloudstack_account_make_req_body):
+        input_data = json.loads(cloudstack_account_make_req_body.body)
+        #------openstack user create------#
         admin_token = oc.admin_token()
         if admin_token == None:
-            return JsonResponse({"message" : "오픈스택 관리자 토큰을 받아올 수 없습니다."})
+            return JsonResponse({"message" : "오픈스택 관리자 토큰을 받아올 수 없습니다."}, status=404)
 
         # 사용자 생성 전 사용자 이름의 프로젝트 생성
         openstack_user_project_payload = {
@@ -35,13 +41,13 @@ class AccountView(View):
                 "enabled": True,
             }
         }
-        user_project_req = requests.post("http://" + openstack_hostIP + "/identity/v3/projects",
+        user_project_make_req = requests.post("http://" + openstack_hostIP + "/identity/v3/projects",
             headers={'X-Auth-Token': admin_token},
             data=json.dumps(openstack_user_project_payload))
-        print(user_project_req.json())
+        print(user_project_make_req.json())
 
-        openstack_user_project_id = user_project_req.json()["project"]["id"]
-        print("project_ID 1 : ", openstack_user_project_id)
+        openstack_user_project_id = user_project_make_req.json()["project"]["id"]
+        print("project_ID : ", openstack_user_project_id)
 
         # 사용자의 openstack 정보
         openstack_user_payload = {
@@ -53,26 +59,43 @@ class AccountView(View):
             }
         }
         #openstack 사용자 생성
-        user_res = requests.post("http://" + openstack_hostIP + "/identity/v3/users",
+        openstack_user_make_req = requests.post("http://" + openstack_hostIP + "/identity/v3/users",
             headers={'X-Auth-Token': admin_token},
             data=json.dumps(openstack_user_payload))
-        print(user_res.json())
+        print(openstack_user_make_req.json())
         # openstack id 확인
-        openstack_created_user_id = user_res.json()["user"]["id"]
+        openstack_created_user_id = openstack_user_make_req.json()["user"]["name"]
         print(openstack_created_user_id)
 
         #사용자에게 프로젝트 역할 부여
-        role_assignment_req = requests.put(
+        openstack_user_role_assignment_req = requests.put(
             "http://" + openstack_hostIP + "/identity/v3/projects/" + openstack_user_project_id + "/users/" + openstack_created_user_id + "/roles/" + openstack_admin_role_id,
             headers={'X-Auth-Token': admin_token})
-
         #생성된 사용자를 admins 그룹에 추가 # 일단 놔두기
         # group_res = requests.put(
         #     "http://" + openstack_hostIP + "/identity/v3/groups/" + openstack_admins_group_id + "/users/" + openstack_created_user_id,
         #     headers={'X-Auth-Token': admin_token})
 
-        response = JsonResponse(input_data, status=200)
-        response['Access-Control-Allow-Origin'] = '*'
+        #------cloudstack user create------#
+        cloudstack_account_make_req_body= {"apiKey" : cloudstack_admin_apiKey, "response" : "json", "command" : "createAccount", "accounttype" : "0",
+            "email" : input_data["email"], "firstname" : input_data["first_name"], "lastname" : input_data["last_name"], 
+            "password" : input_data["password"], "username" : input_data["user_id"]}    # account 생성 request
+        cloudstacK_user_make_req = csc.requestThroughSig(cloudstack_admin_secretKey, cloudstack_account_make_req_body)
+        cloudstacK_user_make_res = json.loads(cloudstacK_user_make_req)
+        print("클라우드스택 유저 생성 response: ", cloudstacK_user_make_res)
+        cloudstack_created_user_id = cloudstacK_user_make_res["createaccountresponse"]["account"]["user"][0]["id"]
+
+        userKey_register_body={     # 생성된 account의 user_apiKey, user_secretKey 등록
+            "apiKey" : cloudstack_admin_apiKey,
+            "response" : "json",
+            "command" : "registerUserKeys",
+            "id" : cloudstack_created_user_id
+        }
+        secretKey = cloudstack_admin_secretKey
+        userKey_register_req = csc.requestThroughSig(secretKey, userKey_register_body)
+        userKey_register_res = json.loads(userKey_register_req)
+        user_apiKey = userKey_register_res["registeruserkeysresponse"]["userkeys"]["apikey"]
+        user_secretKey = userKey_register_res["registeruserkeysresponse"]["userkeys"]["secretkey"]
 
         #장고 ORM 업데이트
         AccountInfo.objects.create(
@@ -80,10 +103,15 @@ class AccountView(View):
             email = input_data['email'],
             password = input_data['password'],
             openstack_user_id = openstack_created_user_id,
-            openstack_user_project_id = openstack_user_project_id   
+            openstack_user_project_id = openstack_user_project_id,
+            cloudstack_apiKey = user_apiKey,
+            cloudstack_secretKey = user_secretKey
         )
 
-        return response
+        userKey_register_req = JsonResponse(input_data, status=200)
+        userKey_register_req['Access-Control-Allow-Origin'] = '*'
+
+        return userKey_register_req
 
 
     def get(self, request):                                   # 이건 아직 안썼는데 일단 나중에 제대로 수정할 것
