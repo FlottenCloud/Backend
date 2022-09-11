@@ -64,7 +64,7 @@ class AccountView(View):
             data=json.dumps(openstack_user_payload))
         print(openstack_user_make_req.json())
         # openstack id 확인
-        openstack_created_user_id = openstack_user_make_req.json()["user"]["name"]
+        openstack_created_user_id = openstack_user_make_req.json()["user"]["id"]
         print(openstack_created_user_id)
 
         #사용자에게 프로젝트 역할 부여
@@ -83,6 +83,7 @@ class AccountView(View):
         cloudstacK_user_make_req = csc.requestThroughSig(cloudstack_admin_secretKey, cloudstack_account_make_req_body)
         cloudstacK_user_make_res = json.loads(cloudstacK_user_make_req)
         print("클라우드스택 유저 생성 response: ", cloudstacK_user_make_res)
+        cloudstack_created_account_id = cloudstacK_user_make_res["createaccountresponse"]["account"]["id"]
         cloudstack_created_user_id = cloudstacK_user_make_res["createaccountresponse"]["account"]["user"][0]["id"]
 
         userKey_register_body={     # 생성된 account의 user_apiKey, user_secretKey 등록
@@ -91,8 +92,7 @@ class AccountView(View):
             "command" : "registerUserKeys",
             "id" : cloudstack_created_user_id
         }
-        secretKey = cloudstack_admin_secretKey
-        userKey_register_req = csc.requestThroughSig(secretKey, userKey_register_body)
+        userKey_register_req = csc.requestThroughSig(cloudstack_admin_secretKey, userKey_register_body)
         userKey_register_res = json.loads(userKey_register_req)
         user_apiKey = userKey_register_res["registeruserkeysresponse"]["userkeys"]["apikey"]
         user_secretKey = userKey_register_res["registeruserkeysresponse"]["userkeys"]["secretkey"]
@@ -104,6 +104,7 @@ class AccountView(View):
             password = input_data['password'],
             openstack_user_id = openstack_created_user_id,
             openstack_user_project_id = openstack_user_project_id,
+            cloudstack_account_id = cloudstack_created_account_id,
             cloudstack_apiKey = user_apiKey,
             cloudstack_secretKey = user_secretKey
         )
@@ -133,6 +134,7 @@ class AccountView(View):
 
     def delete(self, request):  #그냥 api로 db랑 오픈스택에 유저 쌓인 거 정리하기 쉬우려고 만들었음. 후에 탈퇴기능 이용하려면 구현 제대로 할 것.
         input_data = json.loads(request.body)
+        #------openstack account delete------#
         admin_token = oc.admin_token()
         if admin_token == None:
             return JsonResponse({"message" : "오픈스택 관리자 토큰을 받아올 수 없습니다."})
@@ -143,6 +145,8 @@ class AccountView(View):
         del_user_id_openstack = account_data.openstack_user_id  #해당 유저의 openstack user id
         # print(del_project_id_openstack)
         # print(del_user_id_openstack)
+        del_account_id_cloudstack = account_data.cloudstack_account_id
+        # print(del_user_id_cloudstack)
         user_resource = account_data.user_resource_info.all()   #해당 유저의 stack 정보(from 외래키 related name)
 
         for resource in user_resource:  # 오픈스택에서 user의 stack 모두 삭제
@@ -155,12 +159,24 @@ class AccountView(View):
                     headers = {'X-Auth-Token' : admin_token})
                 print("업데이트에 쓰인 이미지 삭제 리스폰스: ", image_del_req)
 
-        account_data.delete()
-        project_del_req = requests.delete("http://" + openstack_hostIP + "/identity/v3/projects/" + del_project_id_openstack,
+        openstack_project_del_req = requests.delete("http://" + openstack_hostIP + "/identity/v3/projects/" + del_project_id_openstack,
             headers={'X-Auth-Token': admin_token})     #오픈스택에 해당 프로젝트 삭제 request
-        user_del_req = requests.delete("http://" + openstack_hostIP + "/identity/v3/users/" + del_user_id_openstack,
+        openstack_user_del_req = requests.delete("http://" + openstack_hostIP + "/identity/v3/users/" + del_user_id_openstack,
             headers={'X-Auth-Token': admin_token})     #오픈스택에 해당 유저 삭제 request
-        #print(user_del_res.json())
+        print(openstack_user_del_req)
+
+        #------cloudstack account delete------#
+        cloudstack_account_del_body={     # cloudstack account 삭제 request body
+            "apiKey" : cloudstack_admin_apiKey,
+            "response" : "json",
+            "command" : "deleteAccount",
+            "id" : del_account_id_cloudstack
+        }
+        cloudstack_account_del_req = csc.requestThroughSig(cloudstack_admin_secretKey, cloudstack_account_del_body)
+        cloudstack_account_del_res = json.loads(cloudstack_account_del_req)
+        print(cloudstack_account_del_res)
+
+        account_data.delete()   # DB에서 사용자 정보 삭제
 
         return HttpResponse("Delete Success")
 
