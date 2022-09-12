@@ -1,27 +1,12 @@
-import os   #여기서부터 장고와 환경을 맞추기 위한 import
-os.environ.setdefault("DJANGO_SETTINGS_MODULE", "cloudmanager.settings")    # INSTALLED_APPS에 등록된 앱 내의 함수가 아니기 때문에, INSTALLED APPS에 있는 모듈을 임포트 할 때 필요
-import django
-django.setup()
-
-import requests
-import json
-from django.http import JsonResponse
-
 import base64
 import hashlib
 import hmac
 import urllib.parse
 import urllib.request
 
-hostIP = "119.198.160.6:8080"
-api_base_url = "http://119.198.160.6:8080/client/api?"
-admin_apiKey = "TYuuU0lIvG1ukWwQ1E9qPBGr4PU3knXvJGlMK5yIWz_zhXtXhfAi2682f_a34y2MuDfOIuEb_CkE_leODskCpg"
-admin_secretKey = "r6avM2ip3wtjXjbNgOHIoQEK6U0T1X3flclrt55RO4v-Fa6WL0NJAVDs80ZI-AeTpKN8lIUpW2fWF_aCHv3cRA"
-netOfferingID_L2VLAN = "531f8f15-82c1-4f8e-a6ae-f4c3a3ddf1bf"
-zoneID = "d4459ac7-c548-401e-a526-8ed1aad2ed54"
-domainID = "93e67a39-fdca-11ec-a9c1-08002765d220"
 
 def requestThroughSig(secretKey, request_body):
+    print("a")
     request_str = '&'.join(['='.join([k, urllib.parse.quote_plus(request_body[k])]) for k in request_body.keys()])
     sig_str = '&'.join(
         ['='.join([k.lower(), urllib.parse.quote_plus(request_body[k].lower().replace('+', '%20'))]) for k in
@@ -33,10 +18,20 @@ def requestThroughSig(secretKey, request_body):
         hmac.new(secretKey.encode('utf-8'), sig_str.encode('utf-8'), hashlib.sha1).digest()).strip()
     sig = urllib.parse.quote_plus(base64.encodebytes(
         hmac.new(secretKey.encode('utf-8'), sig_str.encode('utf-8'), hashlib.sha1).digest()).strip())
-    req = api_base_url + request_str + '&signature=' + sig
+    req = "http://119.198.160.6:8080/client/api?" + request_str + '&signature=' + sig
     print("클라우드 스택으로의 리퀘스트:", req)
-    res = urllib.request.urlopen(req)
-    response=res.read()
+    # res=urllib.request.urlopen(req)
+    # response=res.read()
 
-    print("클라우드 스택으로의 리스폰스:", response)
-    return response
+    print("시그니처:", sig)
+    return sig
+
+def main():
+    # request_body = {"apiKey":"XM1kmGp-sHQOfeAYbLVtG3tPz94BNdGDdJh9qAAqh4I4OXmeSvr7piCQweWQUs9gJkhqJNTIPEccJoKJwuLtTA", "response":"json", "command":"listVirtualMachines", "id" : "f092f028-73b9-48e5-b2ea-1b0779f2308d"}
+    # requestThroughSig("Zf1ErQoK-diymzPP_-T2E6AwgeAWDtFOyULcmoij8Sm0CUtwEcoOkAdTJY5EnQMSAJ2KbCW6OO-BiJ0iHTjxcg", request_body)
+
+    request_body = {"apiKey":"XM1kmGp-sHQOfeAYbLVtG3tPz94BNdGDdJh9qAAqh4I4OXmeSvr7piCQweWQUs9gJkhqJNTIPEccJoKJwuLtTA", "response":"json", "command":"listServiceOfferings", "id" : "63fe8390-1f96-4a51-97a2-ffc55161fcad"}
+    requestThroughSig("Zf1ErQoK-diymzPP_-T2E6AwgeAWDtFOyULcmoij8Sm0CUtwEcoOkAdTJY5EnQMSAJ2KbCW6OO-BiJ0iHTjxcg", request_body)
+    
+
+main()

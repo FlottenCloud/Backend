@@ -4,9 +4,11 @@ sys.path.append(os.path.dirname(os.path.abspath(os.path.dirname(__file__))))    
 
 import openstack_controller as oc    #백엔드 루트 디렉토리에 openstack.py 생성했고, 그 안에 공통으로 사용될 함수, 변수들 넣을 것임. 아직은 클래스화 안 했음.
 import cloudstack_controller as csc
+import time
 import json
 import requests
 from .models import AccountInfo
+from django.db.models import Max
 from django.shortcuts import render
 from django.views import View
 from django.http import HttpResponse, JsonResponse
@@ -21,6 +23,9 @@ cloudstack_hostIP = csc.hostIP
 cloudstacK_api_base_url = csc.api_base_url
 cloudstack_admin_apiKey = csc.admin_apiKey
 cloudstack_admin_secretKey = csc.admin_secretKey
+cloudstack_netOfferingID = csc.netOfferingID_L2VLAN
+cloudstack_zoneID = csc.zoneID
+cloudstack_domainID = csc.domainID
 
 #회원가입 view
 class AccountView(View):
@@ -77,7 +82,7 @@ class AccountView(View):
         #     headers={'X-Auth-Token': admin_token})
 
         #------cloudstack user create------#
-        cloudstack_account_make_req_body= {"apiKey" : cloudstack_admin_apiKey, "response" : "json", "command" : "createAccount", "accounttype" : "0",
+        cloudstack_account_make_req_body= {"apiKey" : cloudstack_admin_apiKey, "response" : "json", "command" : "createAccount", "accounttype" : "1",
             "email" : input_data["email"], "firstname" : input_data["first_name"], "lastname" : input_data["last_name"], 
             "password" : input_data["password"], "username" : input_data["user_id"]}    # account 생성 request
         cloudstacK_user_make_req = csc.requestThroughSig(cloudstack_admin_secretKey, cloudstack_account_make_req_body)
@@ -86,16 +91,44 @@ class AccountView(View):
         cloudstack_created_account_id = cloudstacK_user_make_res["createaccountresponse"]["account"]["id"]
         cloudstack_created_user_id = cloudstacK_user_make_res["createaccountresponse"]["account"]["user"][0]["id"]
 
-        userKey_register_body={     # 생성된 account의 user_apiKey, user_secretKey 등록
+        userKey_register_body = {     # 생성된 account의 user_apiKey, user_secretKey 등록
             "apiKey" : cloudstack_admin_apiKey,
             "response" : "json",
             "command" : "registerUserKeys",
             "id" : cloudstack_created_user_id
         }
-        userKey_register_req = csc.requestThroughSig(cloudstack_admin_secretKey, userKey_register_body)
-        userKey_register_res = json.loads(userKey_register_req)
-        user_apiKey = userKey_register_res["registeruserkeysresponse"]["userkeys"]["apikey"]
-        user_secretKey = userKey_register_res["registeruserkeysresponse"]["userkeys"]["secretkey"]
+        user_network_create_req = csc.requestThroughSig(cloudstack_admin_secretKey, userKey_register_body)
+        user_network_create_res = json.loads(user_network_create_req)
+        user_apiKey = user_network_create_res["registeruserkeysresponse"]["userkeys"]["apikey"]
+        user_secretKey = user_network_create_res["registeruserkeysresponse"]["userkeys"]["secretkey"]
+
+        try:
+            print("유저의 vlan 할당")
+            vlan_max = AccountInfo.objects.aggregate(Max("cloudstack_network_vlan"))
+            print("현재 가장 큰 vlan 값: ", vlan_max)
+            vlan = vlan_max["cloudstack_network_vlan__max"] + 1
+            print("vlan 값: ", vlan)
+        except Exception as e:
+            print("에러 내용: ", e)
+            print("생성된 유저가 없어 vlan값이 100으로 할당됩니다.")
+            vlan = 100
+
+        user_network_create_body = {
+            "apiKey" : user_apiKey,
+            "response" : "json", 
+            "command" : "createNetwork",
+            "account" : input_data["user_id"],
+            "domainid" : cloudstack_domainID,
+            "vlan" : str(vlan),
+            "displaytext" : input_data["user_id"] + "net",
+            "name" : input_data["user_id"] + "net",
+            "networkofferingid" : cloudstack_netOfferingID,
+            "zoneid" : cloudstack_zoneID
+        }
+        user_network_create_req = csc.requestThroughSig(user_secretKey, user_network_create_body)
+        user_network_create_res = json.loads(user_network_create_req)
+        cloudstack_user_network_id = user_network_create_res["createnetworkresponse"]["network"]["id"]
+        cloudstack_user_network_vlan = user_network_create_res["createnetworkresponse"]["network"]["vlan"]
 
         #장고 ORM 업데이트
         AccountInfo.objects.create(
@@ -106,13 +139,15 @@ class AccountView(View):
             openstack_user_project_id = openstack_user_project_id,
             cloudstack_account_id = cloudstack_created_account_id,
             cloudstack_apiKey = user_apiKey,
-            cloudstack_secretKey = user_secretKey
+            cloudstack_secretKey = user_secretKey,
+            cloudstack_network_id = cloudstack_user_network_id,
+            cloudstack_network_vlan = cloudstack_user_network_vlan
         )
 
-        userKey_register_req = JsonResponse(input_data, status=200)
-        userKey_register_req['Access-Control-Allow-Origin'] = '*'
+        user_network_create_req = JsonResponse(input_data, status=200)
+        user_network_create_req['Access-Control-Allow-Origin'] = '*'
 
-        return userKey_register_req
+        return user_network_create_req
 
 
     def get(self, request):                                   # 이건 아직 안썼는데 일단 나중에 제대로 수정할 것
