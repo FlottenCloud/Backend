@@ -209,7 +209,7 @@ def deployCloudstackInstance(user_id, user_apiKey, user_secretKey, instance_name
     medium_offeringID = csc.medium_offeringID
     
     template_name = instance_name + "Template"
-    if os_type == "F" :     #Fedora
+    if os_type == "F" :     # Fedora
         os_type_id = "8682cef8-a3f3-47a0-886d-87b9398469b3"
     elif os_type == "c" :   # centos
         os_type_id = "abc"
@@ -218,13 +218,16 @@ def deployCloudstackInstance(user_id, user_apiKey, user_secretKey, instance_name
     
     backup_template_id = registerCloudstackTemplate(zoneID, template_name, backup_img_file_name, os_type_id)
     
-    request_body= { "apiKey" : user_apiKey, "response" : "json", "command" : "deployVirtualMachine",
-        "networkids" : cloudstack_user_network_id, 'serviceofferingId' : medium_offeringID,
-        'templateId': backup_template_id, 'zoneId': zoneID,
+    request_body= {"apiKey" : user_apiKey, "response" : "json", "command" : "deployVirtualMachine",
+        "networkids" : cloudstack_user_network_id, "serviceofferingId" : medium_offeringID,
+        'templateId': backup_template_id, "zoneId": zoneID,
         "displayname" : instance_name, "name" : instance_name, "domainid" : domainID,
         "account" : user_id, "hostid" : hostID, "startvm" : "false"
     }
-    instance_deploy_req = csc.requestThroughSig(user_secretKey, request_body)
+    try :
+        instance_deploy_req = csc.requestThroughSig(user_secretKey, request_body)
+    except Exception as e:
+        print("에러 내용: ", e)
     
     print("Created Instance " + backup_img_file_name + " to cloudstack")
 
@@ -258,7 +261,7 @@ def backup(cycle):
             backup_instance_id = instance.instance_id
             backup_instace_name = instance.instance_name
             backup_instance_os_type = instance.image_name[0]
-            user_id = instance.user_id
+            user_id = instance.user_id.user_id
             cloudstack_user_network_id = instance.user_id.cloudstack_network_id
             cloudstack_user_apiKey = instance.user_id.cloudstack_apiKey
             cloudstack_user_secretKey = instance.user_id.cloudstack_secretKey
@@ -292,7 +295,7 @@ def backup(cycle):
                 image_status = image_status_req.json()["status"]
                 if image_status == "active":
                     break
-                time.sleep(2)
+                time.sleep(5)
             image_download_req = req_checker.reqChecker("get", "http://" + openstack_hostIP + "/image/v2/images/" + instance_image_ID + "/file", admin_token)
             if image_download_req == None:
                 raise requests.exceptions.Timeout

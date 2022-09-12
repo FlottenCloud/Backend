@@ -38,9 +38,10 @@ def requestThroughSig(secretKey, request_body):
         hmac.new(secretKey.encode('utf-8'), sig_str.encode('utf-8'), hashlib.sha1).digest()).strip())
     req = api_base_url + request_str + '&signature=' + sig
     print("클라우드 스택으로의 리퀘스트:", req)
+    urllib.request.urlcleanup()
     res = urllib.request.urlopen(req)
-    response=res.read()
-
+    response = res.read()
+    
     print("클라우드 스택으로의 리스폰스:", response)
     return response
 
