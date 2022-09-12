@@ -37,9 +37,10 @@ def main():
     # requestThroughSig("r6avM2ip3wtjXjbNgOHIoQEK6U0T1X3flclrt55RO4v-Fa6WL0NJAVDs80ZI-AeTpKN8lIUpW2fWF_aCHv3cRA", request_body)
 
 
-    request_body = {"response": "json", "command": "listOsTypes", "keyword": "fedora", 'apikey': "TYuuU0lIvG1ukWwQ1E9qPBGr4PU3knXvJGlMK5yIWz_zhXtXhfAi2682f_a34y2MuDfOIuEb_CkE_leODskCpg"}
+    request_body = {"response": "json", "command": "listServiceOfferings", 'apikey': "TYuuU0lIvG1ukWwQ1E9qPBGr4PU3knXvJGlMK5yIWz_zhXtXhfAi2682f_a34y2MuDfOIuEb_CkE_leODskCpg"}
     requestThroughSig("r6avM2ip3wtjXjbNgOHIoQEK6U0T1X3flclrt55RO4v-Fa6WL0NJAVDs80ZI-AeTpKN8lIUpW2fWF_aCHv3cRA", request_body)
 
+    # request_body = {"response": "json", "command": "listOsTypes", "keyword": "fedora", 'apikey': "TYuuU0lIvG1ukWwQ1E9qPBGr4PU3knXvJGlMK5yIWz_zhXtXhfAi2682f_a34y2MuDfOIuEb_CkE_leODskCpg"}
     # request_body = {"apiKey": "TYuuU0lIvG1ukWwQ1E9qPBGr4PU3knXvJGlMK5yIWz_zhXtXhfAi2682f_a34y2MuDfOIuEb_CkE_leODskCpg", "response": "json", "command": "registerTemplate",
     #         "displaytext": "test1", "format": "qcow2", "hypervisor": "kvm",
     #         "name": "test1", "url": url, "ostypeid": osTypeid, "zoneid": zoneID}

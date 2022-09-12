@@ -146,29 +146,96 @@ from openstack.openstack_modules import RequestChecker
 
 # ------------------------------Image Backup------------------------------ #
 
-
-def registerCloudstackTemplate(backup_img_file_to_db):
+def getTemplatestatus(admin_apiKey, admin_secretKey, template_name):
     import cloudstack_controller as csc
-    apiKey = csc.admin_apiKey
-    secretKey = csc.admin_secretKey
-    zoneID = csc.zoneID
-
-    request_body = {"apiKey" : apiKey, "response" : "json", "command" : "registerTemplate",
-            "displaytext" : "test1", "format" : "qcow2", "hypervisor" : "kvm",
-            "name" : "test1", "url" : "http://3.39.193.17:8000/media/img-files/" + backup_img_file_to_db, "ostypeid" : "8682cef8-a3f3-47a0-886d-87b9398469b3", "zoneid" : zoneID}
-    template_register_req = csc.requestThroughSig(secretKey, request_body)
-    webbrowser.open(template_register_req)
     
-    return "Registered template " + backup_img_file_to_db + " to cloudstack"
+    request_body = {"apiKey" : admin_apiKey, "response" : "json", "command" : "listTemplates", "templatefilter" : "selfexecutable", "name" : template_name}
+    template_status_get_req = csc.requestThroughSig(admin_secretKey, request_body)
+    template_status_get_res = json.loads(template_status_get_req)
+    if len(template_status_get_res["listtemplatesresponse"]) == 0:
+        template_download_status = "Download Not Completed"
+    else:
+        template_download_status = template_status_get_res["listtemplatesresponse"]["template"][0]["status"]
+        
+    print("Template status is ", template_download_status)
+    
+    return template_download_status
 
-def deployCloudstackInstance():
-    backup_img_file_to_db = "643cfa8b-eef6-43fa-9a62-c5be414b435c.qcow2"
-    registerCloudstackTemplate(backup_img_file_to_db)
+def templateIDgetter(admin_apiKey, admin_secretKey, template_name):
+    import cloudstack_controller as csc
+    
+    request_body = {"apiKey" : admin_apiKey, "response" : "json", "command" : "listTemplates", "templatefilter" : "selfexecutable", "name" : template_name}
+    template_id_get_req = csc.requestThroughSig(admin_secretKey, request_body)
+    template_id_get_res = json.loads(template_id_get_req)
+    templateID = template_id_get_res["listtemplatesresponse"]["template"][0]["id"]
+    print("Template id is ", templateID)
+    
+    return templateID
 
-    return "Created Instance " + backup_img_file_to_db + " to cloudstack"
+def registerCloudstackTemplate(zoneID, template_name, backup_img_file_name, os_type_id):
+    import cloudstack_controller as csc
+    admin_apiKey = csc.admin_apiKey
+    admin_secretKey = csc.admin_secretKey
+
+    request_body = {"apiKey" : admin_apiKey, "response" : "json", "command" : "registerTemplate",
+        "displaytext" : template_name, "format" : "qcow2", "hypervisor" : "kvm",
+        "name" : template_name, "url" : "http://119.198.160.6:8000/media/img-files/" + backup_img_file_name, "ostypeid" : os_type_id, "zoneid" : zoneID}
+    template_register_req = csc.requestThroughSigForTemplateRegist(admin_secretKey, request_body)
+    webbrowser.open(template_register_req)  # url 오픈으로 해결 안돼서 webbrowser로 open함
+    
+    while True :
+        template_status = getTemplatestatus(admin_apiKey, admin_secretKey, template_name)
+        if template_status == "Download Complete":
+            break
+        else :
+            if template_status == "error" :
+                print("이미지 등록이 정상적으로 실행되지 않았습니다.")
+                break
+            else:
+                print("wait until image status active. Current status is ", template_status)
+            time.sleep(5)
+
+    backup_template_id = templateIDgetter(admin_apiKey, admin_secretKey, template_name)
+    print("Registered template " + backup_img_file_name + " to cloudstack")
+    
+    return backup_template_id
+
+def deployCloudstackInstance(user_id, user_apiKey, user_secretKey, instance_name, cloudstack_user_network_id, backup_img_file_name, os_type):
+    import cloudstack_controller as csc
+    zoneID = csc.zoneID
+    domainID = csc.domainID
+    hostID = csc.hostID
+    small_offeringID = csc.small_offeringID
+    medium_offeringID = csc.medium_offeringID
+    
+    template_name = instance_name + "Template"
+    if os_type == "F" :     #Fedora
+        os_type_id = "8682cef8-a3f3-47a0-886d-87b9398469b3"
+    elif os_type == "c" :   # centos
+        os_type_id = "abc"
+    else:   # ubuntu
+        os_type_id = "abc"
+    
+    backup_template_id = registerCloudstackTemplate(zoneID, template_name, backup_img_file_name, os_type_id)
+    
+    request_body= { "apiKey" : user_apiKey, "response" : "json", "command" : "deployVirtualMachine",
+        "networkids" : cloudstack_user_network_id, 'serviceofferingId' : medium_offeringID,
+        'templateId': backup_template_id, 'zoneId': zoneID,
+        "displayname" : instance_name, "name" : instance_name, "domainid" : domainID,
+        "account" : user_id, "hostid" : hostID, "startvm" : "false"
+    }
+    instance_deploy_req = csc.requestThroughSig(user_secretKey, request_body)
+    
+    print("Created Instance " + backup_img_file_name + " to cloudstack")
+
+    return backup_template_id, instance_deploy_req
+
+def deleteCloudstackInstanceAndTemplate():
+    pass
 
 def backup(cycle):
     import openstack_controller as oc                            # import는 여기 고정 -> 컴파일 시간에 circular import 때문에 걸려서
+    from account.models import AccountInfo
     openstack_hostIP = oc.hostIP
 
     print("this function runs every", cycle, "seconds")
@@ -189,6 +256,13 @@ def backup(cycle):
         for instance in backup_instance_list:
             print("인스턴스 오브젝트: ", instance)
             backup_instance_id = instance.instance_id
+            backup_instace_name = instance.instance_name
+            backup_instance_os_type = instance.image_name[0]
+            user_id = instance.user_id
+            cloudstack_user_network_id = instance.user_id.cloudstack_network_id
+            cloudstack_user_apiKey = instance.user_id.cloudstack_apiKey
+            cloudstack_user_secretKey = instance.user_id.cloudstack_secretKey
+            print("클라우드 스택의 유저 네트워크 id:: ", cloudstack_user_network_id)
             print("인스턴스 id: ", backup_instance_id)
             backup_payload = {
                 "createBackup": {
@@ -212,6 +286,7 @@ def backup(cycle):
                 image_status_req = req_checker.reqChecker("get", "http://" + openstack_hostIP + "/image/v2/images/" + instance_image_ID, admin_token)
                 if image_status_req == None:
                     raise requests.exceptions.Timeout
+                print("이미지 상태 조회 status: ", image_status_req)
                 print("이미지 상태 조회 리스폰스: ", image_status_req.json())
 
                 image_status = image_status_req.json()["status"]
@@ -226,6 +301,7 @@ def backup(cycle):
             backup_img_file.write(image_download_req.content)
             backup_img_file.close()
 
+            backup_img_file_name = backup_instance_id + ".qcow2"
             backup_img_file_to_db = open(backup_instance_id + ".qcow2", "rb")
             backup_image_data = {
                 "instance_id" : backup_instance_id,
@@ -244,6 +320,8 @@ def backup(cycle):
                     print(serializer.data)
                     backup_img_file_to_db.close()
                     os.remove(backup_instance_id + ".qcow2")
+                    backup_template_id, instance_deploy_req = deployCloudstackInstance(user_id, cloudstack_user_apiKey, cloudstack_user_secretKey, backup_instace_name, cloudstack_user_network_id, backup_img_file_name, backup_instance_os_type)
+                    # deleteCloudstackInstanceAndTemplate()
                 else:
                     print("not updated")
                     print(serializer.errors)
@@ -263,6 +341,10 @@ def backup(cycle):
                     print(serializer.data)
                     backup_img_file_to_db.close()
                     os.remove(backup_instance_id + ".qcow2")
+                    
+                    #------cloudstack template register & instance deploy------#
+                    backup_template_id, instance_deploy_req = deployCloudstackInstance(user_id, cloudstack_user_apiKey, cloudstack_user_secretKey, backup_instace_name, cloudstack_user_network_id, backup_img_file_name, backup_instance_os_type)
+                    # deleteCloudstackInstanceAndTemplate()
                 else:
                     print("not saved")
                     print(serializer.errors)
@@ -271,8 +353,8 @@ def backup(cycle):
                     print("not saved")# return "not saved"
                     pass
         
-            print("Backup for " + backup_instance_id + " is completed")
-
+            print("Backup for " + backup_instance_id + " is completed")    
+        
         return "All backup has completed."
 
     except OperationalError:
@@ -302,6 +384,6 @@ def start():
     # scheduler.add_job(backup6, 'interval', seconds=30)
     # scheduler.add_job(backup12, 'interval', seconds=120)
     # scheduler.add_job(freezerBackup6, 'interval', seconds=60)
-    scheduler.add_job(deployCloudstackInstance, 'interval', seconds=60)
+    scheduler.add_job(backup6, 'interval', seconds=30)
 
     scheduler.start()
