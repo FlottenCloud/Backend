@@ -45,6 +45,7 @@ INSTALLED_APPS = [
     'django_apscheduler',
     'account',
     'openstack',
+    'cloudstack',
     'django_cleanup.apps.CleanupConfig',
 ]
 
@@ -165,7 +166,9 @@ CORS_ALLOW_HEADERS = [
     'user-agent',
     'x-csrftoken',
     'x-requested-with',
-    'x-auth-token'
+    'x-auth-token',
+    "apiKey",
+    "secretKey"
 ]
 
 MEDIA_URL = '/media/'

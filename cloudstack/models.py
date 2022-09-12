@@ -3,7 +3,7 @@ from django.db import models
 
 class CloudstackInstance(models.Model):  #유저와 연관짓기 위한 외래키 등록
     # Foreign key(user - stack info)
-    user_id = models.ForeignKey("account.AccountInfo", related_name="user_resource_info", on_delete=models.CASCADE, db_column="user_id")
+    user_id = models.ForeignKey("account.AccountInfo", related_name="user_cloudstack_resource_info", on_delete=models.CASCADE, db_column="user_id")
     # cloudstack instance info
     instance_id = models.CharField(max_length=50, primary_key=True) # backup image에서 외래키로 참조
 

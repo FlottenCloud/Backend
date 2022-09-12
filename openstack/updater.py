@@ -5,6 +5,7 @@ import time
 import paramiko
 from sqlite3 import OperationalError
 import requests
+import webbrowser
 from apscheduler.schedulers.background import BackgroundScheduler
 from django.core.files import File
 from openstack.models import OpenstackBackupImage, OpenstackInstance
@@ -145,6 +146,27 @@ from openstack.openstack_modules import RequestChecker
 
 # ------------------------------Image Backup------------------------------ #
 
+
+def registerCloudstackTemplate(backup_img_file_to_db):
+    import cloudstack_controller as csc
+    apiKey = csc.admin_apiKey
+    secretKey = csc.admin_secretKey
+    zoneID = csc.zoneID
+
+    request_body = {"apiKey" : apiKey, "response" : "json", "command" : "registerTemplate",
+            "displaytext" : "test1", "format" : "qcow2", "hypervisor" : "kvm",
+            "name" : "test1", "url" : "http://3.39.193.17:8000/media/img-files/" + backup_img_file_to_db, "ostypeid" : "8682cef8-a3f3-47a0-886d-87b9398469b3", "zoneid" : zoneID}
+    template_register_req = csc.requestThroughSig(secretKey, request_body)
+    webbrowser.open(template_register_req)
+    
+    return "Registered template " + backup_img_file_to_db + " to cloudstack"
+
+def deployCloudstackInstance():
+    backup_img_file_to_db = "643cfa8b-eef6-43fa-9a62-c5be414b435c.qcow2"
+    registerCloudstackTemplate(backup_img_file_to_db)
+
+    return "Created Instance " + backup_img_file_to_db + " to cloudstack"
+
 def backup(cycle):
     import openstack_controller as oc                            # import는 여기 고정 -> 컴파일 시간에 circular import 때문에 걸려서
     openstack_hostIP = oc.hostIP
@@ -267,7 +289,7 @@ def backup6():
 def backup12():
     backup_res = backup(12)
     print(backup_res)
-
+    
 
 def deleter():
     OpenstackBackupImage.objects.all().delete()
@@ -280,5 +302,6 @@ def start():
     # scheduler.add_job(backup6, 'interval', seconds=30)
     # scheduler.add_job(backup12, 'interval', seconds=120)
     # scheduler.add_job(freezerBackup6, 'interval', seconds=60)
-    
+    scheduler.add_job(deployCloudstackInstance, 'interval', seconds=60)
+
     scheduler.start()

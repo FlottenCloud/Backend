@@ -110,8 +110,8 @@ class AccountView(View):
             print("vlan 값: ", vlan)
         except Exception as e:
             print("에러 내용: ", e)
-            print("생성된 유저가 없어 vlan값이 100으로 할당됩니다.")
             vlan = 100
+            print("생성된 유저가 없어 vlan값이 " + str(vlan) + "으로 할당됩니다.")
 
         user_network_create_body = {
             "apiKey" : user_apiKey,
