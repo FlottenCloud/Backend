@@ -6,5 +6,5 @@ class OpenstackConfig(AppConfig):
     name = 'openstack'
 
     # def ready(self):
-        # from . import updater
-        # updater.start()
+    #     from . import updater
+    #     updater.start()
