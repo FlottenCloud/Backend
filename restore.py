@@ -16,7 +16,7 @@ from openstack.openstack_modules import RequestChecker
 
 cloudstack_user_apikey="6PCI_7tutY5ls8NDWJSMjLCTD8-4nW49gLN-AcZsGUz2HAFh5i4NWbc7ASq2e2A5rWOVTwPQGYJ9mUh71-w4WQ"
 cloudstack_user_secretkey="lF2rBUXhs4tY7JcuGq7XJDFTC-7EPy714KE2NiFnHtDkH1obBilOyUcqW8VPy0GTkSdlfUvxZVZQD4jInQCrXg"
-
+local_restore_image_Download_Path='C:/Users/PC/Desktop/os_image/backup/'
 
 
 
@@ -241,6 +241,9 @@ def restore(cloudstack_user_apiKey,cloudstack_user_secretKey,instance_id,cloudst
     file.write(res.content)
     file.close()
     print("image file download response is", res)
+
+    openstackimageupload(template_name)
+
     return res
 
 
@@ -263,19 +266,24 @@ def openstackimageupload(template_name):
 
     if create_req == None:
         raise requests.exceptions.Timeout
-    print(create_req)
-    create_req_json=json.loads(create_req)
-    image_id=create_req["id"]
+    header=create_req.headers
+    location=header["Location"]
+    imageid=location.split("/")[5]
+    print("image is is :",imageid)
+
+
     print("wait 5 seconds for upload binary data...")
     time.sleep(5)
 
-    file = open('/Users/ibonghun/Developer/' + template_name + '.qcow2', 'rb')
+    # file = open('C:/Users/PC/Desktop/os_image/backup/' + 'backup0903' + '.qcow2', 'rb')
+    file= open(local_restore_image_Download_Path + template_name + '.qcow2','rb')
+    contents=file.read()
+    imageData_put_payload =contents
 
-    imageData_put_payload =  file
-
-    put_req=req_checker.reqCheckerWithData("put", "http://" + openstack_hostIP + "/image/v2/images/"+image_id+"/file", admin_token,
-                                                imageData_put_payload)
-
+    # put_req=req_checker.reqCheckerWithData("put", "http://" + openstack_hostIP + "/image/v2/images/"+imageid+"/file", admin_token,
+    #                                             imageData_put_payload)
+    put_req=requests.put("http://" + openstack_hostIP + "/image/v2/images/"+imageid+"/file",
+                         data=imageData_put_payload,headers={'X-Auth-Token' : admin_token,'Content-type': 'application/octet-stream'})
     if put_req == None:
         raise requests.exceptions.Timeout
     print(put_req)
@@ -283,4 +291,4 @@ def openstackimageupload(template_name):
 
 
 # restore(cloudstack_user_apikey,cloudstack_user_secretkey,"a8f92bd0-d3b7-49a6-a2ff-73a6155f3fbf","restore-selab")
-openstackimageupload("restore_test_0914")
+openstackimageupload("backup0903")
