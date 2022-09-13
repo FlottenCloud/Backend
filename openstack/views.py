@@ -22,15 +22,15 @@ import time
 # Create your views here.
 openstack_hostIP = oc.hostIP
 openstack_user_token = openapi.Parameter(   # for django swagger
-        "X-Auth-Token",
-        openapi.IN_HEADER,
-        description = "access_token",
-        type = openapi.TYPE_STRING
-    )
+    "X-Auth-Token",
+    openapi.IN_HEADER,
+    description = "access_token",
+    type = openapi.TYPE_STRING
+)
 
 # request django url = /openstack/      인스턴스 CRUD 로직
 class Openstack(TemplateModifier, Stack, APIView):
-    @swagger_auto_schema(tags=["openstack api"], manual_parameters=[openstack_user_token], request_body=CreateStackSerializer, responses={200:"Success", 401:"Unauthorized", 404:"Not Found", 405:"Method Not Allowed"})
+    @swagger_auto_schema(tags=["Openstack API"], manual_parameters=[openstack_user_token], request_body=CreateStackSerializer, responses={200:"Success", 401:"Unauthorized", 404:"Not Found", 405:"Method Not Allowed"})
     def post(self, request):   # header: user_token, body: 요구사항({os, package[], num_people, data_size, instance_name, backup_time})
         stack_template_root = "templates/"
         try:
@@ -118,7 +118,7 @@ class Openstack(TemplateModifier, Stack, APIView):
 
         return JsonResponse({"message" : "가상머신 생성 완료"}, status=201)
 
-    @swagger_auto_schema(tags=["openstack api"], manual_parameters=[openstack_user_token], responses={200:"Success", 401:"Unauthorized", 404:"Not Found"})
+    @swagger_auto_schema(tags=["Openstack API"], manual_parameters=[openstack_user_token], responses={200:"Success", 401:"Unauthorized", 404:"Not Found"})
     def get(self, request):     # header: user_token
         try:
             token, user_id = oc.getRequestParams(request)
@@ -151,7 +151,7 @@ class Openstack(TemplateModifier, Stack, APIView):
 
         return JsonResponse({"instances" : user_stack_data}, status=200)
     
-    @swagger_auto_schema(tags=["openstack api"], manual_parameters=[openstack_user_token], request_body=UpdateStackSerializer, responses={200:"Success", 401:"Unauthorized", 404:"Not Found", 405:"Method Not Allowed"})
+    @swagger_auto_schema(tags=["Openstack API"], manual_parameters=[openstack_user_token], request_body=UpdateStackSerializer, responses={200:"Success", 401:"Unauthorized", 404:"Not Found", 405:"Method Not Allowed"})
     def patch(self, request):       # header: user_token, body: instance_id, 요구사항({package[], num_people, data_size, backup_time})
         try:
             input_data, token, user_id = oc.getRequestParamsWithBody(request)
@@ -259,7 +259,7 @@ class Openstack(TemplateModifier, Stack, APIView):
 
         return JsonResponse({"message" : "업데이트 완료"}, status=201)
 
-    @swagger_auto_schema(tags=["openstack api"], manual_parameters=[openstack_user_token], request_body=InstanceIDSerializer, responses={200:"Success", 404:"Not Found"})
+    @swagger_auto_schema(tags=["Openstack API"], manual_parameters=[openstack_user_token], request_body=InstanceIDSerializer, responses={200:"Success", 404:"Not Found"})
     def delete(self, request):      # header: user_token, body: instance_id
         try:
             input_data, token, user_id = oc.getRequestParamsWithBody(request)
@@ -296,7 +296,7 @@ class Openstack(TemplateModifier, Stack, APIView):
 
 # request django url = /openstack/dashboard/            대쉬보드에 리소스 사용량 보여주기 용
 class DashBoard(RequestChecker, APIView):
-    @swagger_auto_schema(tags=["Instance api"], manual_parameters=[openstack_user_token], responses={200:"Success", 404:"Not Found"})
+    @swagger_auto_schema(tags=["Openstack Dashboard API"], manual_parameters=[openstack_user_token], responses={200:"Success", 404:"Not Found"})
     def get(self, request):     # header: user_token
         try:
             token, user_id = oc.getRequestParams(request)
@@ -338,7 +338,7 @@ class DashBoard(RequestChecker, APIView):
 
 
 class InstanceStart(RequestChecker, Instance, APIView):
-    @swagger_auto_schema(tags=["Instance api"], manual_parameters=[openstack_user_token], request_body=InstanceIDSerializer, responses={202:"Accepted", 404:"Not Found"})
+    @swagger_auto_schema(tags=["Openstack Instance API"], manual_parameters=[openstack_user_token], request_body=InstanceIDSerializer, responses={202:"Accepted", 404:"Not Found"})
     def post(self, request):    # header: user_token, body: instance_id
         try:
             input_data, token, user_id = oc.getRequestParamsWithBody(request)   # 요청에는 user_id를 안쓰지만, exception 처리를 위해 user_id None인지 체크용으로 받아옴.
@@ -368,7 +368,7 @@ class InstanceStart(RequestChecker, Instance, APIView):
 
 
 class InstanceStop(RequestChecker, Instance, APIView):
-    @swagger_auto_schema(tags=["Instance api"], manual_parameters=[openstack_user_token], request_body=InstanceIDSerializer, responses={202:"Accepted", 404:"Not Found"})
+    @swagger_auto_schema(tags=["Openstack Instance API"], manual_parameters=[openstack_user_token], request_body=InstanceIDSerializer, responses={202:"Accepted", 404:"Not Found"})
     def post(self, request):    # header: user_token, body: instance_id
         try:
             input_data, token, user_id = oc.getRequestParamsWithBody(request)   # 요청에는 user_id를 안쓰지만, exception 처리를 위해 user_id None인지 체크용으로 받아옴.
@@ -396,7 +396,7 @@ class InstanceStop(RequestChecker, Instance, APIView):
 
 
 class InstanceConsole(RequestChecker, Instance, APIView):
-    @swagger_auto_schema(tags=["Instance api"], manual_parameters=[openstack_user_token], request_body=InstanceIDSerializer, responses={200:"Success", 404:"Not Found"})
+    @swagger_auto_schema(tags=["Openstack Instance API"], manual_parameters=[openstack_user_token], request_body=InstanceIDSerializer, responses={200:"Success", 404:"Not Found"})
     def post(self, request):    # header: user_token, body: instance_id
         try:
             input_data, token, user_id = oc.getRequestParamsWithBody(request)   # 요청에는 user_id를 안쓰지만, exception 처리를 위해 user_id None인지 체크용으로 받아옴.
