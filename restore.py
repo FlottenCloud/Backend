@@ -16,10 +16,10 @@ from openstack.openstack_modules import RequestChecker
 
 cloudstack_user_apikey="6PCI_7tutY5ls8NDWJSMjLCTD8-4nW49gLN-AcZsGUz2HAFh5i4NWbc7ASq2e2A5rWOVTwPQGYJ9mUh71-w4WQ"
 cloudstack_user_secretkey="lF2rBUXhs4tY7JcuGq7XJDFTC-7EPy714KE2NiFnHtDkH1obBilOyUcqW8VPy0GTkSdlfUvxZVZQD4jInQCrXg"
-local_restore_image_Download_Path='C:/Users/PC/Desktop/os_image/backup/'
+local_restore_image_Download_Path='E:/OneDrive/OneDrive - pusan.ac.kr/google backup/google_학부연구생/SELAB/'
 
 
-
+#TODO 클라우드스택 공인 IP, 내부 IP 로 둘다 로그인한 상태여야한다.
 
 def stopCloudstackInstance(cloudstack_user_apiKey, cloudstack_user_secretKey, instance_id):
     print("Stop Instance " + instance_id + " to cloudstack")
@@ -198,7 +198,7 @@ def restore(cloudstack_user_apiKey,cloudstack_user_secretKey,instance_id,cloudst
     template_name = cloudstack_template_name
 
     template_id =createTemplate(csc.admin_apiKey,csc.admin_secretKey,template_name, ostypeid, volumid)
-    time.sleep(25)
+    time.sleep(10)
 
     while True:
         template_status = openstack.updater.getTemplatestatus(csc.admin_apiKey,csc.admin_secretKey,template_name)
@@ -237,7 +237,7 @@ def restore(cloudstack_user_apiKey,cloudstack_user_secretKey,instance_id,cloudst
     res=requests.get(Cloudstack_Down_url)
     print("request get result : ",res)
 
-    file = open('/Users/ibonghun/Developer/' + template_name + '.qcow2', 'wb')
+    file = open(local_restore_image_Download_Path + template_name + '.qcow2', 'wb')
     file.write(res.content)
     file.close()
     print("image file download response is", res)
@@ -290,5 +290,5 @@ def openstackimageupload(template_name):
     file.close()
 
 
-# restore(cloudstack_user_apikey,cloudstack_user_secretkey,"a8f92bd0-d3b7-49a6-a2ff-73a6155f3fbf","restore-selab")
-openstackimageupload("backup0903")
+# restore(cloudstack_user_apikey,cloudstack_user_secretkey,"219313e8-3588-4b5e-a299-37ce35463035","restore-selab")
+openstackimageupload("restore-selab")
