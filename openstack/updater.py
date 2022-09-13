@@ -236,8 +236,24 @@ def deployCloudstackInstance(user_id, user_apiKey, user_secretKey, instance_name
 
     return backup_template_id, instance_deploy_req
 
-def deleteCloudstackInstanceAndTemplate():
+def deleteCloudstackInstanceAndTemplate(instance_name, template_name):
     pass
+
+def CloudstackInstanceDeleteAndCreate(user_id, cloudstack_user_apiKey, cloudstack_user_secretKey, instance_name, cloudstack_user_network_id, backup_img_file_name, backup_instance_os_type):
+    import cloudstack_controller as csc
+    admin_apiKey = csc.admin_apiKey
+    admin_secretKey = csc.admin_secretKey
+    zoneID = csc.zoneID
+    domainID = csc.domainID
+    hostID = csc.hostID
+    small_offeringID = csc.small_offeringID
+    medium_offeringID = csc.medium_offeringID
+
+    del_template_id = templateIDgetter()
+    deleteCloudstackInstanceAndTemplate(instance_name, )
+    backup_template_id, instance_deploy_req = deployCloudstackInstance()
+
+    return backup_template_id, instance_deploy_req
 
 def backup(cycle):
     import openstack_controller as oc                            # import는 여기 고정 -> 컴파일 시간에 circular import 때문에 걸려서
@@ -262,7 +278,7 @@ def backup(cycle):
         for instance in backup_instance_list:
             print("인스턴스 오브젝트: ", instance)
             backup_instance_id = instance.instance_id
-            backup_instace_name = instance.instance_name
+            backup_instance_name = instance.instance_name
             backup_instance_os_type = instance.image_name[0]
             user_id = instance.user_id.user_id
             cloudstack_user_network_id = instance.user_id.cloudstack_network_id
@@ -328,7 +344,8 @@ def backup(cycle):
                     os.remove(backup_instance_id + ".qcow2")
 
                     #------cloudstack template register & instance deploy------#
-                    backup_template_id, instance_deploy_req = deployCloudstackInstance(user_id, cloudstack_user_apiKey, cloudstack_user_secretKey, backup_instace_name, cloudstack_user_network_id, backup_img_file_name, backup_instance_os_type)
+                    # backup_template_id, instance_deploy_req = deployCloudstackInstance(user_id, cloudstack_user_apiKey, cloudstack_user_secretKey, backup_instance_name, cloudstack_user_network_id, backup_img_file_name, backup_instance_os_type)
+                    backup_template_id, instance_deploy_req = CloudstackInstanceDeleteAndCreate(user_id, cloudstack_user_apiKey, cloudstack_user_secretKey, backup_instance_name, cloudstack_user_network_id, backup_img_file_name, backup_instance_os_type)
                     # deleteCloudstackInstanceAndTemplate()
                 else:
                     print("not updated")
@@ -351,7 +368,7 @@ def backup(cycle):
                     os.remove(backup_instance_id + ".qcow2")
                     
                     #------cloudstack template register & instance deploy------#
-                    backup_template_id, instance_deploy_req = deployCloudstackInstance(user_id, cloudstack_user_apiKey, cloudstack_user_secretKey, backup_instace_name, cloudstack_user_network_id, backup_img_file_name, backup_instance_os_type)
+                    backup_template_id, instance_deploy_req = deployCloudstackInstance(user_id, cloudstack_user_apiKey, cloudstack_user_secretKey, backup_instance_name, cloudstack_user_network_id, backup_img_file_name, backup_instance_os_type)
                 else:
                     print("not saved")
                     print(serializer.errors)
@@ -370,6 +387,10 @@ def backup(cycle):
         return "오픈스택서버 고장"
     except requests.exceptions.ConnectionError:
             return "요청이 거부되었습니다."
+
+
+
+
 def errorCheckRestore():
     import openstack_controller as oc
     token = oc.admin_token()
@@ -412,6 +433,7 @@ def errorCheckRestore():
             }
         }
         ## 미완성임 ㅠㅠ
+
 
 
 def backup6():
