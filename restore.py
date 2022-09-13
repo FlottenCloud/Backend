@@ -6,9 +6,11 @@ import requests
 
 import cloudstack_controller
 import cloudstack_controller as csc
+import openstack_controller as opc
 import time
 import json
 import openstack.updater
+from openstack.openstack_modules import RequestChecker
 
 #TODO
 
@@ -170,7 +172,13 @@ def getTemplatestatus(template_name):
     return status
 #TODO : 시스템 DB에서 백업한 인스턴스의 user_api,secret key ,VM ID 가져오기.
 
+
+
+
 def restore(cloudstack_user_apiKey,cloudstack_user_secretKey,instance_id,cloudstack_template_name):
+
+
+    #------------------------------------Cloudstack -------------------------------
 
     #After migration
 
@@ -224,7 +232,55 @@ def restore(cloudstack_user_apiKey,cloudstack_user_secretKey,instance_id,cloudst
 
     # 5. 해당 extract job을 참조하여 download url 받아오기
 
-    getTemplateDownURL(cloudstack_user_apiKey,cloudstack_user_secretKey,extract_job_id)
+    Cloudstack_Down_url=getTemplateDownURL(cloudstack_user_apiKey,cloudstack_user_secretKey,extract_job_id)
+
+    res=requests.get(Cloudstack_Down_url)
+    print("request get result : ",res)
+
+    file = open('/Users/ibonghun/Developer/' + template_name + '.qcow2', 'wb')
+    file.write(res.content)
+    file.close()
+    print("image file download response is", res)
+    return res
 
 
-restore(cloudstack_user_apikey,cloudstack_user_secretkey,"a8f92bd0-d3b7-49a6-a2ff-73a6155f3fbf","restore-selab")
+    #------------------------------------Openstack -------------------------------
+
+def openstackimageupload(template_name):
+    import openstack_controller as oc  # import는 여기 고정 -> 컴파일 시간에 circular import 때문에 걸려서
+    openstack_hostIP = oc.hostIP
+    admin_token = oc.admin_token()
+    req_checker = RequestChecker()
+    image_create_payload = {
+        "container_format": "bare",
+        "disk_format": "qcow2",
+        "name": template_name,
+        "visibility": "public",
+        "protected": False
+    }
+    create_req=req_checker.reqCheckerWithData("post", "http://" + openstack_hostIP + "/image/v2/images", admin_token,
+                                                json.dumps(image_create_payload))
+
+    if create_req == None:
+        raise requests.exceptions.Timeout
+    print(create_req)
+    create_req_json=json.loads(create_req)
+    image_id=create_req["id"]
+    print("wait 5 seconds for upload binary data...")
+    time.sleep(5)
+
+    file = open('/Users/ibonghun/Developer/' + template_name + '.qcow2', 'rb')
+
+    imageData_put_payload =  file
+
+    put_req=req_checker.reqCheckerWithData("put", "http://" + openstack_hostIP + "/image/v2/images/"+image_id+"/file", admin_token,
+                                                imageData_put_payload)
+
+    if put_req == None:
+        raise requests.exceptions.Timeout
+    print(put_req)
+    file.close()
+
+
+# restore(cloudstack_user_apikey,cloudstack_user_secretkey,"a8f92bd0-d3b7-49a6-a2ff-73a6155f3fbf","restore-selab")
+openstackimageupload("restore_test_0914")
