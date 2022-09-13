@@ -209,12 +209,12 @@ def deployCloudstackInstance(user_id, user_apiKey, user_secretKey, instance_name
     medium_offeringID = csc.medium_offeringID
     
     template_name = instance_name + "Template"
-    if os_type == "F" :     # Fedora
+    if os_type == "F" :     # Fedora(openstack default)
         os_type_id = "8682cef8-a3f3-47a0-886d-87b9398469b3"
     elif os_type == "c" :   # centos
         os_type_id = "abc"
-    else:   # ubuntu
-        os_type_id = "abc"
+    else:   # ubuntu(18.04 LTS)
+        os_type_id = "12bc219b-fdcb-11ec-a9c1-08002765d220"
     
     backup_template_id = registerCloudstackTemplate(zoneID, template_name, backup_img_file_name, os_type_id)
     

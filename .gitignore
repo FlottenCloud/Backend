@@ -9,3 +9,4 @@ migrations
 .vs
 back_imgs
 .DS_Store
+makesig.py
