@@ -9,6 +9,7 @@ import webbrowser
 from apscheduler.schedulers.background import BackgroundScheduler
 from django.core.files import File
 from openstack.models import OpenstackBackupImage, OpenstackInstance
+from cloudstack.models import CloudstackInstance
 from openstack.serializers import OpenstackBackupImageSerializer
 from openstack.openstack_modules import RequestChecker
 
