@@ -13,10 +13,10 @@ import hmac
 import urllib.parse
 import urllib.request
 
-hostIP = "119.198.160.6:8080"
-api_base_url = "http://119.198.160.6:8080/client/api?"
-admin_apiKey = "TYuuU0lIvG1ukWwQ1E9qPBGr4PU3knXvJGlMK5yIWz_zhXtXhfAi2682f_a34y2MuDfOIuEb_CkE_leODskCpg"
-admin_secretKey = "r6avM2ip3wtjXjbNgOHIoQEK6U0T1X3flclrt55RO4v-Fa6WL0NJAVDs80ZI-AeTpKN8lIUpW2fWF_aCHv3cRA"
+hostIP = "211.197.83.186:8080"
+api_base_url = "http://211.197.83.186:8080/client/api?"
+admin_apiKey = "YWYjj6hm1w3SE802vm21xfWl4gFq-K0WuQNkCFx7b7hUtfkqmgXzFLZ_G9k8xDST4gU6U-Fyh_gN9Ft17Xcdww"
+admin_secretKey = "NcPKi1iYFdOT6G15aZwFLBcpwMdswBpbzVCyQoNWKXnBNXIuXR029271FMMEdIzz29eHA2CfOuoWnS9EVg46cg"
 netOfferingID_L2VLAN = "531f8f15-82c1-4f8e-a6ae-f4c3a3ddf1bf"
 zoneID = "d4459ac7-c548-401e-a526-8ed1aad2ed54"
 domainID = "93e67a39-fdca-11ec-a9c1-08002765d220"

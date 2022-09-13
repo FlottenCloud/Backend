@@ -91,7 +91,7 @@ class AccountView(View):
         cloudstack_created_account_id = cloudstacK_user_make_res["createaccountresponse"]["account"]["id"]
         cloudstack_created_user_id = cloudstacK_user_make_res["createaccountresponse"]["account"]["user"][0]["id"]
 
-        userKey_register_body = {     # 생성된 account의 user_apiKey, user_secretKey 등록
+        userKey_register_body = {     # 생성된 account의 cloudstack_user_apiKey, cloudstack_user_secretKey 등록
             "apiKey" : cloudstack_admin_apiKey,
             "response" : "json",
             "command" : "registerUserKeys",
