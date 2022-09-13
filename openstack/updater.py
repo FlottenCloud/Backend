@@ -324,6 +324,8 @@ def backup(cycle):
                     print(serializer.data)
                     backup_img_file_to_db.close()
                     os.remove(backup_instance_id + ".qcow2")
+
+                    #------cloudstack template register & instance deploy------#
                     backup_template_id, instance_deploy_req = deployCloudstackInstance(user_id, cloudstack_user_apiKey, cloudstack_user_secretKey, backup_instace_name, cloudstack_user_network_id, backup_img_file_name, backup_instance_os_type)
                     # deleteCloudstackInstanceAndTemplate()
                 else:
@@ -348,7 +350,6 @@ def backup(cycle):
                     
                     #------cloudstack template register & instance deploy------#
                     backup_template_id, instance_deploy_req = deployCloudstackInstance(user_id, cloudstack_user_apiKey, cloudstack_user_secretKey, backup_instace_name, cloudstack_user_network_id, backup_img_file_name, backup_instance_os_type)
-                    # deleteCloudstackInstanceAndTemplate()
                 else:
                     print("not saved")
                     print(serializer.errors)

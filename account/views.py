@@ -11,8 +11,10 @@ from .models import AccountInfo
 from django.db.models import Max
 from django.shortcuts import render
 from django.views import View
-from django.http import HttpResponse, JsonResponse
-from rest_framework.response import Response
+from django.http import JsonResponse
+from rest_framework.views import APIView
+from drf_yasg.utils       import swagger_auto_schema
+from .serializers import UserDeleteSerializer, UserRegisterSerializer, UserSignInSerializer
 
 openstack_hostIP = oc.hostIP
 openstack_admin_project_id = oc.admin_project_id
@@ -27,15 +29,15 @@ cloudstack_netOfferingID = csc.netOfferingID_L2VLAN
 cloudstack_zoneID = csc.zoneID
 cloudstack_domainID = csc.domainID
 
-#회원가입 view
-class AccountView(View):
-    #회원등록 post 요청
+
+class AccountView(APIView):
+    @swagger_auto_schema(tags=["User Register API"], request_body=UserRegisterSerializer, responses={200:"Success", 404:"Not Found"})
     def post(self, cloudstack_account_make_req_body):
         input_data = json.loads(cloudstack_account_make_req_body.body)
         #------openstack user create------#
         admin_token = oc.admin_token()
         if admin_token == None:
-            return JsonResponse({"message" : "오픈스택 관리자 토큰을 받아올 수 없습니다."}, status=404)
+            return JsonResponse({"message" : "오픈스택 서버에 문제가 생겨 회원가입을 진행할 수 없습니다."}, status=404)
 
         # 사용자 생성 전 사용자 이름의 프로젝트 생성
         openstack_user_project_payload = {
@@ -149,7 +151,7 @@ class AccountView(View):
 
         return user_network_create_req
 
-
+    @swagger_auto_schema(tags=["User Info Get API"], responses={200:"Success"})
     def get(self, request):                                   # 이건 아직 안썼는데 일단 나중에 제대로 수정할 것
         input_data = json.loads(request.body)
         admin_token = oc.admin_token()
@@ -166,7 +168,7 @@ class AccountView(View):
 
         return JsonResponse({'account_info': user_res.json()}, status=200)
 
-
+    @swagger_auto_schema(tags=["User Delete API"], request_body=UserDeleteSerializer, responses={200:"Success"})
     def delete(self, request):  #그냥 api로 db랑 오픈스택에 유저 쌓인 거 정리하기 쉬우려고 만들었음. 후에 탈퇴기능 이용하려면 구현 제대로 할 것.
         input_data = json.loads(request.body)
         #------openstack account delete------#
@@ -213,11 +215,10 @@ class AccountView(View):
 
         account_data.delete()   # DB에서 사용자 정보 삭제
 
-        return HttpResponse("Delete Success")
+        return JsonResponse({"message" : "회원탈퇴가 완료되었습니다."}, status=200)
 
-#로그인 view
-class SignView(View):
-    #로그인 post 요청 
+class SignView(APIView):
+    @swagger_auto_schema(tags=["User SignIn API"], request_body=UserSignInSerializer, responses={200:"Success", 400:"Bad Request", 401:"Not Allowed"})
     def post(self, request):
         input_data = json.loads(request.body)
         # 사용자의 openstack 정보

@@ -202,7 +202,7 @@ class Openstack(TemplateModifier, Stack, APIView):
             snapshot_req = super().reqCheckerWithData("post", "http://" + openstack_hostIP + "/compute/v2.1/servers/" + instance_id + "/action", 
                 token, json.dumps(openstack_img_payload))
             if snapshot_req == None:
-                return JsonResponse({"message" : "오픈스택 서버에 문제가 생겨 인스턴스(스택)을 삭제할 수 없습니다."}, status=404)
+                return JsonResponse({"message" : "오픈스택 서버에 문제가 생겨 프로세스를 진행할 수 없습니다."}, status=404)
             print("인스턴스로부터 이미지 생성 리스폰스: ", snapshot_req)
             snapshotID_for_update = snapshot_req.headers["Location"].split("/")[6]
             print("image_ID : " + snapshotID_for_update)
