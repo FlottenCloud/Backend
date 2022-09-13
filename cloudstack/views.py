@@ -6,6 +6,7 @@ from django.shortcuts import render
 from rest_framework.views import APIView
 from account.models import AccountInfo
 from .models import CloudstackInstance
+import cloudstack_controller as csc
 
 class Cloudstack(APIView):
     def get(self, request):  # header: user_token
@@ -99,36 +100,15 @@ class InstanceStop(RequestChecker, Instance, APIView):
         
         return JsonResponse({"message" : "가상머신 시작"}, status=202)
 
+class InstanceConsole(APIView):
+    def post(self, request):  # header: apiKey,secretKey, body: instance_id
 
-# class InstanceConsole(RequestChecker, Instance, APIView):
-#     @swagger_auto_schema(tags=["Instance api"], manual_parameters=[openstack_user_token], request_body=InstanceIDSerializer, responses={200:"Success", 404:"Not Found"})
-#     def post(self, request):    # header: user_token, body: instance_id
-#         try:
-#             input_data, token, user_id = oc.getRequestParamsWithBody(request)   # 요청에는 user_id를 안쓰지만, exception 처리를 위해 user_id None인지 체크용으로 받아옴.
-#             if user_id == None:
-#                 return JsonResponse({"message" : "오픈스택 서버에 문제가 생겨 token으로 오픈스택 유저의 정보를 얻어올 수 없습니다."}, status=404)
+        baseURL = "http://119.198.160.6:8080/client/console?"   #다른 메소드들과 달리 마지막 api? 가 아닌 console?이다.
+        user_apiKey = request.headers["apiKey"]
+        user_secretKey = request.headers["secretKey"]
+        instance_id = request.body["instance_id"]
 
-#             console_for_instance_id = super().checkDataBaseInstanceID(input_data)
-#             if console_for_instance_id == None :
-#                 return JsonResponse({"message" : "인스턴스를 찾을 수 없습니다."}, status=404)
-            
-#             instance_console_payload ={
-#                 "os-getVNCConsole": {
-#                     "type": "novnc"
-#                 }
-#             }
-#             instance_console_req = super().reqCheckerWithData("post", "http://" + openstack_hostIP + "/compute/v2.1/servers/" + console_for_instance_id
-#                 + "/action", token, json.dumps(instance_console_payload))
-#             if instance_console_req == None:    # "오픈스택과 통신이 안됐을 시(timeout 시)"
-#                 return JsonResponse({"message" : "오픈스택 서버에 문제가 생겨 해당 동작을 수행할 수 없습니다."})
-        
-#             splitted_url = instance_console_req.json()["console"]["url"].split("/") # 인스턴스 콘솔 접속 IP를 가상머신 내부 네트워크 IP가 아닌 포트포워딩 해놨던 PC의 공인 IP로 바꾸기 위한 로직
-#             splitted_url[2] = oc.hostIP+":6080"
-#             instance_url = "/".join(splitted_url)
-        
-
-#         except oc.TokenExpiredError as e:
-#             print("에러 내용: ", e)
-#             return JsonResponse({"message" : str(e)}, status=401)
-
-#         return JsonResponse({"instance_url" : instance_url}, status=200)
+        request_body = {"vm" : instance_id ,"apiKey": user_apiKey, "response" : "json" , "cmd": "access"}
+        console_URL = csc.requestThroughSigWithURL(baseURL, user_secretKey, request_body)
+        print(console_URL)
+        return JsonResponse({"instance_url": console_URL}, status=200)
