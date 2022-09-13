@@ -8,6 +8,8 @@ import requests
 import webbrowser
 from apscheduler.schedulers.background import BackgroundScheduler
 from django.core.files import File
+from django.http import JsonResponse
+
 from openstack.models import OpenstackBackupImage, OpenstackInstance
 from cloudstack.models import CloudstackInstance
 from openstack.serializers import OpenstackBackupImageSerializer
@@ -367,6 +369,49 @@ def backup(cycle):
         return "오픈스택서버 고장"
     except requests.exceptions.ConnectionError:
             return "요청이 거부되었습니다."
+def errorCheckRestore():
+    import openstack_controller as oc
+    token = oc.admin_token()
+    openstack_hostIP = oc.hostIP
+
+    restore_instance_num = OpenstackInstance.objects.filter(status="ERROR").count()
+    if restore_instance_num == 0:
+        return "Error 상태의 인스턴스 없음"
+
+    restore_instance_list = OpenstackInstance.objects.filter(status="ERROR")
+    for instance in restore_instance_list:
+
+        print("인스턴스 오브젝트: ", instance)
+        instance_id_for_restore = instance.instance_id
+
+
+        print("인스턴스 id: ", instance_id_for_restore)
+        tenant_id_for_restore = instance.user_id.openstack_user_project_id
+        image_id_for_restore = instance.instance_backup_img_file.image_id
+
+
+
+        #while문 이미지 상태 로직 무시해도 될 듯?
+        while (True):
+            image_status_req = super().reqChecker("get",
+                                                  "http://" + openstack_hostIP + "/image/v2/images/" + image_id_for_restore,
+                                                  token)
+            if image_status_req == None:
+                return JsonResponse({"message": "오픈스택 서버에 문제가 생겨 이미지 정보를 조회할 수 없습니다."}, status=404)
+            print("이미지 상태 조회 리스폰스: ", image_status_req.json())
+
+            image_status = image_status_req.json()["status"]
+            if image_status == "active":
+                break
+            time.sleep(2)
+
+        restore_template = {  # 이미지와 요구사항을 반영한 템플릿 생성
+            "parameters": {
+                "image": "Backup" + instance_id_for_restore
+            }
+        }
+        ## 미완성임 ㅠㅠ
+
 
 def backup6():
     backup_res = backup(6)
