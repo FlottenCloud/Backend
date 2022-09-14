@@ -8,7 +8,7 @@ class OpenstackInstanceSerializer(serializers.ModelSerializer):
     class Meta:
         model = OpenstackInstance
         fields = ["user_id", "stack_id", "stack_name", "instance_id", "instance_name", "ip_address", "status", 
-        "image_name", "flavor_name", "ram_size", "disk_size", "num_cpu", "backup_time"]
+        "image_name", "flavor_name", "ram_size", "disk_size", "num_cpu", "backup_time", "os"]
 
     def create(self, validated_data):
         return OpenstackInstance.objects.create(**validated_data)
@@ -27,6 +27,7 @@ class OpenstackInstanceSerializer(serializers.ModelSerializer):
         instance.disk_size = validated_data.get("disk_size", instance.disk_size)
         instance.num_cpu = validated_data.get("num_cpu", instance.num_cpu)
         instance.backup_time = validated_data.get("backup_time", instance.backup_time)
+        instance.os = validated_data.get("os", instance.os)
         instance.save()
         
         return instance
@@ -54,7 +55,7 @@ class OpenstackBackupImageSerializer(serializers.ModelSerializer):
 #------------------Swagger(For API specification)------------------#
 
 class CreateStackSerializer(serializers.Serializer):
-    os = serializers.CharField(help_text="OS(cirros, fedorra, ubuntu) user want to use.", default="cirros")
+    os = serializers.CharField(help_text="OS(centos, fedora, ubuntu) user want to use.", default="centos")
     package = serializers.ListField(help_text="Package(apache2, default-jdk, ftp, libguestfs-tools, net-tools, pastebinit, pwgen, vim) user want to install. User can choice nothing.", default=[])
     num_people = serializers.IntegerField(help_text="Number of people that might work with user.", default=1)
     data_size = serializers.IntegerField(help_text="Data size that one participant might use(GB).", default=1)

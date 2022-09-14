@@ -145,7 +145,7 @@
     },
       "parameters":{
         "flavor" : "ds512M",
-        "packages" : ["vim", "pwgen"],
+        "packages" : [],
         "image" : "ubuntu"
     }
 

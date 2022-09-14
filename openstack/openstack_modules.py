@@ -57,6 +57,21 @@ class TemplateModifier:
         print(json.dumps(template_data))
 
         return(json.dumps(template_data))
+    
+    def templateModifyWhenRestore(self, backup_img_name, template, user_id, user_instance_name, flavor):
+        template_data = template
+        template_data["stack_name"] = str(user_instance_name)   # 스택 name 설정
+        template_data["template"]["resources"]["mybox"]["properties"]["name"] = str(user_instance_name)# 인스턴스 name 설정
+        template_data["template"]["resources"]["demo_key"]["properties"]["name"] = user_id + "_" + user_instance_name  # 키페어 name 설정
+        template_data["template"]["resources"]["mynet"]["properties"]["name"] = user_id + "-net" + user_instance_name    # 네트워크 name 설정
+        template_data["template"]["resources"]["mysub_net"]["properties"]["name"] = user_id + "-subnet" + user_instance_name # sub네트워크 name 설정
+        template_data["template"]["resources"]["mysecurity_group"]["properties"]["name"] = user_id + "-security_group" + user_instance_name # 보안그룹 name 설정
+        template_data["parameters"]["image"] = backup_img_name  # 백업해놓은 이미지로 img 설정
+        template_data["parameters"]["flavor"] = flavor    # flavor 설정
+        
+        print(json.dumps(template_data))
+
+        return(json.dumps(template_data))
 
 class RequestChecker:
     def reqCheckerWithData(self, method, req_url, req_header, req_data):
@@ -178,7 +193,7 @@ class Stack(RequestChecker):
         instance_name = instance_info_req.json()["server"]["name"]
         print("인스턴스 이름: ", instance_name)
         instance_ip_address = instance_info_req.json()["server"]["addresses"][user_id + "-net" + instance_name][0]["addr"]
-        print("인스턴스 ip: ",instance_ip_address)
+        print("인스턴스 ip: ", instance_ip_address)
         instance_status =  instance_info_req.json()["server"]["status"]
         print("인스턴스 상태: ",instance_status)
         image_id = instance_info_req.json()["server"]["image"]["id"]

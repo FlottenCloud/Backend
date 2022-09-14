@@ -144,7 +144,7 @@
 	},
       "parameters":{
         "flavor" : "ds512M",
-        "packages" : ["vim", "pwgen"],
+        "packages" : [],
         "image" : "Fedora-Cloud-Base-36-1.5.x86_64"
     }
 }

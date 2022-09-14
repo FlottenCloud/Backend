@@ -33,7 +33,6 @@ class Cloudstack(APIView):
             secretKey = request.headers["secretKey"]
             cloudstack_user_id = AccountInfo.objects.filter(cloudstack_apiKey=apiKey)[0].user_id
             user_instance_info_list = list(CloudstackInstance.objects.filter(user_id=cloudstack_user_id).values())
-            #cloud stack DB 최신화는 ㄴㄴ
 
         except OperationalError:
             return JsonResponse({[]}, status=200)
