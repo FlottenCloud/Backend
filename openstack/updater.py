@@ -629,6 +629,6 @@ def start():
     # scheduler.add_job(backup12, 'interval', seconds=120)
     # scheduler.add_job(freezerBackup6, 'interval', seconds=60)
     # scheduler.add_job(backup6, 'interval', seconds=20)
-    scheduler.add_job(errorCheckRestore, 'interval', seconds=10)
+    # scheduler.add_job(errorCheckRestore, 'interval', seconds=10)
 
     scheduler.start()
