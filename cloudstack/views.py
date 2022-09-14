@@ -11,7 +11,7 @@ from drf_yasg.utils       import swagger_auto_schema
 from drf_yasg             import openapi
 from .serializers import CloudstackInstanceIDSerializer
 
-
+cloudstack_hostID = csc.hostID
 cloudstack_user_apiKey = openapi.Parameter(   # for django swagger
     "apiKey",
     openapi.IN_HEADER,
@@ -73,13 +73,14 @@ class InstanceStart(APIView):
     def post(self, request):    # header: apiKey, secretKey, body: instance_id
         apiKey = request.headers["apiKey"]
         secretKey = request.headers["secretKey"]
-        instance_id = request.body["instance_id"]
-        start_instance_id = instance_id
+        start_instance_id = json.loads(request.body)["instance_id"]
         if start_instance_id == None :
             return JsonResponse({"message" : "인스턴스를 찾을 수 없습니다."}, status=404)
 
-        instance_start_req_body = {"apiKey": apiKey, "response": "json", "command": "startVirtualMachine", "id": start_instance_id}
+        instance_start_req_body = {"apiKey" : apiKey, "response" : "json", "command" : "startVirtualMachine", "hostid" : cloudstack_hostID, "id" : start_instance_id}
         instance_start_req = csc.requestThroughSig(secretKey, instance_start_req_body)
+        
+        CloudstackInstance.objects.filter(instance_id=start_instance_id).update(status="Running")
         
         return JsonResponse({"message" : "가상머신 시작"}, status=202)
 
@@ -89,15 +90,16 @@ class InstanceStop(APIView):
     def post(self, request):    # header: apiKey, secretKey, body: instance_id
         apiKey = request.headers["apiKey"]
         secretKey = request.headers["secretKey"]
-        instance_id = request.body["instance_id"]
-        stop_instance_id = instance_id
+        stop_instance_id = json.loads(request.body)["instance_id"]
         if stop_instance_id == None :
             return JsonResponse({"message" : "인스턴스를 찾을 수 없습니다."}, status=404)
 
         instance_stop_req_body = {"apiKey": apiKey, "response": "json", "command": "stopVirtualMachine", "id": stop_instance_id}
         instance_stop_req = csc.requestThroughSig(secretKey, instance_stop_req_body)
         
-        return JsonResponse({"message" : "가상머신 시작"}, status=202)
+        CloudstackInstance.objects.filter(instance_id=stop_instance_id).update(status="Stopped")
+        
+        return JsonResponse({"message" : "가상머신 정지"}, status=202)
 
 class InstanceConsole(APIView):
     @swagger_auto_schema(tags=["Cloudstack Instance API"], manual_parameters=[cloudstack_user_apiKey, cloudstack_user_secretKey], request_body=CloudstackInstanceIDSerializer, responses={202:"Accepted", 404:"Not Found"})
@@ -105,7 +107,7 @@ class InstanceConsole(APIView):
         baseURL = "http://119.198.160.6:8080/client/console?"   #다른 메소드들과 달리 마지막 api? 가 아닌 console?이다.
         user_apiKey = request.headers["apiKey"]
         user_secretKey = request.headers["secretKey"]
-        instance_id = request.body["instance_id"]
+        instance_id = json.loads(request.body)["instance_id"]
         if instance_id == None :
             return JsonResponse({"message" : "인스턴스를 찾을 수 없습니다."}, status=404)
 

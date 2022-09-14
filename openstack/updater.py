@@ -157,8 +157,9 @@ def getTemplatestatus(admin_apiKey, admin_secretKey, template_name):
     
     request_body = {"apiKey" : admin_apiKey, "response" : "json", "command" : "listTemplates", "templatefilter" : "selfexecutable", "name" : template_name}
     template_status_get_req = csc.requestThroughSig(admin_secretKey, request_body)
-    template_status_get_res = json.loads(template_status_get_req)
-    if len(template_status_get_res["listtemplatesresponse"]) == 0 or len(template_status_get_res["listtemplatesresponse"]) == 1:
+    template_status_get_res = json.loads(template_status_get_req) #template_status_get_req.json()
+    # print("템플릿 다운로드 상태(in json): ", template_status_get_res)
+    if len(template_status_get_res["listtemplatesresponse"]) != 2: #0 or len(template_status_get_res["listtemplatesresponse"]) == 1:
         template_download_status = "Download Not Completed"
     else:
         template_download_status = template_status_get_res["listtemplatesresponse"]["template"][0]["status"]
@@ -245,11 +246,12 @@ def deployCloudstackInstance(user_id, user_apiKey, user_secretKey, instance_name
         if len(instance_info_res["listvirtualmachinesresponse"]) != 0:
             created_instance_id = instance_info_res["listvirtualmachinesresponse"]["virtualmachine"][0]["id"]
             created_instance_name = instance_info_res["listvirtualmachinesresponse"]["virtualmachine"][0]["name"]
-            created_instance_status = instance_info_res["listvirtualmachinesresponse"]["virtualmachine"][0]["state"],
-            created_instance_image_id = instance_info_res["listvirtualmachinesresponse"]["virtualmachine"][0]["templateid"],
-            created_instance_flavor_name = "MEDIUM",
-            created_instance_ram_size = instance_info_res["listvirtualmachinesresponse"]["virtualmachine"][0]["memory"] / 1024,
-            created_instance_disk_size = 5,
+            created_instance_status = instance_info_res["listvirtualmachinesresponse"]["virtualmachine"][0]["state"]
+            created_instance_ip_address = "10.0.0.1"
+            created_instance_image_id = instance_info_res["listvirtualmachinesresponse"]["virtualmachine"][0]["templateid"]
+            created_instance_flavor_name = "MEDIUM"
+            created_instance_ram_size = round(instance_info_res["listvirtualmachinesresponse"]["virtualmachine"][0]["memory"]/1024, 2)
+            created_instance_disk_size = 5
             created_instance_num_cpu = instance_info_res["listvirtualmachinesresponse"]["virtualmachine"][0]["cpunumber"]
             break
         
@@ -260,6 +262,7 @@ def deployCloudstackInstance(user_id, user_apiKey, user_secretKey, instance_name
         user_id = user_id_instance,
         instance_id = created_instance_id,
         instance_name = created_instance_name,
+        ip_address = created_instance_ip_address,
         status = created_instance_status,
         image_id = created_instance_image_id,
         flavor_name = created_instance_flavor_name,
@@ -497,6 +500,7 @@ def backup6():
 def backup12():
     backup_res = backup(12)
     print(backup_res)
+    
     
 
 def deleter():
