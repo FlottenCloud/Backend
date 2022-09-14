@@ -17,7 +17,7 @@ from openstack.openstack_modules import RequestChecker
 cloudstack_user_apikey="6PCI_7tutY5ls8NDWJSMjLCTD8-4nW49gLN-AcZsGUz2HAFh5i4NWbc7ASq2e2A5rWOVTwPQGYJ9mUh71-w4WQ"
 cloudstack_user_secretkey="lF2rBUXhs4tY7JcuGq7XJDFTC-7EPy714KE2NiFnHtDkH1obBilOyUcqW8VPy0GTkSdlfUvxZVZQD4jInQCrXg"
 local_restore_image_Download_Path='E:/OneDrive/OneDrive - pusan.ac.kr/google backup/google_학부연구생/SELAB/'
-
+cloudstack_VM_id="219313e8-3588-4b5e-a299-37ce35463035"
 
 #TODO 클라우드스택 공인 IP, 내부 IP 로 둘다 로그인한 상태여야한다.
 
@@ -290,5 +290,5 @@ def openstackimageupload(template_name):
     file.close()
 
 
-# restore(cloudstack_user_apikey,cloudstack_user_secretkey,"219313e8-3588-4b5e-a299-37ce35463035","restore-selab")
-openstackimageupload("restore-selab")
+restore(cloudstack_user_apikey,cloudstack_user_secretkey,cloudstack_VM_id,"restore-selab")
+# openstackimageupload("restore-selab")
