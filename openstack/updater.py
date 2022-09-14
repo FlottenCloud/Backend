@@ -1,3 +1,5 @@
+from email.contentmanager import raw_data_manager
+from ipaddress import ip_address
 import os
 import json
 from re import S
@@ -8,7 +10,11 @@ import requests
 import webbrowser
 from apscheduler.schedulers.background import BackgroundScheduler
 from django.core.files import File
+from django.http import JsonResponse
+from account.models import AccountInfo
+
 from openstack.models import OpenstackBackupImage, OpenstackInstance
+from cloudstack.models import CloudstackInstance
 from openstack.serializers import OpenstackBackupImageSerializer
 from openstack.openstack_modules import RequestChecker
 
@@ -151,8 +157,9 @@ def getTemplatestatus(admin_apiKey, admin_secretKey, template_name):
     
     request_body = {"apiKey" : admin_apiKey, "response" : "json", "command" : "listTemplates", "templatefilter" : "selfexecutable", "name" : template_name}
     template_status_get_req = csc.requestThroughSig(admin_secretKey, request_body)
-    template_status_get_res = json.loads(template_status_get_req)
-    if len(template_status_get_res["listtemplatesresponse"]) == 0:
+    template_status_get_res = json.loads(template_status_get_req) #template_status_get_req.json()
+    # print("템플릿 다운로드 상태(in json): ", template_status_get_res)
+    if len(template_status_get_res["listtemplatesresponse"]) != 2: #0 or len(template_status_get_res["listtemplatesresponse"]) == 1:
         template_download_status = "Download Not Completed"
     else:
         template_download_status = template_status_get_res["listtemplatesresponse"]["template"][0]["status"]
@@ -208,6 +215,7 @@ def deployCloudstackInstance(user_id, user_apiKey, user_secretKey, instance_name
     small_offeringID = csc.small_offeringID
     medium_offeringID = csc.medium_offeringID
     
+    user_id_instance = AccountInfo.objects.get(user_id=user_id)
     template_name = instance_name + "Template"
     if os_type == "F" :     # Fedora(openstack default)
         os_type_id = "8682cef8-a3f3-47a0-886d-87b9398469b3"
@@ -218,23 +226,91 @@ def deployCloudstackInstance(user_id, user_apiKey, user_secretKey, instance_name
     
     backup_template_id = registerCloudstackTemplate(zoneID, template_name, backup_img_file_name, os_type_id)
     
-    request_body= {"apiKey" : user_apiKey, "response" : "json", "command" : "deployVirtualMachine",
+    instance_deploy_req_body = {"apiKey" : user_apiKey, "response" : "json", "command" : "deployVirtualMachine",
         "networkids" : cloudstack_user_network_id, "serviceofferingId" : medium_offeringID,
         'templateId': backup_template_id, "zoneId": zoneID,
         "displayname" : instance_name, "name" : instance_name, "domainid" : domainID,
         "account" : user_id, "hostid" : hostID, "startvm" : "false"
     }
     try :
-        instance_deploy_req = csc.requestThroughSig(user_secretKey, request_body)
+        print("인스턴스 생성 시작")
+        instance_deploy_req = csc.requestThroughSig(user_secretKey, instance_deploy_req_body)
     except Exception as e:
         print("에러 내용: ", e)
     
+    while(True):    
+        instance_info_req_body = {"apiKey" : user_apiKey, "response" : "json", "command" : "listVirtualMachines", "name" : instance_name}
+        instance_info_req = csc.requestThroughSig(user_secretKey, instance_info_req_body)
+        instance_info_res = json.loads(instance_info_req)
+        
+        if len(instance_info_res["listvirtualmachinesresponse"]) != 0:
+            created_instance_id = instance_info_res["listvirtualmachinesresponse"]["virtualmachine"][0]["id"]
+            created_instance_name = instance_info_res["listvirtualmachinesresponse"]["virtualmachine"][0]["name"]
+            created_instance_status = instance_info_res["listvirtualmachinesresponse"]["virtualmachine"][0]["state"]
+            created_instance_ip_address = "10.0.0.1"
+            created_instance_image_id = instance_info_res["listvirtualmachinesresponse"]["virtualmachine"][0]["templateid"]
+            created_instance_flavor_name = "MEDIUM"
+            created_instance_ram_size = round(instance_info_res["listvirtualmachinesresponse"]["virtualmachine"][0]["memory"]/1024, 2)
+            created_instance_disk_size = 5
+            created_instance_num_cpu = instance_info_res["listvirtualmachinesresponse"]["virtualmachine"][0]["cpunumber"]
+            break
+        
+        time.sleep(1)
+    
+    # db에 user_id, instance_id, image_id(template_id), ip_address, instance_name, status, flavor_name(medium 고정일 듯), ram_size(1G고정일 듯), disk_size, num_cpu 저장
+    CloudstackInstance.objects.create(
+        user_id = user_id_instance,
+        instance_id = created_instance_id,
+        instance_name = created_instance_name,
+        ip_address = created_instance_ip_address,
+        status = created_instance_status,
+        image_id = created_instance_image_id,
+        flavor_name = created_instance_flavor_name,
+        ram_size = created_instance_ram_size,
+        disk_size = created_instance_disk_size,
+        num_cpu = created_instance_num_cpu
+    )
+
     print("Created Instance " + backup_img_file_name + " to cloudstack")
 
     return backup_template_id, instance_deploy_req
 
-def deleteCloudstackInstanceAndTemplate():
-    pass
+# def deleteCloudstackInstanceAndTemplate(admin_apiKey, admin_secretKey, instance_id, template_id):
+#     import cloudstack_controller as csc
+
+#     instance_del_req_body = {"apiKey": admin_apiKey, "response": "json", "command": "destroyVirtualMachine",
+#                    "id": instance_id, "expunge": "true"}
+#     instance_del_req = csc.requestThroughSig(admin_secretKey, template_del_req_body)
+
+#     template_del_req_body = {"apiKey": admin_apiKey, "response": "json", "command": "deleteTemplate",
+#                 "id": template_id}
+
+#     template_del_req = csc.requestThroughSig(admin_secretKey, template_del_req_body)
+
+
+#     pass
+
+# def CloudstackInstanceDeleteAndCreate(user_id, cloudstack_user_apiKey, cloudstack_user_secretKey, backup_instance_name, cloudstack_user_network_id, backup_img_file_name, backup_instance_os_type):
+#     import cloudstack_controller as csc
+#     admin_apiKey = csc.admin_apiKey
+#     admin_secretKey = csc.admin_secretKey
+#     zoneID = csc.zoneID
+#     domainID = csc.domainID
+#     hostID = csc.hostID
+#     small_offeringID = csc.small_offeringID
+#     medium_offeringID = csc.medium_offeringID
+
+#     del_cloudstack_instance_info = CloudstackInstance.objects.get(backup_instance_name + "Template")
+#     del_instance_id = del_cloudstack_instance_info.instance_id
+#     del_template_id = del_cloudstack_instance_info.template_id
+    
+#     deleteCloudstackInstanceAndTemplate(admin_apiKey, admin_secretKey, del_instance_id, del_template_id)
+
+#     # ---삭제하고 타이밍 얼마나 줄 지 생각해볼 것--- #
+
+#     backup_template_id, instance_deploy_req = deployCloudstackInstance(user_id, cloudstack_user_apiKey, cloudstack_user_secretKey, backup_instance_name, cloudstack_user_network_id, backup_img_file_name, backup_instance_os_type)
+
+#     return backup_template_id, instance_deploy_req
 
 def backup(cycle):
     import openstack_controller as oc                            # import는 여기 고정 -> 컴파일 시간에 circular import 때문에 걸려서
@@ -259,7 +335,7 @@ def backup(cycle):
         for instance in backup_instance_list:
             print("인스턴스 오브젝트: ", instance)
             backup_instance_id = instance.instance_id
-            backup_instace_name = instance.instance_name
+            backup_instance_name = instance.instance_name
             backup_instance_os_type = instance.image_name[0]
             user_id = instance.user_id.user_id
             cloudstack_user_network_id = instance.user_id.cloudstack_network_id
@@ -323,7 +399,10 @@ def backup(cycle):
                     print(serializer.data)
                     backup_img_file_to_db.close()
                     os.remove(backup_instance_id + ".qcow2")
-                    backup_template_id, instance_deploy_req = deployCloudstackInstance(user_id, cloudstack_user_apiKey, cloudstack_user_secretKey, backup_instace_name, cloudstack_user_network_id, backup_img_file_name, backup_instance_os_type)
+
+                    #------cloudstack template register & instance deploy------#
+                    backup_template_id, instance_deploy_req = deployCloudstackInstance(user_id, cloudstack_user_apiKey, cloudstack_user_secretKey, backup_instance_name, cloudstack_user_network_id, backup_img_file_name, backup_instance_os_type)
+                    # backup_template_id, instance_deploy_req = CloudstackInstanceDeleteAndCreate(user_id, cloudstack_user_apiKey, cloudstack_user_secretKey, backup_instance_name, cloudstack_user_network_id, backup_img_file_name, backup_instance_os_type)
                     # deleteCloudstackInstanceAndTemplate()
                 else:
                     print("not updated")
@@ -346,8 +425,7 @@ def backup(cycle):
                     os.remove(backup_instance_id + ".qcow2")
                     
                     #------cloudstack template register & instance deploy------#
-                    backup_template_id, instance_deploy_req = deployCloudstackInstance(user_id, cloudstack_user_apiKey, cloudstack_user_secretKey, backup_instace_name, cloudstack_user_network_id, backup_img_file_name, backup_instance_os_type)
-                    # deleteCloudstackInstanceAndTemplate()
+                    backup_template_id, instance_deploy_req = deployCloudstackInstance(user_id, cloudstack_user_apiKey, cloudstack_user_secretKey, backup_instance_name, cloudstack_user_network_id, backup_img_file_name, backup_instance_os_type)
                 else:
                     print("not saved")
                     print(serializer.errors)
@@ -367,6 +445,54 @@ def backup(cycle):
     except requests.exceptions.ConnectionError:
             return "요청이 거부되었습니다."
 
+
+
+
+# def errorCheckRestore():
+#     import openstack_controller as oc
+#     token = oc.admin_token()
+#     openstack_hostIP = oc.hostIP
+
+#     restore_instance_num = OpenstackInstance.objects.filter(status="ERROR").count()
+#     if restore_instance_num == 0:
+#         return "Error 상태의 인스턴스 없음"
+
+#     restore_instance_list = OpenstackInstance.objects.filter(status="ERROR")
+#     for instance in restore_instance_list:
+
+#         print("인스턴스 오브젝트: ", instance)
+#         instance_id_for_restore = instance.instance_id
+
+
+#         print("인스턴스 id: ", instance_id_for_restore)
+#         tenant_id_for_restore = instance.user_id.openstack_user_project_id
+#         image_id_for_restore = instance.instance_backup_img_file.image_id
+
+
+
+#         #while문 이미지 상태 로직 무시해도 될 듯?
+#         while (True):
+#             image_status_req = super().reqChecker("get",
+#                                                   "http://" + openstack_hostIP + "/image/v2/images/" + image_id_for_restore,
+#                                                   token)
+#             if image_status_req == None:
+#                 return JsonResponse({"message": "오픈스택 서버에 문제가 생겨 이미지 정보를 조회할 수 없습니다."}, status=404)
+#             print("이미지 상태 조회 리스폰스: ", image_status_req.json())
+
+#             image_status = image_status_req.json()["status"]
+#             if image_status == "active":
+#                 break
+#             time.sleep(2)
+
+#         restore_template = {  # 이미지와 요구사항을 반영한 템플릿 생성
+#             "parameters": {
+#                 "image": "Backup" + instance_id_for_restore
+#             }
+#         }
+        ## 미완성임 ㅠㅠ zz
+
+
+
 def backup6():
     backup_res = backup(6)
     print(backup_res)
@@ -374,6 +500,7 @@ def backup6():
 def backup12():
     backup_res = backup(12)
     print(backup_res)
+    
     
 
 def deleter():
@@ -383,10 +510,10 @@ def deleter():
 
 def start():
     scheduler = BackgroundScheduler() # ({'apscheduler.job_defaults.max_instances': 2}) # max_instance = 한 번에 실행할 수 있는 같은 job의 개수
-    # scheduler.add_job(deleter, 'interval', seconds=5)
+    # scheduler.add_job(deleter, 'interval', seconds=2)
     # scheduler.add_job(backup6, 'interval', seconds=30)
     # scheduler.add_job(backup12, 'interval', seconds=120)
     # scheduler.add_job(freezerBackup6, 'interval', seconds=60)
-    scheduler.add_job(backup6, 'interval', seconds=30)
+    scheduler.add_job(backup6, 'interval', seconds=20)
 
     scheduler.start()

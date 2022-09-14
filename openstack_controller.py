@@ -14,10 +14,6 @@ admin_project_id = "7b4a48e13a084e7287be9bffe02b43e6" #김영후 데탑에 깔�
 admins_group_id = "836791bb23614a9f952f582382d2ddd4"
 admin_role_id = "b4dd57f86a0148c7be3f4119c822d5b9"
 
-# hostIP ='192.168.0.118'
-# admin_project_id="23328c361b654bf1ab2c9ee4b145187b"
-# admins_group_id="962e18c5a34247e8925db1404d0c666b"
-# admin_role_id="2755854a74504df5849e83b8a9169a38"
 
 class TokenExpiredError(Exception):
     def __init__(self):
