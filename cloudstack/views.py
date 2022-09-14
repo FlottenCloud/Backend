@@ -112,6 +112,9 @@ class InstanceConsole(APIView):
             return JsonResponse({"message" : "인스턴스를 찾을 수 없습니다."}, status=404)
 
         request_body = {"vm" : instance_id ,"apiKey": user_apiKey, "response" : "json" , "cmd": "access"}
-        console_URL = csc.requestThroughSigWithURL(baseURL, user_secretKey, request_body)
-        print(console_URL)
+        console_URL_req = csc.requestThroughSigWithURL(baseURL, user_secretKey, request_body)
+        htmlData = BeautifulSoup(console_URL_req, features="html.parser")
+        console_url_body = htmlData.html.frameset.frame['src']
+        console_URL = "http:" + console_url_body
+        print("Console URL is : " + console_URL)
         return JsonResponse({"instance_url": console_URL}, status=200)
