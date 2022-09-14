@@ -1,3 +1,5 @@
+from email.contentmanager import raw_data_manager
+from ipaddress import ip_address
 import os
 import json
 from re import S
@@ -9,6 +11,7 @@ import webbrowser
 from apscheduler.schedulers.background import BackgroundScheduler
 from django.core.files import File
 from django.http import JsonResponse
+from account.models import AccountInfo
 
 from openstack.models import OpenstackBackupImage, OpenstackInstance
 from cloudstack.models import CloudstackInstance
@@ -155,7 +158,7 @@ def getTemplatestatus(admin_apiKey, admin_secretKey, template_name):
     request_body = {"apiKey" : admin_apiKey, "response" : "json", "command" : "listTemplates", "templatefilter" : "selfexecutable", "name" : template_name}
     template_status_get_req = csc.requestThroughSig(admin_secretKey, request_body)
     template_status_get_res = json.loads(template_status_get_req)
-    if len(template_status_get_res["listtemplatesresponse"]) == 0:
+    if len(template_status_get_res["listtemplatesresponse"]) == 0 or len(template_status_get_res["listtemplatesresponse"]) == 1:
         template_download_status = "Download Not Completed"
     else:
         template_download_status = template_status_get_res["listtemplatesresponse"]["template"][0]["status"]
@@ -211,6 +214,7 @@ def deployCloudstackInstance(user_id, user_apiKey, user_secretKey, instance_name
     small_offeringID = csc.small_offeringID
     medium_offeringID = csc.medium_offeringID
     
+    user_id_instance = AccountInfo.objects.get(user_id=user_id)
     template_name = instance_name + "Template"
     if os_type == "F" :     # Fedora(openstack default)
         os_type_id = "8682cef8-a3f3-47a0-886d-87b9398469b3"
@@ -221,7 +225,7 @@ def deployCloudstackInstance(user_id, user_apiKey, user_secretKey, instance_name
     
     backup_template_id = registerCloudstackTemplate(zoneID, template_name, backup_img_file_name, os_type_id)
     
-    request_body= {"apiKey" : user_apiKey, "response" : "json", "command" : "deployVirtualMachine",
+    instance_deploy_req_body = {"apiKey" : user_apiKey, "response" : "json", "command" : "deployVirtualMachine",
         "networkids" : cloudstack_user_network_id, "serviceofferingId" : medium_offeringID,
         'templateId': backup_template_id, "zoneId": zoneID,
         "displayname" : instance_name, "name" : instance_name, "domainid" : domainID,
@@ -229,13 +233,40 @@ def deployCloudstackInstance(user_id, user_apiKey, user_secretKey, instance_name
     }
     try :
         print("인스턴스 생성 시작")
-        instance_deploy_req = csc.requestThroughSig(user_secretKey, request_body)
+        instance_deploy_req = csc.requestThroughSig(user_secretKey, instance_deploy_req_body)
     except Exception as e:
         print("에러 내용: ", e)
     
-
-
+    while(True):    
+        instance_info_req_body = {"apiKey" : user_apiKey, "response" : "json", "command" : "listVirtualMachines", "name" : instance_name}
+        instance_info_req = csc.requestThroughSig(user_secretKey, instance_info_req_body)
+        instance_info_res = json.loads(instance_info_req)
+        
+        if len(instance_info_res["listvirtualmachinesresponse"]) != 0:
+            created_instance_id = instance_info_res["listvirtualmachinesresponse"]["virtualmachine"][0]["id"]
+            created_instance_name = instance_info_res["listvirtualmachinesresponse"]["virtualmachine"][0]["name"]
+            created_instance_status = instance_info_res["listvirtualmachinesresponse"]["virtualmachine"][0]["state"],
+            created_instance_image_id = instance_info_res["listvirtualmachinesresponse"]["virtualmachine"][0]["templateid"],
+            created_instance_flavor_name = "MEDIUM",
+            created_instance_ram_size = instance_info_res["listvirtualmachinesresponse"]["virtualmachine"][0]["memory"] / 1024,
+            created_instance_disk_size = 5,
+            created_instance_num_cpu = instance_info_res["listvirtualmachinesresponse"]["virtualmachine"][0]["cpunumber"]
+            break
+        
+        time.sleep(1)
+    
     # db에 user_id, instance_id, image_id(template_id), ip_address, instance_name, status, flavor_name(medium 고정일 듯), ram_size(1G고정일 듯), disk_size, num_cpu 저장
+    CloudstackInstance.objects.create(
+        user_id = user_id_instance,
+        instance_id = created_instance_id,
+        instance_name = created_instance_name,
+        status = created_instance_status,
+        image_id = created_instance_image_id,
+        flavor_name = created_instance_flavor_name,
+        ram_size = created_instance_ram_size,
+        disk_size = created_instance_disk_size,
+        num_cpu = created_instance_num_cpu
+    )
 
     print("Created Instance " + backup_img_file_name + " to cloudstack")
 
@@ -475,10 +506,10 @@ def deleter():
 
 def start():
     scheduler = BackgroundScheduler() # ({'apscheduler.job_defaults.max_instances': 2}) # max_instance = 한 번에 실행할 수 있는 같은 job의 개수
-    # scheduler.add_job(deleter, 'interval', seconds=5)
+    # scheduler.add_job(deleter, 'interval', seconds=2)
     # scheduler.add_job(backup6, 'interval', seconds=30)
     # scheduler.add_job(backup12, 'interval', seconds=120)
     # scheduler.add_job(freezerBackup6, 'interval', seconds=60)
-    scheduler.add_job(backup6, 'interval', seconds=30)
+    scheduler.add_job(backup6, 'interval', seconds=20)
 
     scheduler.start()

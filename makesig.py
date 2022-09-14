@@ -52,15 +52,20 @@ def main():
     #         "name": "test1", "url": url, "ostypeid": osTypeid, "zoneid": zoneID}
     # requestThroughSig("r6avM2ip3wtjXjbNgOHIoQEK6U0T1X3flclrt55RO4v-Fa6WL0NJAVDs80ZI-AeTpKN8lIUpW2fWF_aCHv3cRA", request_body)
 
-    request_body = {"apiKey" : admin_apiKey, "response": "json", "command": "listOsTypes", "keyword": "ubuntu"}
+    # request_body = {"apiKey" : admin_apiKey, "response": "json", "command": "listOsTypes", "keyword": "ubuntu"}
     # sig, req = requestThroughSig("r6avM2ip3wtjXjbNgOHIoQEK6U0T1X3flclrt55RO4v-Fa6WL0NJAVDs80ZI-AeTpKN8lIUpW2fWF_aCHv3cRA", request_body)
 
     # request_body = {"apiKey" : admin_apiKey, "response" : "json", "command" : "registerTemplate",
     # "displaytext" : "gettest", "format" : "qcow2", "hypervisor" : "kvm",
     # "name" : "gettest", "url" : "https://cloud-images.ubuntu.com/bionic/current/bionic-server-cloudimg-amd64.img", "ostypeid" : "12bc219b-fdcb-11ec-a9c1-08002765d220", "zoneid" : zoneID}
+    
+    # "17174811-e4af-4889-a552-f46fe678e644"
+    request = {"apiKey": "nLQlSOVBbw9x1R2ARLNsGvZzjfz3Rg5XaLQIEW-58nrpATuIFtjuHU17BA6UWDZ4JYvEHJSnGiYMB3aZwJuz-A", "response": "json", "command": "listVirtualMachines",
+                "name": "testhoo1"}
+    sig, response = requestThroughSig("bCElptHE2lZqwLPDEVHYJu9U_0YIrdZdFPDf6IOwett_9iRa7ZepOvLfF7udsAtibt0xJirbeY0mGr2p_ZTsjA", request)
 
-    sig, req = requestThroughSig(admin_secretKey, request_body)
-    print(sig, req)
+    # sig, req = requestThroughSig(admin_secretKey, request_body)
+    # print(sig, req)
     
 
 main()
