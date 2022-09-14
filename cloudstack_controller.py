@@ -42,7 +42,7 @@ def requestThroughSig(secretKey, request_body):
     res = urllib.request.urlopen(req)
     response = res.read()
     
-    print("클라우드 스택으로의 리스폰스:", response)
+    print("클라우드 스택에서의 리스폰스:", response)
     return response
 
 def requestThroughSigForTemplateRegist(secretKey, request_body):
@@ -81,5 +81,28 @@ def requestThroughSigWithURL(base_url, secretKey, request_body):
     res = urllib.request.urlopen(req)
     response = res.read()
 
-    print("클라우드 스택으로의 리스폰스:", response)
+    print("클라우드 스택에서의 리스폰스:", response)
     return response
+
+def requestThroughSigUsingRequests(secretKey, request_body):
+    request_str = '&'.join(['='.join([k, urllib.parse.quote_plus(request_body[k])]) for k in request_body.keys()])
+    sig_str = '&'.join(
+        ['='.join([k.lower(), urllib.parse.quote_plus(request_body[k].lower().replace('+', '%20'))]) for k in
+         sorted(request_body)])
+    sig = hmac.new(secretKey.encode('utf-8'), sig_str.encode('utf-8'), hashlib.sha1)
+    sig = hmac.new(secretKey.encode('utf-8'), sig_str.encode('utf-8'), hashlib.sha1).digest()
+    sig = base64.encodebytes(hmac.new(secretKey.encode('utf-8'), sig_str.encode('utf-8'), hashlib.sha1).digest())
+    sig = base64.encodebytes(
+        hmac.new(secretKey.encode('utf-8'), sig_str.encode('utf-8'), hashlib.sha1).digest()).strip()
+    sig = urllib.parse.quote_plus(base64.encodebytes(
+        hmac.new(secretKey.encode('utf-8'), sig_str.encode('utf-8'), hashlib.sha1).digest()).strip())
+    req_url = api_base_url + request_str + '&signature=' + sig
+    print("클라우드 스택으로의 리퀘스트:", req_url)
+    req = requests.get(req_url)
+    # res = req.json()
+    # urllib.request.urlcleanup()
+    # res = urllib.request.urlopen(req)
+    # response = res.read()
+    
+    print("클라우드 스택에서의 리스폰스:", req.json())
+    return req
