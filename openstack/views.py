@@ -49,15 +49,15 @@ class Openstack(TemplateModifier, Stack, APIView):
             openstack_tenant_id = account.models.AccountInfo.objects.get(user_id=user_id).openstack_user_project_id
             print("유저 프로젝트 id: ", openstack_tenant_id)
 
-            if(user_os == "ubuntu"):
-                with open(stack_template_root + 'ubuntu_1804.json','r') as f:   # 아직 템플릿 구현 안됨
+            if user_os == "ubuntu":
+                with open(stack_template_root + 'ubuntu_1804.json','r') as f:   # 오픈스택에 ubuntu 이미지 안올려놨음
                     json_template_skeleton = json.load(f)
                     json_template = super().templateModify(json_template_skeleton, user_id, user_instance_name, flavor, user_package)
-            elif(user_os == "cirros"):
-                with open(stack_template_root + 'cirros.json','r') as f:    #일단 이거랑
+            elif user_os == "centos":
+                with open(stack_template_root + 'cirros.json','r') as f:    # 오픈스택에 centos 이미지 안올려놔서 일단 cirros.json으로
                     json_template_skeleton = json.load(f)
                     json_template = super().templateModify(json_template_skeleton, user_id, user_instance_name, flavor, user_package)
-            elif(user_os == "fedora"):
+            elif user_os == "fedora":
                 with open(stack_template_root + 'fedora.json','r') as f:    #이걸로 생성 test
                     json_template_skeleton = json.load(f)
                     json_template = super().templateModify(json_template_skeleton, user_id, user_instance_name, flavor, user_package)
@@ -97,7 +97,8 @@ class Openstack(TemplateModifier, Stack, APIView):
                 "ram_size" : instance_ram_size,
                 "disk_size" : instance_disk_size,
                 "num_cpu" : instance_num_cpu,
-                "backup_time" : backup_time
+                "backup_time" : backup_time,
+                "os" : user_os
             }
 
             #serializing을 통한 인스턴스 정보 db 저장
