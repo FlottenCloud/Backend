@@ -1,5 +1,6 @@
 from sqlite3 import OperationalError
 import json
+from bs4 import BeautifulSoup
 import cloudstack_controller as csc
 from .models import CloudstackInstance
 from django.db.models import Sum
@@ -30,9 +31,12 @@ class Cloudstack(APIView):
     def get(self, request):  # header: apiKey, secretKey
         try:
             apiKey = request.headers["apiKey"]
+            print(apiKey)
             secretKey = request.headers["secretKey"]
             cloudstack_user_id = AccountInfo.objects.filter(cloudstack_apiKey=apiKey)[0].user_id
+            print(cloudstack_user_id)
             user_instance_info_list = list(CloudstackInstance.objects.filter(user_id=cloudstack_user_id).values())
+            print(user_instance_info_list)
 
         except OperationalError:
             return JsonResponse({[]}, status=200)

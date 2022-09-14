@@ -152,7 +152,7 @@ class AccountView(APIView):
         return user_network_create_req
 
     @swagger_auto_schema(tags=["User Info Get API"], responses={200:"Success"})
-    def get(self, request):                                   # 이건 아직 안썼는데 일단 나중에 제대로 수정할 것
+    def get(self, request):                                   # 이건 아직 안썼는데 일단 나중에 제대로 수정할 것  -> token 통신으로.
         input_data = json.loads(request.body)
         admin_token = oc.admin_token()
         if admin_token == None:
@@ -225,13 +225,15 @@ class SignView(APIView):
         try:
             if AccountInfo.objects.filter(user_id=input_data['user_id']).exists():
                 user = AccountInfo.objects.get(user_id=input_data['user_id'])
+                apiKey = AccountInfo.objects.get(user_id=input_data['user_id']).cloudstack_apiKey
+                secretKey = AccountInfo.objects.get(user_id=input_data['user_id']).cloudstack_secretKey
                 if user.password == input_data['password']:
                     openstack_user_token = oc.user_token(input_data)
                     if openstack_user_token == None:
-                        return JsonResponse({"message" : "오픈스택 유저 토큰을 받아올 수 없습니다."}, status=404)
+                        return JsonResponse({"apiKey" : apiKey, "secretKey" : secretKey}, status=200)
                     #hash token 해줄 것
                     response = JsonResponse(
-                        {"openstack_user_token" : openstack_user_token}, status=200
+                        {"openstack_user_token" : openstack_user_token, "apiKey" : apiKey, "secretKey" : secretKey}, status=200
                     )
 
                     response['Access-Control-Allow-Origin'] = '*'
