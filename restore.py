@@ -170,6 +170,25 @@ def getTemplatestatus(template_name):
     status = jsonData["listtemplatesresponse"]["template"][0]["status"]
     print("Template status is ", status)
     return status
+
+
+
+def cloudstack_delete_VM(cloudstack_user_apiKey, cloudstack_user_secretKey, instance_id):
+
+    request = {"apiKey": cloudstack_user_apiKey, "response": "json", "command": "destroyVirtualMachine",
+               "id": instance_id, "expunge": "true"}
+    response = csc.requestThroughSig(cloudstack_user_secretKey, request)
+    return response
+
+def cloudstack_delete_Template(cloudstack_user_apiKey, cloudstack_user_secretKey, template_id):
+
+
+    request = {"apiKey": cloudstack_user_apiKey, "response": "json", "command": "cloudstack_delete_Template",
+               "id": template_id}
+
+    response = csc.requestThroughSig(cloudstack_user_secretKey, request)
+    return response
+
 #TODO : 시스템 DB에서 백업한 인스턴스의 user_api,secret key ,VM ID 가져오기.
 
 
@@ -243,6 +262,9 @@ def restore(cloudstack_user_apiKey,cloudstack_user_secretKey,instance_id,cloudst
     print("image file download response is", res)
 
     openstackimageupload(template_name)
+
+    cloudstack_delete_VM(cloudstack_user_apiKey, cloudstack_user_secretKey, instance_id)
+    cloudstack_delete_Template(cloudstack_user_apiKey, cloudstack_user_secretKey, template_id)
 
     return res
 
