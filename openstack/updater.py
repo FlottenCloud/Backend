@@ -343,7 +343,7 @@ def backup(cycle):
             cloudstack_user_network_id = instance.user_id.cloudstack_network_id
             cloudstack_user_apiKey = instance.user_id.cloudstack_apiKey
             cloudstack_user_secretKey = instance.user_id.cloudstack_secretKey
-            print("클라우드 스택의 유저 네트워크 id:: ", cloudstack_user_network_id)
+            print("클라우드 스택의 유저 네트워크 id: ", cloudstack_user_network_id)
             print("인스턴스 id: ", backup_instance_id)
             backup_payload = {
                 "createBackup": {
@@ -400,7 +400,7 @@ def backup(cycle):
                 serializer = OpenstackBackupImageSerializer(data=backup_image_data)
                 if serializer.is_valid():
                     serializer.save()
-                    print("updated image info")
+                    print("Updated backup data info")
                     print(serializer.data)
                     backup_img_file_to_db.close()
                     os.remove(backup_instance_id + ".qcow2")
@@ -409,12 +409,13 @@ def backup(cycle):
                     backup_template_id, instance_deploy_req = deployCloudstackInstance(user_id, cloudstack_user_apiKey, cloudstack_user_secretKey, backup_instance_name, cloudstack_user_network_id, backup_img_file_name, backup_instance_os_type)
                     # backup_template_id, instance_deploy_req = CloudstackInstanceDeleteAndCreate(user_id, cloudstack_user_apiKey, cloudstack_user_secretKey, backup_instance_name, cloudstack_user_network_id, backup_img_file_name, backup_instance_os_type)
                     # deleteCloudstackInstanceAndTemplate()
+                    
                 else:
-                    print("not updated")
+                    print("Backup data not updated")
                     print(serializer.errors)
                     backup_img_file_to_db.close()
                     os.remove(backup_instance_id + ".qcow2")
-                    print("not updated")
+                    print("Backup data not updated")
                     pass
 
                 backup_img_file_to_db.close()
@@ -424,19 +425,20 @@ def backup(cycle):
                 serializer = OpenstackBackupImageSerializer(data=backup_image_data)
                 if serializer.is_valid():
                     serializer.save()
-                    print("saved image info")
+                    print("Saved Backup data info")
                     print(serializer.data)
                     backup_img_file_to_db.close()
                     os.remove(backup_instance_id + ".qcow2")
                     
                     #------cloudstack template register & instance deploy------#
                     backup_template_id, instance_deploy_req = deployCloudstackInstance(user_id, cloudstack_user_apiKey, cloudstack_user_secretKey, backup_instance_name, cloudstack_user_network_id, backup_img_file_name, backup_instance_os_type)
+                    
                 else:
-                    print("not saved")
+                    print("Backup data not saved")
                     print(serializer.errors)
                     backup_img_file_to_db.close()                    
                     os.remove(backup_instance_id + ".qcow2")
-                    print("not saved")# return "not saved"
+                    print("Backup data not saved")
                     pass
         
             print("Backup for " + backup_instance_id + " is completed")    
@@ -569,7 +571,7 @@ def errorCheckRestore():
         try:
             instance_id, instance_name, instance_ip_address, instance_status, instance_image_name, instance_flavor_name, instance_ram_size, instance_disk_size, instance_num_cpu = stack_saver.stackResourceGetter("create", openstack_hostIP, tenant_id_for_restore, user_id, stack_name, stack_id, user_token)
         except Exception as e:  # stackResourceGetter에서 None이 반환 된 경우
-            print("예외 발생: ", e)
+            print("스택 정보 가져오는 중 에러 발생: ", e)
             return "오픈스택 서버에 문제가 생겨 생성된 스택의 정보를 불러올 수 없습니다."
 
         # db에 저장 할 인스턴스 정보

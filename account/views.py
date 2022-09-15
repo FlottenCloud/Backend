@@ -15,7 +15,7 @@ from django.http import JsonResponse
 from rest_framework.views import APIView
 from drf_yasg.utils       import swagger_auto_schema
 from drf_yasg             import openapi
-from .serializers import UserDeleteSerializer, UserInfoSeializer, UserRegisterSerializer, UserSignInSerializer
+from .serializers import UserRegisterSerializer, UserSignInSerializer   # UserDeleteSerializer, UserInfoSeializer
 
 openstack_hostIP = oc.hostIP
 openstack_admin_project_id = oc.admin_project_id
@@ -51,7 +51,7 @@ cloudstack_user_secretKey = openapi.Parameter(   # for django swagger
 )
 
 class AccountView(APIView):
-    @swagger_auto_schema(tags=["User Register API"], request_body=UserRegisterSerializer, responses={200:"Success", 404:"Not Found", 409:"Confilict"})
+    @swagger_auto_schema(tags=["User API"], request_body=UserRegisterSerializer, responses={200:"Success", 404:"Not Found", 409:"Confilict"})
     def post(self, cloudstack_account_make_req_body):
         input_data = json.loads(cloudstack_account_make_req_body.body)
         if AccountInfo.objects.filter(user_id=input_data["user_id"]).exists():
@@ -175,7 +175,7 @@ class AccountView(APIView):
 
         return user_network_create_req
 
-    @swagger_auto_schema(tags=["User Info Get API"], manual_parameters=[openstack_user_token, cloudstack_user_apiKey, cloudstack_user_secretKey], responses={200:"Success"})
+    @swagger_auto_schema(tags=["User API"], manual_parameters=[openstack_user_token, cloudstack_user_apiKey, cloudstack_user_secretKey], responses={200:"Success"})
     def get(self, request):                                   # 리퀘스트 헤더 중에 apiKey, secretKey는 무조건 오니까 apiKey로 유저 정보 get
         try:
             user_token = request.header["X-Auth-Token"]
@@ -193,7 +193,7 @@ class AccountView(APIView):
         
         return JsonResponse({"user_id" : user_id, "email" : user_email, "first_name" : user_first_name, "last_name" : user_last_name}, status=200)
 
-    @swagger_auto_schema(tags=["User Delete API"], manual_parameters=[openstack_user_token, cloudstack_user_apiKey, cloudstack_user_secretKey], responses={200:"Success", 404:"Not Found"})
+    @swagger_auto_schema(tags=["User API"], manual_parameters=[openstack_user_token, cloudstack_user_apiKey, cloudstack_user_secretKey], responses={200:"Success", 404:"Not Found"})
     def delete(self, request):  #그냥 api로 db랑 오픈스택에 유저 쌓인 거 정리하기 쉬우려고 만들었음. 후에 탈퇴기능 이용하려면 구현 제대로 할 것.
         try:
             user_token = request.header["X-Auth-Token"]

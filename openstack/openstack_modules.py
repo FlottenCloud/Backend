@@ -23,6 +23,9 @@ class TemplateModifier:
             flavor = "EXCEEDED"
 
         user_instance_name = input_data["instance_name"]
+        if OpenstackInstance.objects.filter(instance_name=user_instance_name).exists():
+            user_instance_name = "Duplicated"
+            
         backup_time = input_data["backup_time"]
 
         return user_os, user_package, flavor, user_instance_name, backup_time

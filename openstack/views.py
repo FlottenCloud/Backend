@@ -3,11 +3,13 @@ import sys
 sys.path.append(os.path.dirname(os.path.abspath(os.path.dirname(__file__))))    #여기까지는 상위 디렉토리 모듈 import 하기 위한 코드
 
 import openstack_controller as oc    #백엔드 루트 디렉토리에 openstack.py 생성했고, 그 안에 공통으로 사용될 함수, 변수들 넣을 것임.
+import cloudstack_controller as csc
 from .openstack_modules import *
 import json
 import requests
 from sqlite3 import OperationalError
 from .models import OpenstackInstance
+from cloudstack.models import CloudstackInstance
 import account.models
 from django.db.models import Sum
 from django.shortcuts import render
@@ -30,7 +32,7 @@ openstack_user_token = openapi.Parameter(   # for django swagger
 
 # request django url = /openstack/      인스턴스 CRUD 로직
 class Openstack(TemplateModifier, Stack, APIView):
-    @swagger_auto_schema(tags=["Openstack API"], manual_parameters=[openstack_user_token], request_body=CreateStackSerializer, responses={200:"Success", 401:"Unauthorized", 404:"Not Found", 405:"Method Not Allowed"})
+    @swagger_auto_schema(tags=["Openstack API"], manual_parameters=[openstack_user_token], request_body=CreateStackSerializer, responses={200:"Success", 401:"Unauthorized", 404:"Not Found", 405:"Method Not Allowed", 409:"Confilct"})
     def post(self, request):   # header: user_token, body: 요구사항({os, package[], num_people, data_size, instance_name, backup_time})
         stack_template_root = "templates/"
         try:
@@ -40,10 +42,12 @@ class Openstack(TemplateModifier, Stack, APIView):
 
             # instance_num = OpenstackInstance.objects.filter(user_id=user_id).count() + 1  # 스택 생성 때 키페어 네임 주려고 했던 건데 필요없는 거 확인되면 지울 것
             user_os, user_package, flavor, user_instance_name, backup_time = super().getUserRequirement(input_data)
+            if user_instance_name == "Duplicated":
+                return JsonResponse({"message": "이미 존재하는 가상머신 이름입니다."}, status=409)
             if flavor == "EXCEEDED":
                 return JsonResponse({"message" : "인원 수 X 인원 당 예상 용량 값은 10G를 넘지 못합니다."}, status=405)
-            if backup_time != 6 and backup_time != 12:
-                return JsonResponse({"message" : "백업 주기는 6시간, 12시간 중에서만 선택할 수 있습니다."}, status=405)
+            # if backup_time != 6 and backup_time != 12:
+            #     return JsonResponse({"message" : "백업 주기는 6시간, 12시간 중에서만 선택할 수 있습니다."}, status=405)
             
 
             openstack_tenant_id = account.models.AccountInfo.objects.get(user_id=user_id).openstack_user_project_id
@@ -114,7 +118,7 @@ class Openstack(TemplateModifier, Stack, APIView):
         
 
         except oc.TokenExpiredError as e:
-            print("에러 내용: ", e)
+            print("Token Expired: ", e)
             return JsonResponse({"message" : str(e)}, status=401)
 
         return JsonResponse({"message" : "가상머신 생성 완료"}, status=201)
@@ -246,7 +250,7 @@ class Openstack(TemplateModifier, Stack, APIView):
             try:
                 updated_instance_id, updated_instance_name, updated_instance_ip_address, updated_instance_status, updated_instance_image_name, updated_instance_flavor_name, updated_instance_ram_size, updated_disk_size, updated_num_cpu = super().stackResourceGetter("update", openstack_hostIP, update_openstack_tenant_id, user_id, update_stack_name, update_stack_id, token)
             except Exception as e:  # stackResourceGetter에서 None이 반환 된 경우
-                print("예외 발생: ", e)
+                print("스택 정보 불러오는 중 예외 발생: ", e)
                 return JsonResponse({"message" : "오픈스택 서버에 문제가 생겨 업데이트 된 스택의 정보를 불러올 수 없습니다."}, status=404)
 
             OpenstackInstance.objects.filter(instance_id=instance_id).update(instance_id=updated_instance_id, instance_name=updated_instance_name,
@@ -255,7 +259,7 @@ class Openstack(TemplateModifier, Stack, APIView):
         
 
         except oc.TokenExpiredError as e:
-            print("에러 내용: ", e)
+            print("Token Expired: ", e)
             return JsonResponse({"message" : str(e)}, status=401)
 
         return JsonResponse({"message" : "업데이트 완료"}, status=201)
@@ -266,14 +270,14 @@ class Openstack(TemplateModifier, Stack, APIView):
             input_data, token, user_id = oc.getRequestParamsWithBody(request)
             if user_id == None:
                 return JsonResponse({"message" : "오픈스택 서버에 문제가 생겨 token으로 오픈스택 유저의 정보를 얻어올 수 없습니다."}, status=404)
-
-            stack_data = OpenstackInstance.objects.get(instance_id=input_data["instance_id"])
-            del_instance_name = stack_data.instance_name
-            del_stack_id = stack_data.stack_id
-            del_stack_name = stack_data.stack_name
-            del_update_image_id = stack_data.update_image_ID
+            
+            #------------Openstack Stack and Image Delete------------#
+            openstack_stack_data = OpenstackInstance.objects.get(instance_id=input_data["instance_id"])
+            del_instance_name = openstack_stack_data.instance_name
+            del_stack_id = openstack_stack_data.stack_id
+            del_stack_name = openstack_stack_data.stack_name
+            del_update_image_id = openstack_stack_data.update_image_ID
             print("삭제한 가상머신 이름: " + del_instance_name + "\n삭제한 스택 이름: " + del_stack_name + "\n삭제한 스택 ID: " + del_stack_id)
-            stack_data.delete() # DB에서 해당 stack row 삭제
 
             del_openstack_tenant_id = account.models.AccountInfo.objects.get(user_id=user_id).openstack_user_project_id
             stack_del_req = super().reqChecker("delete", "http://" + openstack_hostIP + "/heat-api/v1/" + del_openstack_tenant_id + "/stacks/"
@@ -286,7 +290,29 @@ class Openstack(TemplateModifier, Stack, APIView):
                 print("업데이트에 쓰인 이미지 삭제 리스폰스: ", update_image_del_req)
                 if update_image_del_req == None:
                     return JsonResponse({"message" : "오픈스택 서버에 문제가 생겨 업데이트 때 사용한 이미지를 삭제할 수 없습니다."}, status=404)
-
+                
+            if openstack_stack_data.instance_backup_img_file.filter(instance_id=input_data["instance_id"]).exists():
+                del_backup_image_id = openstack_stack_data.instance_backup_img_file.get(instance_id=input_data["instance_id"])
+                backup_img_del_req = super().reqChecker("delete", "http://" + openstack_hostIP + "/image/v2/images/" + del_backup_image_id, token)
+                print("인스턴스의 백업 이미지 삭제 리스폰스: ", backup_img_del_req)
+                if backup_img_del_req == None:
+                    return JsonResponse({"message" : "오픈스택 서버에 문제가 생겨 업데이트 때 사용한 이미지를 삭제할 수 없습니다."}, status=404)
+                
+            openstack_stack_data.delete() # DB에서 해당 stack row 삭제
+                
+            #------------Cloudstack Instance and Image Delete------------#
+            if CloudstackInstance.objects.filter(instance_name=del_instance_name).exists():     # 클라우드스택에 백업 인스턴스가 만들어져 있을 경우
+                cloudstack_instance_data = CloudstackInstance.objects.get(instance_name=del_instance_name)  # 인스턴스 name으로 CloudstackInstance 테이블에서 object get
+                del_cloudstack_instance_id = cloudstack_instance_data.instance_id
+                del_cloudstack_instance_template_id = cloudstack_instance_data.image_id
+                print("클라우드스택에서 삭제할 인스턴스의 id: ", del_cloudstack_instance_id, " 삭제할 인스턴스의 템플릿 id: ", del_cloudstack_instance_template_id)
+                
+                cloudstack_instance_del_req_body = {{"apiKey" : csc.admin_apiKey, "response" : "json", "command" : "expungeVirtualMachine", "id" : del_cloudstack_instance_id}}
+                cloudstack_instance_del_req = csc.requestThroughSig(csc.admin_secretKey, cloudstack_instance_del_req_body)
+                cloudstack_template_del_req_body = {{"apiKey" : csc.admin_apiKey, "response" : "json", "command" : "deleteTemplate", "id" : del_cloudstack_instance_template_id}}
+                cloudstack_template_del_req = csc.requestThroughSig(csc.admin_secretKey, cloudstack_template_del_req_body)
+                
+                cloudstack_instance_data.delete()
 
         except oc.TokenExpiredError as e:
             print("에러 내용: ", e)
@@ -294,6 +320,42 @@ class Openstack(TemplateModifier, Stack, APIView):
 
         return JsonResponse({"message" : "가상머신 " + del_instance_name + " 삭제 완료"}, status=200)
 
+
+# request django url = /openstack/<char:instance_id>/
+class InstanceInfo(APIView):
+    instance_id = openapi.Parameter('instance_id', openapi.IN_PATH, description='Instance ID to get info', required=True, type=openapi.TYPE_STRING)
+    
+    @swagger_auto_schema(ta0gs=["Openstack API"], manual_parameters=[openstack_user_token, instance_id], responses={200:"Success", 404:"Not Found"})
+    def get(self, request, instance_id):
+        token, user_id = oc.getRequestParams(request)
+        if user_id == None:
+            return JsonResponse({"message" : "오픈스택 서버에 문제가 생겨 인스턴스 정보를 불러올 수 없습니다."}, status=404)
+        try:
+            instance_object = OpenstackInstance.objects.get(instance_id=instance_id)
+        except Exception as e:
+            print("인스턴스 정보 조회 중 예외 발생: ", e)
+            return JsonResponse({"message" : "해당 가상머신이 존재하지 않습니다."}, status=404)  
+        
+        object_instance_id = instance_object.instance_id
+        object_instance_name = instance_object.instance_name
+        object_stack_id = instance_object.stack_id
+        object_stack_name = instance_object.stack_name
+        object_ip_address = instance_object.ip_address
+        object_status = instance_object.status
+        object_image_name = instance_object.image_name
+        object_os = instance_object.os
+        object_flavor_name= instance_object.flavor_name
+        object_ram_size = instance_object.ram_size
+        object_disk_size = instance_object.disk_size
+        object_num_cpu = instance_object.num_cpu
+        object_backup_time = instance_object.backup_time
+        object_update_image = instance_object.update_image
+        
+        response = JsonResponse({"instance_id" : object_instance_id, "instance_name" : object_instance_name, "stack_id" : object_stack_id, "stack_name" : object_stack_name, 
+            "ip_address" : object_ip_address, "status" : object_status, "image_name" : object_image_name, "os" : object_os, "flavor_name" : object_flavor_name, "ram_size" : object_ram_size,
+            "disk_size" : object_disk_size, "num_cpu" : object_num_cpu, "backup_time" : object_backup_time, "update_image" : object_update_image}, status=200)
+        
+        return response
 
 # request django url = /openstack/dashboard/            대쉬보드에 리소스 사용량 보여주기 용
 class DashBoard(RequestChecker, APIView):
