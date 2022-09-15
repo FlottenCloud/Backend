@@ -152,7 +152,7 @@ from openstack.openstack_modules import RequestChecker, Stack, TemplateModifier
 #     print(freezer_backup_res)
 
 
-# ------------------------------Image Backup------------------------------ #
+# ------------------------------Backup Part------------------------------ #
 
 def getTemplatestatus(admin_apiKey, admin_secretKey, template_name):
     import cloudstack_controller as csc
@@ -220,11 +220,11 @@ def deployCloudstackInstance(user_id, user_apiKey, user_secretKey, instance_name
     user_id_instance = AccountInfo.objects.get(user_id=user_id)
     template_name = instance_name + "Template"
     if os_type == "ubuntu" :     # ubuntu(18.04 LTS)
-        os_type_id = "12bc219b-fdcb-11ec-a9c1-08002765d220"
+        os_type_id = "b3ce66f1-34ed-11ed-914c-0800270aea06"  #"12bc219b-fdcb-11ec-a9c1-08002765d220"
     elif os_type == "centos" :   # centos
         os_type_id = "abc"
     else:   # fedora(openstack default)
-        os_type_id = "8682cef8-a3f3-47a0-886d-87b9398469b3"
+        os_type_id = "26e61d3e-246f-4822-8a66-6a8b08806d7e"   #"8682cef8-a3f3-47a0-886d-87b9398469b3"
     
     backup_template_id = registerCloudstackTemplate(zoneID, template_name, backup_img_file_name, os_type_id)
     
@@ -277,46 +277,42 @@ def deployCloudstackInstance(user_id, user_apiKey, user_secretKey, instance_name
 
     return backup_template_id, instance_deploy_req
 
-# def deleteCloudstackInstanceAndTemplate(admin_apiKey, admin_secretKey, instance_id, template_id):
-#     import cloudstack_controller as csc
+def deleteCloudstackInstanceAndTemplate(admin_apiKey, admin_secretKey, instance_id, template_id):
+    import cloudstack_controller as csc
 
-#     instance_del_req_body = {"apiKey": admin_apiKey, "response": "json", "command": "destroyVirtualMachine",
-#                    "id": instance_id, "expunge": "true"}
-#     instance_del_req = csc.requestThroughSig(admin_secretKey, template_del_req_body)
-
-#     template_del_req_body = {"apiKey": admin_apiKey, "response": "json", "command": "deleteTemplate",
-#                 "id": template_id}
-
-#     template_del_req = csc.requestThroughSig(admin_secretKey, template_del_req_body)
-
-
-#     pass
-
-# def CloudstackInstanceDeleteAndCreate(user_id, cloudstack_user_apiKey, cloudstack_user_secretKey, backup_instance_name, cloudstack_user_network_id, backup_img_file_name, backup_instance_os_type):
-#     import cloudstack_controller as csc
-#     admin_apiKey = csc.admin_apiKey
-#     admin_secretKey = csc.admin_secretKey
-#     zoneID = csc.zoneID
-#     domainID = csc.domainID
-#     hostID = csc.hostID
-#     small_offeringID = csc.small_offeringID
-#     medium_offeringID = csc.medium_offeringID
-
-#     del_cloudstack_instance_info = CloudstackInstance.objects.get(backup_instance_name + "Template")
-#     del_instance_id = del_cloudstack_instance_info.instance_id
-#     del_template_id = del_cloudstack_instance_info.template_id
+    instance_del_req_body = {"apiKey": admin_apiKey, "response": "json", "command": "expungeVirtualMachine",
+                   "id": instance_id, "expunge": "true"}
+    instance_del_req = csc.requestThroughSig(admin_secretKey, instance_del_req_body)
     
-#     deleteCloudstackInstanceAndTemplate(admin_apiKey, admin_secretKey, del_instance_id, del_template_id)
+    time.sleep(2)
+    
+    template_del_req_body = {"apiKey": admin_apiKey, "response": "json", "command": "deleteTemplate",
+                "id": template_id}
 
-#     # ---삭제하고 타이밍 얼마나 줄 지 생각해볼 것--- #
+    template_del_req = csc.requestThroughSig(admin_secretKey, template_del_req_body)
+    
+    return instance_del_req, template_del_req
 
-#     backup_template_id, instance_deploy_req = deployCloudstackInstance(user_id, cloudstack_user_apiKey, cloudstack_user_secretKey, backup_instance_name, cloudstack_user_network_id, backup_img_file_name, backup_instance_os_type)
 
-#     return backup_template_id, instance_deploy_req
+def CloudstackInstanceDeleteAndCreate(user_id, cloudstack_user_apiKey, cloudstack_user_secretKey, backup_instance_name, cloudstack_user_network_id, backup_img_file_name, backup_instance_os_type):
+    import cloudstack_controller as csc
+    admin_apiKey = csc.admin_apiKey
+    admin_secretKey = csc.admin_secretKey
+
+    del_cloudstack_instance_info = CloudstackInstance.objects.get(backup_instance_name + "Template")
+    del_instance_id = del_cloudstack_instance_info.instance_id
+    del_template_id = del_cloudstack_instance_info.template_id
+    
+    instance_del_req, template_del_req = deleteCloudstackInstanceAndTemplate(admin_apiKey, admin_secretKey, del_instance_id, del_template_id)
+
+    # ---삭제하고 타이밍 얼마나 줄 지 생각해볼 것--- #
+
+    backup_template_id, instance_deploy_req = deployCloudstackInstance(user_id, cloudstack_user_apiKey, cloudstack_user_secretKey, backup_instance_name, cloudstack_user_network_id, backup_img_file_name, backup_instance_os_type)
+
+    return backup_template_id, instance_deploy_req
 
 def backup(cycle):
     import openstack_controller as oc                            # import는 여기 고정 -> 컴파일 시간에 circular import 때문에 걸려서
-    from account.models import AccountInfo
     openstack_hostIP = oc.hostIP
 
     print("this function runs every", cycle, "seconds")
@@ -395,7 +391,7 @@ def backup(cycle):
             }
             print(backup_image_data)
 
-            if OpenstackBackupImage.objects.filter(instance_id=backup_instance_id).exists():
+            if OpenstackBackupImage.objects.filter(instance_id=backup_instance_id).exists():    # 한 번 백업을 해놨을 경우
                 OpenstackBackupImage.objects.filter(instance_id=backup_instance_id).delete()
                 serializer = OpenstackBackupImageSerializer(data=backup_image_data)
                 if serializer.is_valid():
@@ -405,10 +401,9 @@ def backup(cycle):
                     backup_img_file_to_db.close()
                     os.remove(backup_instance_id + ".qcow2")
 
-                    #------cloudstack template register & instance deploy------#
+                    #------cloudstack instance expunge, template delete & template register, instance deploy------#
                     backup_template_id, instance_deploy_req = deployCloudstackInstance(user_id, cloudstack_user_apiKey, cloudstack_user_secretKey, backup_instance_name, cloudstack_user_network_id, backup_img_file_name, backup_instance_os_type)
                     # backup_template_id, instance_deploy_req = CloudstackInstanceDeleteAndCreate(user_id, cloudstack_user_apiKey, cloudstack_user_secretKey, backup_instance_name, cloudstack_user_network_id, backup_img_file_name, backup_instance_os_type)
-                    # deleteCloudstackInstanceAndTemplate()
                     
                 else:
                     print("Backup data not updated")
@@ -421,7 +416,7 @@ def backup(cycle):
                 backup_img_file_to_db.close()
                 print("updated")
 
-            else:
+            else:   # 백업을 해놓지 않은 경우
                 serializer = OpenstackBackupImageSerializer(data=backup_image_data)
                 if serializer.is_valid():
                     serializer.save()
@@ -452,7 +447,7 @@ def backup(cycle):
     except requests.exceptions.ConnectionError:
             return "요청이 거부되었습니다."
 
-
+# ------------------------------Restore Part------------------------------ #
 
 def deleteStackbeforeRestore(user_id, user_token, tenant_id_for_restore, stack_id_for_del, stack_name_for_del, instance_update_image_id_for_del):
     import openstack_controller as oc
@@ -489,23 +484,18 @@ def deleteStackbeforeRestore(user_id, user_token, tenant_id_for_restore, stack_i
     except Exception as e:
         print("키페어 삭제 요청의 에러 내용: ", e, " 요청에 대한 리스폰스 상태 코드: ", keypair_delete_req.status_code)
         pass
-    
         
     OpenstackInstance.objects.get(stack_id=stack_id_for_del).delete()
     
     return "에러 발생한 스택 삭제 완료"
 
-def errorCheckRestore():
+def errorCheckRestoreInOpenstack():
     import openstack_controller as oc
     admin_token = oc.admin_token()
     openstack_hostIP = oc.hostIP
     req_checker = RequestChecker()
     template_modifier = TemplateModifier()
     stack_saver = Stack()
-    
-    # restore_instance_num = OpenstackInstance.objects.filter(status="ERROR").count()
-    # if restore_instance_num == 0:
-    #     return "Error 상태의 인스턴스 없음"
 
     error_instance_list_req = req_checker.reqChecker("get", "http://" + openstack_hostIP + "/compute/v2.1/servers?status=ERROR&all_tenants=1", admin_token)
     print(error_instance_list_req)
@@ -617,6 +607,7 @@ def backup12():
     
 
 def deleter():
+    AccountInfo.objects.all().delete()
     OpenstackInstance.objects.all().delete()
     OpenstackBackupImage.objects.all().delete()
     CloudstackInstance.objects.all().delete()
@@ -630,6 +621,6 @@ def start():
     # scheduler.add_job(backup12, 'interval', seconds=120)
     # scheduler.add_job(freezerBackup6, 'interval', seconds=60)
     # scheduler.add_job(backup6, 'interval', seconds=20)
-    # scheduler.add_job(errorCheckRestore, 'interval', seconds=10)
+    # scheduler.add_job(errorCheckRestoreInOpenstack, 'interval', seconds=10)
 
     scheduler.start()

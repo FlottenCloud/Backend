@@ -336,6 +336,7 @@ class InstanceInfo(APIView):
             print("인스턴스 정보 조회 중 예외 발생: ", e)
             return JsonResponse({"message" : "해당 가상머신이 존재하지 않습니다."}, status=404)  
         
+        object_own_user_id = user_id
         object_instance_id = instance_object.instance_id
         object_instance_name = instance_object.instance_name
         object_stack_id = instance_object.stack_id
@@ -349,11 +350,11 @@ class InstanceInfo(APIView):
         object_disk_size = instance_object.disk_size
         object_num_cpu = instance_object.num_cpu
         object_backup_time = instance_object.backup_time
-        object_update_image = instance_object.update_image
+        object_update_image_id = instance_object.update_image_ID
         
-        response = JsonResponse({"instance_id" : object_instance_id, "instance_name" : object_instance_name, "stack_id" : object_stack_id, "stack_name" : object_stack_name, 
+        response = JsonResponse({"user_id" : object_own_user_id, "instance_id" : object_instance_id, "instance_name" : object_instance_name, "stack_id" : object_stack_id, "stack_name" : object_stack_name, 
             "ip_address" : object_ip_address, "status" : object_status, "image_name" : object_image_name, "os" : object_os, "flavor_name" : object_flavor_name, "ram_size" : object_ram_size,
-            "disk_size" : object_disk_size, "num_cpu" : object_num_cpu, "backup_time" : object_backup_time, "update_image" : object_update_image}, status=200)
+            "disk_size" : object_disk_size, "num_cpu" : object_num_cpu, "backup_time" : object_backup_time, "update_image" : object_update_image_id}, status=200)
         
         return response
 
