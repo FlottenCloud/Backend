@@ -18,13 +18,13 @@ class OpenstackInstance(models.Model):  #유저와 연관짓기 위한 외래키
     ip_address = models.GenericIPAddressField()
     status = models.CharField(max_length=50)
     image_name = models.CharField(max_length=50)
+    os = models.CharField(max_length=10)
     flavor_name = models.CharField(max_length=50)
     ram_size = models.FloatField(validators=[MaxValueValidator(12)])
     disk_size = models.FloatField(validators=[MaxValueValidator(100)])
     num_cpu = models.IntegerField(validators=[MaxValueValidator(12)])
     backup_time = models.IntegerField(validators=[MaxValueValidator(25)])
-    update_image_ID = models.CharField(max_length=5, null=True)
-    os = models.CharField(max_length=10, null=True)
+    update_image_ID = models.CharField(max_length=100, null=True)   # 스택 처음 생성 시 update에 쓰인 image가 없음.
 
     class Meta:
         db_table = 'openstack_instance'
@@ -36,7 +36,6 @@ class OpenstackBackupImage(models.Model):
     image_id = models.CharField(max_length=50, primary_key=True)
     image_url = models.CharField(max_length=100)
     instance_img_file = models.FileField(max_length=255, blank=True, upload_to="img-files")
-    created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
