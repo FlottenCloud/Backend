@@ -16,8 +16,8 @@ from openstack.openstack_modules import RequestChecker
 #Account bonghun- bonghun 유저의 key들
 cloudstack_user_apikey="fWLe674J43JHLrlRjsB99M3qu4O--OKsTGpm_LL8tYpmKFwNNwh-ez4B_q46uWWKd5KqQmrf6mhYX7Aw30N1fg"
 cloudstack_user_secretkey="dBKpA7Rd74iDVIu2jM54xi_ohwVTGD81HhtDqe1RAPg2yKuEpHHNAzb_pDgfBv37PAw3zshxELIq1OI7wZOKpg"
-local_restore_image_Download_Path='E:/OneDrive/OneDrive - pusan.ac.kr/google backup/google_학부연구생/SELAB/'
-cloudstack_VM_id="219313e8-3588-4b5e-a299-37ce35463035"
+local_restore_image_Download_Path='C:/'
+cloudstack_VM_id="e3cb8216-8bac-42c6-be82-d81b56090cde"
 
 #TODO 클라우드스택 공인 IP, 내부 IP 로 둘다 로그인한 상태여야한다.
 
@@ -106,7 +106,7 @@ def updateextractable(cloudstack_user_apiKey,cloudstack_user_secretKey,template_
 
 def extractTemplate(cloudstack_user_apiKey,cloudstack_user_secretKey,template_id):
     request = {"apiKey": cloudstack_user_apiKey, "response": "json", "command": "extractTemplate",
-               "id": template_id, "mode": "download", "zoneid": "e4ebd8fa-f0af-46b0-ac20-0acc3863b3d1"}
+               "id": template_id, "mode": "download", "zoneid": csc.zoneID}
     # signature.requestsig(baseurl, secretkey, request)
     request_str = '&'.join(['='.join([k, urllib.parse.quote_plus(request[k])]) for k in request.keys()])
     sig_str = '&'.join(
@@ -183,7 +183,7 @@ def cloudstack_delete_VM(cloudstack_user_apiKey, cloudstack_user_secretKey, inst
 def cloudstack_delete_Template(cloudstack_user_apiKey, cloudstack_user_secretKey, template_id):
 
 
-    request = {"apiKey": cloudstack_user_apiKey, "response": "json", "command": "cloudstack_delete_Template",
+    request = {"apiKey": cloudstack_user_apiKey, "response": "json", "command": "deleteTemplate",
                "id": template_id}
 
     response = csc.requestThroughSig(cloudstack_user_secretKey, request)
@@ -209,7 +209,7 @@ def restore(cloudstack_user_apiKey,cloudstack_user_secretKey,instance_id,cloudst
         if VM_status== "Stopped": break
         else :
             print("wait until VM status Stopped. current status is", VM_status)
-            time.sleep(1)
+            time.sleep(5)
 
     # 2. VM으로부터 템플릿 생성
     volumid = getVol_ID_of_VM(cloudstack_user_apiKey, cloudstack_user_secretKey,instance_id)
@@ -256,12 +256,13 @@ def restore(cloudstack_user_apiKey,cloudstack_user_secretKey,instance_id,cloudst
     res=requests.get(Cloudstack_Down_url)
     print("request get result : ",res)
 
-    file = open(local_restore_image_Download_Path + template_name + '.qcow2', 'wb')
-    file.write(res.content)
-    file.close()
+    # file = open(local_restore_image_Download_Path + template_name + '.qcow2', 'wb')
+    # file.write(res.content)
+    # file.close()
+    file=res.content
     print("image file download response is", res)
 
-    openstackimageupload(template_name)
+    openstackimageupload(template_name,file)
 
     cloudstack_delete_VM(cloudstack_user_apiKey, cloudstack_user_secretKey, instance_id)
     cloudstack_delete_Template(cloudstack_user_apiKey, cloudstack_user_secretKey, template_id)
@@ -271,7 +272,7 @@ def restore(cloudstack_user_apiKey,cloudstack_user_secretKey,instance_id,cloudst
 
     #------------------------------------Openstack -------------------------------
 
-def openstackimageupload(template_name):
+def openstackimageupload(template_name,template_file):
     import openstack_controller as oc  # import는 여기 고정 -> 컴파일 시간에 circular import 때문에 걸려서
     openstack_hostIP = oc.hostIP
     admin_token = oc.admin_token()
@@ -298,10 +299,11 @@ def openstackimageupload(template_name):
     time.sleep(5)
 
     # file = open('C:/Users/PC/Desktop/os_image/backup/' + 'backup0903' + '.qcow2', 'rb')
-    file= open(local_restore_image_Download_Path + template_name + '.qcow2','rb')
-    contents=file.read()
-    imageData_put_payload =contents
-
+    # file= open(local_restore_image_Download_Path + template_name + '.qcow2','rb')
+    file=template_file
+    # contents=file.read()
+    # imageData_put_payload =contents
+    imageData_put_payload=file
     # put_req=req_checker.reqCheckerWithData("put", "http://" + openstack_hostIP + "/image/v2/images/"+imageid+"/file", admin_token,
     #                                             imageData_put_payload)
     put_req=requests.put("http://" + openstack_hostIP + "/image/v2/images/"+imageid+"/file",
@@ -309,8 +311,9 @@ def openstackimageupload(template_name):
     if put_req == None:
         raise requests.exceptions.Timeout
     print(put_req)
-    file.close()
+    # file.close()
 
 
-restore(cloudstack_user_apikey,cloudstack_user_secretkey,cloudstack_VM_id,"restore-selab")
+restore(cloudstack_user_apikey,cloudstack_user_secretkey,cloudstack_VM_id,"restore-bonghun")
 # openstackimageupload("restore-selab")
+# getVol_ID_of_VM(csc.admin_apiKey,csc.admin_secretKey,cloudstack_VM_id)
