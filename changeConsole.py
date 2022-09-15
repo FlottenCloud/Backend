@@ -43,18 +43,41 @@ def wait_until_cloudstack_VM_runnging(cloudstack_user_apiKey, cloudstack_user_se
 
 # 시작된 인스턴스의 콘솔 URL get
 def getCloudstack_Console_URL(cloudstack_user_apiKey, cloudstack_user_secretKey, instance_id):
-    request = {"vm": instance_id, "apiKey": cloudstack_user_apiKey, "response": "json", "cmd": "access"}
+    request = {"cmd": "access","vm": instance_id, "apiKey": cloudstack_user_apiKey, "response": "json"}
 
     try:
-        consoleURL_req = csc.requestThroughSig(cloudstack_user_secretKey, request)
-        print(consoleURL_req)
+
+        # consoleURL_req = csc.requestThroughSig(cloudstack_user_secretKey, request)
+        request_str = '&'.join(['='.join([k, urllib.parse.quote_plus(request[k])]) for k in request.keys()])
+        sig_str = '&'.join(
+            ['='.join([k.lower(), urllib.parse.quote_plus(request[k].lower().replace('+', '%20'))]) for k in
+             sorted(request)])
+        sig = hmac.new(cloudstack_user_secretKey.encode('utf-8'), sig_str.encode('utf-8'), hashlib.sha1)
+        sig = hmac.new(cloudstack_user_secretKey.encode('utf-8'), sig_str.encode('utf-8'), hashlib.sha1).digest()
+        sig = base64.encodebytes(hmac.new(cloudstack_user_secretKey.encode('utf-8'), sig_str.encode('utf-8'), hashlib.sha1).digest())
+        sig = base64.encodebytes(
+            hmac.new(cloudstack_user_secretKey.encode('utf-8'), sig_str.encode('utf-8'), hashlib.sha1).digest()).strip()
+        sig = urllib.parse.quote_plus(base64.encodebytes(
+            hmac.new(cloudstack_user_secretKey.encode('utf-8'), sig_str.encode('utf-8'), hashlib.sha1).digest()).strip())
+        req = "http://211.197.83.186:8080/client/console?" + request_str + '&signature=' + sig
+        print("클라우드 스택으로의 리퀘스트:", req)
+        urllib.request.urlcleanup()
+        res = urllib.request.urlopen(req)
+        response = res.read()
+
+        print("클라우드 스택에서의 리스폰스:", response)
+        # return response
+        print(response)
+        consoleURL_req=response
+        htmlData = BeautifulSoup(consoleURL_req, features="html.parser")
+        console_url_body = htmlData.html.frameset.frame['src']
+        console_url = "http:" + console_url_body
+        print("Console URL is : \n", console_url)
+        return console_url
     except Exception as e:
         print("에러 내용: ", e)
-    htmlData = BeautifulSoup(consoleURL_req, features="html.parser")
-    console_url_body = htmlData.html.frameset.frame['src']
-    console_url = "http:" + console_url_body
-    print("Console URL is : \n", console_url)
-    return console_url
+
+
 
 
 def webBrowser_open(url):
@@ -66,3 +89,5 @@ def change_to_cloudstack_console(cloudstack_user_apiKey, cloudstack_user_secretK
     wait_until_cloudstack_VM_runnging(cloudstack_user_apiKey, cloudstack_user_secretKey, instance_id)
     cloudstack_console_url = getCloudstack_Console_URL(cloudstack_user_apiKey, cloudstack_user_secretKey, instance_id)
     webBrowser_open(cloudstack_console_url)
+
+getCloudstack_Console_URL(restore.cloudstack_user_apikey,restore.cloudstack_user_secretkey,"00e0f316-5658-4c01-bca7-61e564f52bf3")
