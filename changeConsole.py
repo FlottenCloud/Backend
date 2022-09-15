@@ -73,6 +73,21 @@ def getCloudstack_Console_URL(cloudstack_user_apiKey, cloudstack_user_secretKey,
         console_url_body = htmlData.html.frameset.frame['src']
         console_url = "http:" + console_url_body
         print("Console URL is : \n", console_url)
+
+        split=console_url.split('/')
+        # print(split)
+
+
+        que=split[5].split('&')
+        que[1]="port=6060"
+        joinque="&".join(que)
+
+
+        # print(joinque)
+        externalIPwithPort=csc.hostIP.split(':')
+        externalIP=externalIPwithPort[0]
+        externalURL='http://'+externalIP+'/'+split[3]+'/'+split[4]+'/'+joinque
+        print("External URL is",externalURL)
         return console_url
     except Exception as e:
         print("에러 내용: ", e)
