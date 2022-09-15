@@ -14,7 +14,6 @@ from apscheduler.schedulers.background import BackgroundScheduler
 from django.core.files import File
 from django.http import JsonResponse
 from account.models import AccountInfo
-import openstack
 
 from openstack.models import OpenstackBackupImage, OpenstackInstance
 from cloudstack.models import CloudstackInstance
