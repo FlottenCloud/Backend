@@ -90,7 +90,6 @@ def getUserInfoByToken(user_token): # admin token과 웹으로부터 request hea
     if admin_token_value == None:
         return None
     
-    # Openstack keystone API를 통한 token 발급
     try:
         auth_req = requests.get("http://" + hostIP + "/identity/v3/auth/tokens",
             headers={'X-Auth-Token': admin_token_value,
@@ -103,12 +102,13 @@ def getUserInfoByToken(user_token): # admin token과 웹으로부터 request hea
 
 def getUserID(user_token):  # admin token과 user token을 통해 반환받은 유저의 정보 중 user_id를 추출해내는 함수
     user_id_get = getUserInfoByToken(user_token)
-    if user_id_get.status_code == 404:
-        raise TokenExpiredError
-
+    
     if user_id_get == None:
         return None
-
+    
+    if user_id_get.status_code == 401:
+        raise TokenExpiredError
+    
     user_id = user_id_get.json()["token"]["user"]["name"]
 
     return user_id

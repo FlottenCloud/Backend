@@ -8,6 +8,8 @@ class AccountInfo(models.Model):
     user_id = models.CharField(max_length=50, primary_key=True)
     email = models.EmailField(max_length=50)
     password = models.CharField(max_length=100)
+    first_name = models.CharField(max_length=10)
+    last_name = models.CharField(max_length=10)
     openstack_user_id = models.CharField(max_length=100)
     openstack_user_project_id = models.CharField(max_length=100)
     cloudstack_account_id = models.CharField(max_length=100)

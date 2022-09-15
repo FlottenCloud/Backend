@@ -14,7 +14,8 @@ from django.views import View
 from django.http import JsonResponse
 from rest_framework.views import APIView
 from drf_yasg.utils       import swagger_auto_schema
-from .serializers import UserDeleteSerializer, UserRegisterSerializer, UserSignInSerializer
+from drf_yasg             import openapi
+from .serializers import UserRegisterSerializer, UserSignInSerializer   # UserDeleteSerializer, UserInfoSeializer
 
 openstack_hostIP = oc.hostIP
 openstack_admin_project_id = oc.admin_project_id
@@ -30,10 +31,31 @@ cloudstack_zoneID = csc.zoneID
 cloudstack_domainID = csc.domainID
 
 
+openstack_user_token = openapi.Parameter(   # for django swagger
+    "X-Auth-Token",
+    openapi.IN_HEADER,
+    description = "access_token",
+    type = openapi.TYPE_STRING
+)
+cloudstack_user_apiKey = openapi.Parameter(   # for django swagger
+    "apiKey",
+    openapi.IN_HEADER,
+    description = "user's cloudstack apiKey",
+    type = openapi.TYPE_STRING
+)
+cloudstack_user_secretKey = openapi.Parameter(   # for django swagger
+    "secretKey",
+    openapi.IN_HEADER,
+    description = "user's cloudstack secretKey",
+    type = openapi.TYPE_STRING
+)
+
 class AccountView(APIView):
-    @swagger_auto_schema(tags=["User Register API"], request_body=UserRegisterSerializer, responses={200:"Success", 404:"Not Found"})
+    @swagger_auto_schema(tags=["User API"], request_body=UserRegisterSerializer, responses={200:"Success", 404:"Not Found", 409:"Confilict"})
     def post(self, cloudstack_account_make_req_body):
         input_data = json.loads(cloudstack_account_make_req_body.body)
+        if AccountInfo.objects.filter(user_id=input_data["user_id"]).exists():
+            return JsonResponse({"message" : "이미 존재하는 ID입니다."}, status=409)
         #------openstack user create------#
         admin_token = oc.admin_token()
         if admin_token == None:
@@ -134,9 +156,11 @@ class AccountView(APIView):
 
         #장고 ORM 업데이트
         AccountInfo.objects.create(
-            user_id = input_data['user_id'],
-            email = input_data['email'],
-            password = input_data['password'],
+            user_id = input_data["user_id"],
+            email = input_data["email"],
+            password = input_data["password"],
+            first_name = input_data["first_name"],
+            last_name = input_data["last_name"],
             openstack_user_id = openstack_created_user_id,
             openstack_user_project_id = openstack_user_project_id,
             cloudstack_account_id = cloudstack_created_account_id,
@@ -151,40 +175,48 @@ class AccountView(APIView):
 
         return user_network_create_req
 
-    @swagger_auto_schema(tags=["User Info Get API"], responses={200:"Success"})
-    def get(self, request):                                   # 이건 아직 안썼는데 일단 나중에 제대로 수정할 것  -> token 통신으로.
-        input_data = json.loads(request.body)
-        admin_token = oc.admin_token()
-        if admin_token == None:
-            return JsonResponse({"message" : "오픈스택 관리자 토큰을 받아올 수 없습니다."})
+    @swagger_auto_schema(tags=["User API"], manual_parameters=[openstack_user_token, cloudstack_user_apiKey, cloudstack_user_secretKey], responses={200:"Success"})
+    def get(self, request):                                   # 리퀘스트 헤더 중에 apiKey, secretKey는 무조건 오니까 apiKey로 유저 정보 get
+        try:
+            user_token = request.header["X-Auth-Token"]
+        except Exception as e:
+            print("오픈스택 서버 에러, 오픈스택 유저 토큰 없음. 에러 내용: ", e)
+            pass
+        user_apiKey = request.headers["apiKey"]
+        user_secretKey = request.headers["secretKey"]
         
-        #Account_data = Account_info.objects.values()
-        get_user_id = input_data["user_id"]
-        Account_data_user_id = AccountInfo.objects.get(user_id = get_user_id)
-        openstack_user_id = Account_data_user_id.openstack_user_id
-        user_res = requests.get("http://" + openstack_hostIP + "/identity/v3/users/" + openstack_user_id,
-            headers={'X-Auth-Token': admin_token})
-        print(user_res.json())
+        user_info_object = AccountInfo.objects.get(cloudstack_apiKey=user_apiKey)
+        user_id = user_info_object.user_id
+        user_email = user_info_object.email
+        user_first_name = user_info_object.first_name
+        user_last_name = user_info_object.last_name
+        
+        return JsonResponse({"user_id" : user_id, "email" : user_email, "first_name" : user_first_name, "last_name" : user_last_name}, status=200)
 
-        return JsonResponse({'account_info': user_res.json()}, status=200)
-
-    @swagger_auto_schema(tags=["User Delete API"], request_body=UserDeleteSerializer, responses={200:"Success"})
+    @swagger_auto_schema(tags=["User API"], manual_parameters=[openstack_user_token, cloudstack_user_apiKey, cloudstack_user_secretKey], responses={200:"Success", 404:"Not Found"})
     def delete(self, request):  #그냥 api로 db랑 오픈스택에 유저 쌓인 거 정리하기 쉬우려고 만들었음. 후에 탈퇴기능 이용하려면 구현 제대로 할 것.
-        input_data = json.loads(request.body)
+        try:
+            user_token = request.header["X-Auth-Token"]
+        except Exception as e:
+            print("오픈스택 서버 에러, 오픈스택 유저 토큰 없음. 에러 내용: ", e)
+            pass
+        user_apiKey = request.headers["apiKey"]
+        user_secretKey = request.headers["secretKey"]
         #------openstack account delete------#
         admin_token = oc.admin_token()
         if admin_token == None:
-            return JsonResponse({"message" : "오픈스택 관리자 토큰을 받아올 수 없습니다."})
-        del_user_id = input_data["user_id"]
-        account_data = AccountInfo.objects.get(user_id = del_user_id)  #db에서 삭제할 유저 정보
+            return JsonResponse({"message" : "오픈스택 관리자 토큰을 받아올 수 없습니다."}, status=404)
+        
+        # del_user_id = AccountInfo.objects.get(input_data["user_id"]
+        account_data_object = AccountInfo.objects.get(cloudstack_apiKey=user_apiKey)  #db에서 삭제할 유저 정보
         # print(account_data)
-        del_project_id_openstack = account_data.openstack_user_project_id
-        del_user_id_openstack = account_data.openstack_user_id  #해당 유저의 openstack user id
+        del_project_id_openstack = account_data_object.openstack_user_project_id
+        del_user_id_openstack = account_data_object.openstack_user_id  #해당 유저의 openstack user id
         # print(del_project_id_openstack)
         # print(del_user_id_openstack)
-        del_account_id_cloudstack = account_data.cloudstack_account_id
+        del_account_id_cloudstack = account_data_object.cloudstack_account_id
         # print(del_user_id_cloudstack)
-        user_resource = account_data.user_resource_info.all()   #해당 유저의 stack 정보(from 외래키 related name)
+        user_resource = account_data_object.user_resource_info.all()   #해당 유저의 stack 정보(from 외래키 related name)
 
         for resource in user_resource:  # 오픈스택에서 user의 stack 모두 삭제
             stack_del_req = requests.delete("http://" + openstack_hostIP + "/heat-api/v1/" + del_project_id_openstack + "/stacks/"
@@ -200,7 +232,7 @@ class AccountView(APIView):
             headers={'X-Auth-Token': admin_token})     #오픈스택에 해당 프로젝트 삭제 request
         openstack_user_del_req = requests.delete("http://" + openstack_hostIP + "/identity/v3/users/" + del_user_id_openstack,
             headers={'X-Auth-Token': admin_token})     #오픈스택에 해당 유저 삭제 request
-        print(openstack_user_del_req)
+        print("오픈스택 유저 프로젝트 삭제 리스폰스 :", openstack_project_del_req, " 오픈스택 유저 삭제 리스폰스: ", openstack_user_del_req)
 
         #------cloudstack account delete------#
         cloudstack_account_del_body={     # cloudstack account 삭제 request body
@@ -211,14 +243,14 @@ class AccountView(APIView):
         }
         cloudstack_account_del_req = csc.requestThroughSig(cloudstack_admin_secretKey, cloudstack_account_del_body)
         cloudstack_account_del_res = json.loads(cloudstack_account_del_req)
-        print(cloudstack_account_del_res)
+        print("클라우드스택 유저 삭제 리스폰스: ", cloudstack_account_del_res)
 
-        account_data.delete()   # DB에서 사용자 정보 삭제
+        account_data_object.delete()   # DB에서 사용자 정보 삭제
 
         return JsonResponse({"message" : "회원탈퇴가 완료되었습니다."}, status=200)
 
 class SignView(APIView):
-    @swagger_auto_schema(tags=["User SignIn API"], request_body=UserSignInSerializer, responses={200:"Success", 400:"Bad Request", 401:"Not Allowed"})
+    @swagger_auto_schema(tags=["User SignIn API"], request_body=UserSignInSerializer, responses={200:"Success", 206:"Partial Content", 400:"Bad Request", 401:"Not Allowed"})
     def post(self, request):
         input_data = json.loads(request.body)
         # 사용자의 openstack 정보
@@ -230,12 +262,9 @@ class SignView(APIView):
                 if user.password == input_data['password']:
                     openstack_user_token = oc.user_token(input_data)
                     if openstack_user_token == None:
-                        return JsonResponse({"apiKey" : apiKey, "secretKey" : secretKey}, status=200)
+                        return JsonResponse({"apiKey" : apiKey, "secretKey" : secretKey}, status=206)
                     #hash token 해줄 것
-                    response = JsonResponse(
-                        {"openstack_user_token" : openstack_user_token, "apiKey" : apiKey, "secretKey" : secretKey}, status=200
-                    )
-
+                    response = JsonResponse({"openstack_user_token" : openstack_user_token, "apiKey" : apiKey, "secretKey" : secretKey}, status=200)
                     response['Access-Control-Allow-Origin'] = '*'
                     return response
 
