@@ -13,7 +13,7 @@ import openstack.updater
 from openstack.openstack_modules import RequestChecker
 
 #TODO
-
+#Account bonghun- bonghun 유저의 key들
 cloudstack_user_apikey="6PCI_7tutY5ls8NDWJSMjLCTD8-4nW49gLN-AcZsGUz2HAFh5i4NWbc7ASq2e2A5rWOVTwPQGYJ9mUh71-w4WQ"
 cloudstack_user_secretkey="lF2rBUXhs4tY7JcuGq7XJDFTC-7EPy714KE2NiFnHtDkH1obBilOyUcqW8VPy0GTkSdlfUvxZVZQD4jInQCrXg"
 local_restore_image_Download_Path='E:/OneDrive/OneDrive - pusan.ac.kr/google backup/google_학부연구생/SELAB/'
