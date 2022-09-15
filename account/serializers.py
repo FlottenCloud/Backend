@@ -16,8 +16,8 @@ class UserRegisterSerializer(serializers.Serializer):
 #     first_name = serializers.CharField(help_text="User's first name")
 #     last_name = serializers.CharField(help_text="User's last name")
 
-class UserDeleteSerializer(serializers.Serializer):
-    user_id = serializers.CharField(help_text="User's ID")
+# class UserDeleteSerializer(serializers.Serializer):
+#     user_id = serializers.CharField(help_text="User's ID")
 
 class UserSignInSerializer(serializers.Serializer):
     user_id = serializers.CharField(help_text="User's ID")
