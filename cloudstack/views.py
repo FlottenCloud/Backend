@@ -120,8 +120,12 @@ class InstanceConsole(APIView):
         console_url_body = htmlData.html.frameset.frame['src']
         console_URL = "http:" + console_url_body
         console_URL_split = console_URL.split("/")
-        console_URL_split[2] = "211.197.83.186"
-        console_URL = "/".join(console_URL_split)
+        port = console_URL_split[5].split("&")
+        port[1] = "port=6060"
+        port_join = "&".join(port)
+        externalIPwithPort=csc.hostIP.split(":")
+        externalIP=externalIPwithPort[0]
+        console_URL = "http://" + externalIP + "/" + console_URL_split[3] + "/" + console_URL_split[4] + "/" + port_join
         print("Console URL is : " + console_URL)
 
         
