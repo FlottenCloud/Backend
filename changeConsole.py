@@ -88,7 +88,7 @@ def getCloudstack_Console_URL(cloudstack_user_apiKey, cloudstack_user_secretKey,
         externalIP=externalIPwithPort[0]
         externalURL='http://'+externalIP+'/'+split[3]+'/'+split[4]+'/'+joinque
         print("External URL is",externalURL)
-        return console_url
+        return externalURL
     except Exception as e:
         print("에러 내용: ", e)
 
@@ -105,4 +105,4 @@ def change_to_cloudstack_console(cloudstack_user_apiKey, cloudstack_user_secretK
     cloudstack_console_url = getCloudstack_Console_URL(cloudstack_user_apiKey, cloudstack_user_secretKey, instance_id)
     webBrowser_open(cloudstack_console_url)
 
-getCloudstack_Console_URL(restore.cloudstack_user_apikey,restore.cloudstack_user_secretkey,"00e0f316-5658-4c01-bca7-61e564f52bf3")
+getCloudstack_Console_URL(restore.cloudstack_user_apikey,restore.cloudstack_user_secretkey,"e3cb8216-8bac-42c6-be82-d81b56090cde")
