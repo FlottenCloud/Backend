@@ -21,8 +21,8 @@ netOfferingID_L2VLAN = "f96cc504-5219-4e88-a779-f74b96caf997"   #"531f8f15-82c1-
 zoneID = "5d8ba90e-a169-43d8-8742-036e795d2ccb"       #"d4459ac7-c548-401e-a526-8ed1aad2ed54"
 domainID = "a3ac1371-34ed-11ed-914c-0800270aea06"     #"93e67a39-fdca-11ec-a9c1-08002765d220"
 hostID = "ea25001b-9ca9-4c6c-9d83-af8170ca04c9"   #"43428506-a50d-4ffe-a7c8-997ff548b464"
-small_offeringID = "2866ead4-8cc9-413d-a43a-08e818dfe7eb"     #"63fe8390-1f96-4a51-97a2-ffc55161fcad"
-medium_offeringID = "ce7d7d5c-d343-4ef5-82e0-a45fd70f8c8a"        #"979e5e2c-1de0-4655-b3aa-5ec1bf3907d6"
+small_offeringID = "2b34c091-d777-4d78-9854-4782016a63d8"     #"63fe8390-1f96-4a51-97a2-ffc55161fcad"
+medium_offeringID = "70435612-6eb8-4170-ad05-9160341fb8b9"        #"979e5e2c-1de0-4655-b3aa-5ec1bf3907d6"
 
 def requestThroughSig(secretKey, request_body):
     request_str = '&'.join(['='.join([k, urllib.parse.quote_plus(request_body[k])]) for k in request_body.keys()])

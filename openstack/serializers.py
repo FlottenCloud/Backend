@@ -7,14 +7,15 @@ from .models import OpenstackInstance, OpenstackBackupImage
 class OpenstackInstanceSerializer(serializers.ModelSerializer):
     class Meta:
         model = OpenstackInstance
-        fields = ["user_id", "stack_id", "stack_name", "instance_id", "instance_name", "ip_address", "status", 
-        "image_name", "flavor_name", "ram_size", "disk_size", "num_cpu", "backup_time", "os"]
+        fields = ["user_id", "instance_pk", "stack_id", "stack_name", "instance_id", "instance_name", "ip_address", "status", 
+        "image_name", "flavor_name", "ram_size", "num_people", "expected_data_size", "disk_size", "num_cpu", "package", "backup_time", "os"]
 
     def create(self, validated_data):
         return OpenstackInstance.objects.create(**validated_data)
 
     def update(self, instance, validated_data):
         instance.user_id = validated_data.get("user_id", instance.user_id)
+        instance.instance_pk = validated_data.get("instance_pk", instance.instance_pk)
         instance.stack_id = validated_data.get("stack_id", instance.stack_id)
         instance.stack_name = validated_data.get("stack_name", instance.stack_name)
         instance.instance_id = validated_data.get("instance_id", instance.instance_id)
@@ -24,8 +25,11 @@ class OpenstackInstanceSerializer(serializers.ModelSerializer):
         instance.image_name = validated_data.get("instance_image_name", instance.instance_image_name)
         instance.flavor_name = validated_data.get("flavor_name", instance.flavor_name)
         instance.ram_size = validated_data.get("ram_size", instance.ram_size)
+        instance.num_people = validated_data.get("num_people", instance.num_people)
+        instance.expected_data_size = validated_data.get("expected_data_size", instance.expected_data_size)
         instance.disk_size = validated_data.get("disk_size", instance.disk_size)
         instance.num_cpu = validated_data.get("num_cpu", instance.num_cpu)
+        instance.package = validated_data.get("package", instance.package)
         instance.backup_time = validated_data.get("backup_time", instance.backup_time)
         instance.os = validated_data.get("os", instance.os)
         instance.save()
@@ -38,12 +42,13 @@ class OpenstackInstanceSerializer(serializers.ModelSerializer):
 class OpenstackBackupImageSerializer(serializers.ModelSerializer):
     class Meta:
         model = OpenstackBackupImage
-        fields = ["instance_id", "image_id", "image_url", "instance_img_file"]
+        fields = ["instance_pk", "instance_id", "image_id", "image_url", "instance_img_file"]
 
     def create(self, validated_data):
         return OpenstackBackupImage.objects.create(**validated_data)
 
     def update(self, instance, validated_data):
+        instance.instance_pk = validated_data.get("instacne_pk", instance.instance_pk)
         instance.instance_id = validated_data.get("instance_id", instance.instance_id)
         instance.image_id = validated_data.get("image_id", instance.image_id)
         instance.image_url = validated_data.get("image_url", instance.image_url)
@@ -63,12 +68,12 @@ class CreateStackSerializer(serializers.Serializer):
     backup_time = serializers.IntegerField(help_text="Instance's backup time(6, 12) user want to set.", default=6)
 
 class UpdateStackSerializer(serializers.Serializer):
-    instance_id = serializers.CharField(help_text="Instance's ID want to control.")
+    instance_pk = serializers.IntegerField(help_text="Instance's pk want to control.")
     package = serializers.ListField(help_text="Package(apache2, default-jdk, ftp, libguestfs-tools, net-tools, pastebinit, pwgen, vim) user want to install. User can choice nothing.", default=[])
     num_people = serializers.IntegerField(help_text="Number of people that might work with user.", default=1)
     data_size = serializers.IntegerField(help_text="Data size that one participant might use(GB).", default=1)
     backup_time = serializers.IntegerField(help_text="Instance's backup time(6, 12) user want to set.", default=6)
 
 
-class InstanceIDSerializer(serializers.Serializer):
-    instance_id = serializers.CharField(help_text="Instance's ID want to control.")
+class InstancePKSerializer(serializers.Serializer):
+    instance_pk = serializers.IntegerField(help_text="Instance's pk want to control.")

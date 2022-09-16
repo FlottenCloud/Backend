@@ -28,7 +28,7 @@ class TemplateModifier:
             
         backup_time = input_data["backup_time"]
 
-        return user_os, user_package, flavor, user_instance_name, backup_time
+        return user_os, user_package, input_data["num_people"], input_data["data_size"], flavor, user_instance_name, backup_time
 
     def getUserUpdateRequirement(self, input_data):
         # user_os = input_data["os"]
@@ -45,7 +45,7 @@ class TemplateModifier:
         # user_instance_name = input_data["instance_name"]
         backup_time = input_data["backup_time"]
 
-        return user_package, flavor, backup_time, # user_os, user_instance_name
+        return user_package, input_data["num_people"], input_data["data_size"], flavor, backup_time, # user_os, user_instance_name
 
     def templateModify(self, template, user_id, user_instance_name, flavor, user_package):
         template_data = template
@@ -228,10 +228,10 @@ class Stack(RequestChecker):
 
 class Instance:    # 인스턴스 요청에 대한 공통 요소 클래스
     def checkDataBaseInstanceID(self, input_data):  # DB에서 Instance의 ID를 가져 오는 함수(request를 통해 받은 instance_id가 DB에 존재하는지 유효성 검증을 위해 존재)
-        instance_id = input_data["instance_id"]
+        instance_pk = input_data["instance_pk"]
         try:
-            instance_id = OpenstackInstance.objects.get(instance_id=instance_id).instance_id    # DB에 request로 받은 instance_id와 일치하는 instance_id가 있으면 instance_id 반환
+            instance_pk = OpenstackInstance.objects.get(instance_pk=instance_pk).instance_pk    # DB에 request로 받은 instance_id와 일치하는 instance_id가 있으면 instance_id 반환
         except :
             return None # DB에 일치하는 instance_id가 없으면 None(NULL) 반환
 
-        return instance_id
+        return instance_pk

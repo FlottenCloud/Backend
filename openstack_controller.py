@@ -10,9 +10,9 @@ from django.http import JsonResponse
 # from openstack.models import OpenstackInstance
 
 hostIP = "119.198.160.6"    #김영후 집 데스크탑 공인 ip
-admin_project_id = "33cba7ea48164446b6525331a99b985a" #김영후 데탑에 깔린 오픈스택 서버의 id들
-admins_group_id = "3959c189d2bb4c5b8c9c938570e6087b"
-admin_role_id = "f31482c34945485296c616c36c1fc2cb"
+admin_project_id = "d53fb5a324c64105b7a300070faf5a80" #김영후 데탑에 깔린 오픈스택 서버의 id들
+admins_group_id = "b9f393e267854d5a9e6fc867f4cb43e7"
+admin_role_id = "433518ba149f4a9fa7dce1cb4184e56c"
 
 class TokenExpiredError(Exception):
     def __init__(self):

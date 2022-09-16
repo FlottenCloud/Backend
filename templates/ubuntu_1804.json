@@ -71,7 +71,7 @@
             "server_floating_ip": {
                 "type": "OS::Neutron::FloatingIP",
                 "properties": {
-					"floating_network_id": "693fe997-36b7-475d-adb7-d14eb649c450",
+					"floating_network_id": "e1fad978-c5d0-462d-b4b5-5b3827d36390",
 					"port_id": {
 						"get_resource": "mybox_management_port"
 					}
@@ -127,7 +127,7 @@
                     "router_id": {
                         "get_resource": "router"
                     },
-                    "network_id": "693fe997-36b7-475d-adb7-d14eb649c450"
+                    "network_id": "e1fad978-c5d0-462d-b4b5-5b3827d36390"
                 }
             },
             "router_interface": {

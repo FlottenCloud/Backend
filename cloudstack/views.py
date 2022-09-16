@@ -76,7 +76,7 @@ class InstanceStart(APIView):
     def post(self, request):    # header: apiKey, secretKey, body: instance_id
         apiKey = request.headers["apiKey"]
         secretKey = request.headers["secretKey"]
-        start_instance_id = json.loads(request.body)["instance_id"]
+        start_instance_id = json.loads(request.body)["instance_pk"]
         if start_instance_id == None :
             return JsonResponse({"message" : "인스턴스를 찾을 수 없습니다."}, status=404)
 
@@ -93,7 +93,7 @@ class InstanceStop(APIView):
     def post(self, request):    # header: apiKey, secretKey, body: instance_id
         apiKey = request.headers["apiKey"]
         secretKey = request.headers["secretKey"]
-        stop_instance_id = json.loads(request.body)["instance_id"]
+        stop_instance_id = json.loads(request.body)["instance_pk"]
         if stop_instance_id == None :
             return JsonResponse({"message" : "인스턴스를 찾을 수 없습니다."}, status=404)
 
@@ -110,7 +110,7 @@ class InstanceConsole(APIView):
         baseURL = "http://211.197.83.186:8080/client/console?" #"http://172.30.1.29:8080/client/console?"   #다른 메소드들과 달리 마지막 api? 가 아닌 console?이다.
         user_apiKey = request.headers["apiKey"]
         user_secretKey = request.headers["secretKey"]
-        instance_id = json.loads(request.body)["instance_id"]
+        instance_id = json.loads(request.body)["instance_pk"]
         if instance_id == None :
             return JsonResponse({"message" : "인스턴스를 찾을 수 없습니다."}, status=404)
 
@@ -119,6 +119,10 @@ class InstanceConsole(APIView):
         htmlData = BeautifulSoup(console_URL_req, features="html.parser")
         console_url_body = htmlData.html.frameset.frame['src']
         console_URL = "http:" + console_url_body
+        console_URL_split = console_URL.split("/")
+        console_URL_split[2] = "211.197.83.186"
+        console_URL = "/".join(console_URL_split)
         print("Console URL is : " + console_URL)
+
         
         return JsonResponse({"instance_url": console_URL}, status=200)

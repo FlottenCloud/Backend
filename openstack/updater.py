@@ -332,6 +332,7 @@ def backup(cycle):
 
         for instance in backup_instance_list:
             print("인스턴스 오브젝트: ", instance)
+            backup_instance_pk = instance.instance_pk
             backup_instance_id = instance.instance_id
             backup_instance_name = instance.instance_name
             backup_instance_os_type = instance.os
@@ -384,6 +385,7 @@ def backup(cycle):
             backup_img_file_name = backup_instance_id + ".qcow2"
             backup_img_file_to_db = open(backup_instance_id + ".qcow2", "rb")
             backup_image_data = {
+                "instance_pk" : backup_instance_pk,     # 여기서 에러 터지면 instance 객체로 넣어주기
                 "instance_id" : backup_instance_id,
                 "image_id" : instance_image_ID,
                 "image_url" : instance_image_URL,
@@ -517,9 +519,12 @@ def errorCheckRestoreInOpenstack():
         instance_name_for_restore = error_instance.instance_name
         stack_id_for_del = error_instance.stack_id
         stack_name_for_del = error_instance.stack_name
+        instance_num_people_for_restore = error_instance.num_people
+        instance_expected_data_size_for_restore = error_instance.expected_data_size
         instance_flavor_for_restore = error_instance.flavor_name
         instance_update_image_id_for_del = error_instance.update_image_ID
         instance_os_for_restore = error_instance.os
+        instance_package_for_restore = error_instance.package
         instance_backup_time_for_restore = error_instance.backup_time
         print("복구할 인스턴스의 정보: ", instance_id_for_restore, instance_name_for_restore, instance_flavor_for_restore, instance_os_for_restore)
         tenant_id_for_restore = error_instance.user_id.openstack_user_project_id  # 유저 project id
@@ -534,11 +539,11 @@ def errorCheckRestoreInOpenstack():
         time.sleep(5)
         #-------스택 복구 시작-------#
         if instance_os_for_restore == "ubuntu":
-            with open("templates/ubuntu_1804.json", "r") as f:   # 아직 템플릿 구현 안됨
+            with open("templates/ubuntu_1804.json", "r") as f:
                     json_template_skeleton = json.load(f)
                     json_template = template_modifier.templateModifyWhenRestore(image_name_for_restore, json_template_skeleton, user_id, instance_name_for_restore, instance_flavor_for_restore)
         elif instance_os_for_restore == "centos":
-            with open("templates/cirros.json", "r") as f:    #일단 이거랑
+            with open("templates/cirros.json", "r") as f:   # 아직 이미지 안올려놓음
                     json_template_skeleton = json.load(f)
                     json_template = template_modifier.templateModifyWhenRestore(image_name_for_restore, json_template_skeleton, user_id, instance_name_for_restore, instance_flavor_for_restore)
         elif instance_os_for_restore == "fedora":
@@ -576,8 +581,11 @@ def errorCheckRestoreInOpenstack():
             "image_name" : instance_image_name,
             "flavor_name" : instance_flavor_name,
             "ram_size" : instance_ram_size,
+            "num_peple" : instance_num_people_for_restore,
+            "expected_data_size" : instance_expected_data_size_for_restore,
             "disk_size" : instance_disk_size,
             "num_cpu" : instance_num_cpu,
+            "package" : instance_package_for_restore,
             "backup_time" : instance_backup_time_for_restore,
             "os" : instance_os_for_restore
         }
@@ -607,9 +615,9 @@ def backup12():
     
 
 def deleter():
-    AccountInfo.objects.all().delete()
-    OpenstackInstance.objects.all().delete()
-    OpenstackBackupImage.objects.all().delete()
+    # AccountInfo.objects.all().delete()
+    # OpenstackInstance.objects.all().delete()
+    # OpenstackBackupImage.objects.all().delete()
     CloudstackInstance.objects.all().delete()
     print("all-deleted")
 
@@ -620,7 +628,7 @@ def start():
     # scheduler.add_job(backup6, 'interval', seconds=30)
     # scheduler.add_job(backup12, 'interval', seconds=120)
     # scheduler.add_job(freezerBackup6, 'interval', seconds=60)
-    # scheduler.add_job(backup6, 'interval', seconds=20)
+    scheduler.add_job(backup6, 'interval', seconds=20)
     # scheduler.add_job(errorCheckRestoreInOpenstack, 'interval', seconds=10)
 
     scheduler.start()
