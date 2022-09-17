@@ -24,9 +24,6 @@
 					"name": "server_0526",
 					"flavor": {"get_param":"flavor"},
 					"image": {"get_param":"image"},
-					"key_name": {
-						"get_resource": "demo_key"
-					},
 					"networks": [
 						{
 							"port": {
@@ -48,13 +45,6 @@
 					}
 				}
 			},
-
-            "demo_key": {
-                "type": "OS::Nova::KeyPair",
-                "properties": {
-					"name": "testkey0324"
-                }
-            },
             "mybox_management_port": {
                 "type": "OS::Neutron::Port",
                 "properties": {
