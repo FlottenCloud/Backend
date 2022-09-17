@@ -163,7 +163,7 @@ class TemplateModifier:
 
 class Stack(RequestChecker, TemplateModifier):
     def stackResourceGetter(self, usage, openstack_hostIP, openstack_tenant_id, user_id, stack_name, stack_id, token):
-        time.sleep(3)
+        time.sleep(2)
         while(True):
             if usage == "update":
                 while(True):
@@ -191,12 +191,10 @@ class Stack(RequestChecker, TemplateModifier):
                 print("인스턴스 CREATE 완료")
                 break
             time.sleep(2)
-
         print("인스턴스 id: ", instance_id)
-
         time.sleep(1)
-        #인스턴스 정보 get, 여기서 image id, flavor id 받아와서 다시 get 요청해서 세부 정보 받아와야 함
-        instance_info_req = super().reqChecker("get", "http://" + openstack_hostIP + "/compute/v2.1/servers/" + instance_id, token)
+        
+        instance_info_req = super().reqChecker("get", "http://" + openstack_hostIP + "/compute/v2.1/servers/" + instance_id, token)     #인스턴스 정보 get, 여기서 image id, flavor id 받아와서 다시 get 요청해서 세부 정보 받아와야 함
         if instance_info_req == None:
             return None
         print("인스턴스 정보: ", instance_info_req.json())
@@ -262,11 +260,12 @@ class Stack(RequestChecker, TemplateModifier):
         # print("기존 스택의 템플릿 패키지: ", before_update_template_package)  # 원래 db에 저장 안돼있어서 요청해서 가져왔었는데, db에 저장해서 그럴 필요 없어짐. 일단은 놔둠.
         
         package_origin_plus_user_req = before_update_template_package + user_req_package    # 기존 패키지 + 유저의 요청 패키지
-        package_for_db = ""     # db에 저장할 패키지 목록 문자화
-        for i in range(len(package_origin_plus_user_req)):
-            package_for_db += package_origin_plus_user_req[i]
-            if i != len(package_origin_plus_user_req)-1:
-                package_for_db += ","
+        package_for_db = (",").join(package_origin_plus_user_req)   # db에 저장할 패키지 목록 문자화
+        # package_for_db = ""
+        # for i in range(len(package_origin_plus_user_req)):
+        #     package_for_db += package_origin_plus_user_req[i]
+        #     if i != len(package_origin_plus_user_req)-1:
+        #         package_for_db += ","
 
         openstack_img_payload = { # 인스턴스의 스냅샷 이미지 만들기위한 payload
             "createImage": {
@@ -324,7 +323,7 @@ class Stack(RequestChecker, TemplateModifier):
         
         return updated_instance_id, updated_instance_name, updated_instance_ip_address, updated_instance_status, updated_instance_image_name, updated_instance_flavor_name, updated_instance_ram_size, updated_disk_size, updated_num_cpu, package_for_db, updated_num_people,  updated_data_size, user_req_backup_time, snapshotID_for_update
     
-    def stackUpdaterWhenFreezerRestored(self, openstack_hostIP, input_data, token, user_id):    # feezer로 restore 됐을 경우(stack_id, stack_name 없음)
+    def stackUpdaterWhenFreezerRestored(self, openstack_hostIP, input_data, token, user_id):    # freezer로 restore 됐을 경우(stack_id, stack_name 없음)
         update_openstack_tenant_id = AccountInfo.objects.get(user_id=user_id).openstack_user_project_id
         stack_data = OpenstackInstance.objects.get(instance_pk=input_data["instance_pk"])
         instance_name = stack_data.instance_name
