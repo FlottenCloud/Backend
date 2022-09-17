@@ -6,6 +6,7 @@ import requests
 
 import cloudstack_controller
 import cloudstack_controller as csc
+import openstack_controller
 import openstack_controller as opc
 import time
 import json
@@ -189,8 +190,24 @@ def cloudstack_delete_Template(cloudstack_user_apiKey, cloudstack_user_secretKey
     response = csc.requestThroughSig(cloudstack_user_secretKey, request)
     return response
 
+
+
+
 #TODO : 시스템 DB에서 백업한 인스턴스의 user_api,secret key ,VM ID 가져오기.
 
+def openstackRecoveryCheck(cloudstack_user_apiKey,cloudstack_user_secretKey,instance_id,cloudstack_template_name):
+    #오픈스택 서버 정상화까지 계속 체크
+    while True:
+        #토큰 발급 함수를 사용하여 서버 상태 체크
+        response=openstack_controller.admin_token()
+        #TimeOut 발생시 계속 서버상태 체크
+        if response == None:
+            time.sleep(10)
+            pass
+        #오픈스택 서버가 정상화 되어 토큰 발급의 응답이 있을때는 restore 프로세스 수행 후 함수 종료
+        else:
+            res=restore(cloudstack_user_apiKey,cloudstack_user_secretKey,instance_id,cloudstack_template_name)
+            return res
 
 
 
