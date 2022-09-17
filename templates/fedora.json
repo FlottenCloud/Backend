@@ -24,9 +24,6 @@
 					"name": "fedora_instance",
 					"flavor": {"get_param":"flavor"},
 					"image": {"get_param":"image"},
-					"key_name": {
-						"get_resource": "demo_key"
-					},
 					"networks": [
 						{
 							"port": {
@@ -46,12 +43,6 @@
 					"cloud_config": {
                       "packages": {"get_param" : "packages"}
                     }
-				}
-			},
-			"demo_key": {
-				"type": "OS::Nova::KeyPair",
-				"properties": {
-					"name": "test-key"
 				}
 			},
 			"mybox_management_port": {
