@@ -61,22 +61,22 @@ class AccountView(APIView):
         if admin_token == None:
             return JsonResponse({"message" : "오픈스택 서버에 문제가 생겨 회원가입을 진행할 수 없습니다."}, status=404)
 
-        # 사용자 생성 전 사용자 이름의 프로젝트 생성
-        openstack_user_project_payload = {
-            "project": {
-                "domain_id" : "default",
-                "name": "project_of_" + input_data["user_id"],
-                "description": input_data["user_id"] + "'s project",
-                "enabled": True,
-            }
-        }
-        user_project_make_req = requests.post("http://" + openstack_hostIP + "/identity/v3/projects",
-            headers={'X-Auth-Token': admin_token},
-            data=json.dumps(openstack_user_project_payload))
-        print(user_project_make_req.json())
+        # # 사용자 생성 전 사용자 이름의 프로젝트 생성  # 유저 별 프로젝트 생성에서 어드민프로젝트 하나로 통합했으므로 필요없어짐
+        # openstack_user_project_payload = {
+        #     "project": {
+        #         "domain_id" : "default",
+        #         "name": "project_of_" + input_data["user_id"],
+        #         "description": input_data["user_id"] + "'s project",
+        #         "enabled": True,
+        #     }
+        # }
+        # user_project_make_req = requests.post("http://" + openstack_hostIP + "/identity/v3/projects",
+        #     headers={'X-Auth-Token': admin_token},
+        #     data=json.dumps(openstack_user_project_payload))
+        # print(user_project_make_req.json())
 
-        openstack_user_project_id = user_project_make_req.json()["project"]["id"]
-        print("project_ID : ", openstack_user_project_id)
+        # openstack_user_project_id = user_project_make_req.json()["project"]["id"]
+        # print("project_ID : ", openstack_user_project_id)
 
         # 사용자의 openstack 정보
         openstack_user_payload = {
@@ -84,21 +84,17 @@ class AccountView(APIView):
                 "name": input_data['user_id'],
                 "password": str(input_data['password']),
                 "email": input_data["email"],
-                "default_project_id": openstack_user_project_id
+                "default_project_id": oc.admin_project_id   # admin 프로젝트에 유저 생성
             }
         }
-        #openstack 사용자 생성
-        openstack_user_make_req = requests.post("http://" + openstack_hostIP + "/identity/v3/users",
+        openstack_user_make_req = requests.post("http://" + openstack_hostIP + "/identity/v3/users",    # openstack 사용자 생성
             headers={'X-Auth-Token': admin_token},
             data=json.dumps(openstack_user_payload))
-        print(openstack_user_make_req.json())
-        # openstack id 확인
-        openstack_created_user_id = openstack_user_make_req.json()["user"]["id"]
+        print(openstack_user_make_req.json())   # 유저 생성 response 출력
+        openstack_created_user_id = openstack_user_make_req.json()["user"]["id"]    # openstack user uuid 확인
         print(openstack_created_user_id)
-
-        #사용자에게 프로젝트 역할 부여
-        openstack_user_role_assignment_req = requests.put(
-            "http://" + openstack_hostIP + "/identity/v3/projects/" + openstack_user_project_id + "/users/" + openstack_created_user_id + "/roles/" + openstack_admin_role_id,
+        openstack_user_role_assignment_req = requests.put(          # 사용자에게 프로젝트 admin 역할 부여
+            "http://" + openstack_hostIP + "/identity/v3/projects/" + oc.admin_project_id + "/users/" + openstack_created_user_id + "/roles/" + openstack_admin_role_id,
             headers={'X-Auth-Token': admin_token})
         #생성된 사용자를 admins 그룹에 추가 # 일단 놔두기
         # group_res = requests.put(
@@ -162,7 +158,7 @@ class AccountView(APIView):
             first_name = input_data["first_name"],
             last_name = input_data["last_name"],
             openstack_user_id = openstack_created_user_id,
-            openstack_user_project_id = openstack_user_project_id,
+            openstack_user_project_id = openstack_admin_project_id,
             cloudstack_account_id = cloudstack_created_account_id,
             cloudstack_apiKey = user_apiKey,
             cloudstack_secretKey = user_secretKey,
