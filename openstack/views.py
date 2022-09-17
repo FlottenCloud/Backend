@@ -87,12 +87,11 @@ class Openstack(TemplateModifier, Stack, APIView):
                 print("예외 발생: ", e)
                 return JsonResponse({"message" : "오픈스택 서버에 문제가 생겨 생성된 스택의 정보를 불러올 수 없습니다."}, status=404)
             
-            package_for_db = ""
+            package_for_db = ""     # db에 패키지 목록 문자화해서 저장하는 로직
             for i in range(len(user_package)):
                 package_for_db += user_package[i]
                 if i != len(user_package)-1:
                     package_for_db += ","
-
             # db에 저장 할 인스턴스 정보
             instance_data = {
                 "user_id" : user_id,
@@ -113,10 +112,8 @@ class Openstack(TemplateModifier, Stack, APIView):
                 "backup_time" : backup_time,
                 "os" : user_os
             }
-
             #serializing을 통한 인스턴스 정보 db 저장
             serializer = OpenstackInstanceSerializer(data=instance_data)
-        
             if serializer.is_valid():
                 serializer.save()
                 print("saved")
@@ -125,7 +122,6 @@ class Openstack(TemplateModifier, Stack, APIView):
                 print("not saved")
                 print(serializer.errors)
         
-
         except oc.TokenExpiredError as e:
             print("Token Expired: ", e)
             return JsonResponse({"message" : str(e)}, status=401)
@@ -202,12 +198,11 @@ class Openstack(TemplateModifier, Stack, APIView):
 
             before_update_template_package = stack_environment_req.json()["parameters"]["packages"]
             print("기존 스택의 템플릿 패키지: ", before_update_template_package)
-            duplicated_package = list(set(before_update_template_package).intersection(user_req_package))
-            print("중복된 패키지: ", duplicated_package)
-            for package in duplicated_package :
-                user_req_package.remove(package)
-            print("요청 패키지에서 기존의 패키지를 뺀 패키지: ", user_req_package)
-            
+            # duplicated_package = list(set(before_update_template_package).intersection(user_req_package))
+            # print("중복된 패키지: ", duplicated_package)
+            # for package in duplicated_package :
+            #     user_req_package.remove(package)
+            # print("요청 패키지에서 기존의 패키지를 뺀 패키지: ", user_req_package)
             package_origin_plus_user_req = before_update_template_package + user_req_package    # 기존 패키지 + 유저의 요청 패키지
             package_for_db = ""     # db에 저장할 패키지 목록 문자화
             for i in range(len(package_origin_plus_user_req)):
