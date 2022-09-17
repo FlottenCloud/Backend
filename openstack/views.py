@@ -40,15 +40,11 @@ class Openstack(TemplateModifier, Stack, APIView):
             if user_id == None:
                 return JsonResponse({"message" : "오픈스택 서버에 문제가 생겼습니다."}, status=404)
 
-            # instance_num = OpenstackInstance.objects.filter(user_id=user_id).count() + 1  # 스택 생성 때 키페어 네임 주려고 했던 건데 필요없는 거 확인되면 지울 것
             user_os, user_package, num_people, data_size, flavor, user_instance_name, backup_time = super().getUserRequirement(input_data)
             if user_instance_name == "Duplicated":
                 return JsonResponse({"message": "이미 존재하는 가상머신 이름입니다."}, status=409)
             if flavor == "EXCEEDED":
                 return JsonResponse({"message" : "인원 수 X 인원 당 예상 용량 값은 10G를 넘지 못합니다."}, status=405)
-            # if backup_time != 6 and backup_time != 12:
-            #     return JsonResponse({"message" : "백업 주기는 6시간, 12시간 중에서만 선택할 수 있습니다."}, status=405)
-            
 
             openstack_tenant_id = account.models.AccountInfo.objects.get(user_id=user_id).openstack_user_project_id
             print("유저 프로젝트 id: ", openstack_tenant_id)

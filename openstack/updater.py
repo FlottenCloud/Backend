@@ -154,7 +154,7 @@ from openstack.openstack_modules import RequestChecker, Stack, TemplateModifier
 
 # ------------------------------Backup Part------------------------------ #
 
-def getTemplatestatus(admin_apiKey, admin_secretKey, template_name):
+def templateStatusGetter(admin_apiKey, admin_secretKey, template_name):
     import cloudstack_controller as csc
     
     request_body = {"apiKey" : admin_apiKey, "response" : "json", "command" : "listTemplates", "templatefilter" : "selfexecutable", "name" : template_name}
@@ -181,7 +181,7 @@ def templateIDgetter(admin_apiKey, admin_secretKey, template_name):
     
     return templateID
 
-def registerCloudstackTemplate(zoneID, template_name, backup_img_file_name, os_type_id):
+def registerCloudstackTemplate(zoneID, template_name, backup_img_file_name, os_type_id):    # 템플릿 등록 코드
     import cloudstack_controller as csc
     admin_apiKey = csc.admin_apiKey
     admin_secretKey = csc.admin_secretKey
@@ -192,11 +192,11 @@ def registerCloudstackTemplate(zoneID, template_name, backup_img_file_name, os_t
     template_register_req = csc.requestThroughSigForTemplateRegist(admin_secretKey, request_body)
     webbrowser.open(template_register_req)  # url 오픈으로 해결 안돼서 webbrowser로 open함
     
-    while True :
-        template_status = getTemplatestatus(admin_apiKey, admin_secretKey, template_name)
-        if template_status == "Download Complete":
+    while True :    # 템플릿 등록이 다 됐는지 체크
+        template_status = templateStatusGetter(admin_apiKey, admin_secretKey, template_name)
+        if template_status == "Download Complete":  # 등록이 다 됐을 경우
             break
-        else :
+        else :  # 등록이 다 안된 경우
             if template_status == "error" :
                 print("이미지 등록이 정상적으로 실행되지 않았습니다.")
                 break
@@ -225,22 +225,21 @@ def deployCloudstackInstance(user_id, user_apiKey, user_secretKey, instance_name
         os_type_id = "abc"
     else:   # fedora(openstack default)
         os_type_id = "26e61d3e-246f-4822-8a66-6a8b08806d7e"   #"8682cef8-a3f3-47a0-886d-87b9398469b3"
-    
-    backup_template_id = registerCloudstackTemplate(zoneID, template_name, backup_img_file_name, os_type_id)
-    
+    backup_template_id = registerCloudstackTemplate(zoneID, template_name, backup_img_file_name, os_type_id)    # 템플릿 등록 후 템플릿 id 받아옴
     instance_deploy_req_body = {"apiKey" : user_apiKey, "response" : "json", "command" : "deployVirtualMachine",
         "networkids" : cloudstack_user_network_id, "serviceofferingId" : medium_offeringID,
         'templateId': backup_template_id, "zoneId": zoneID,
         "displayname" : instance_name, "name" : instance_name, "domainid" : domainID,
         "account" : user_id, "hostid" : hostID, "startvm" : "false"
     }
-    try :
+    try :   # 클라우드스택 인스턴스 생성 시작
         print("인스턴스 생성 시작")
         instance_deploy_req = csc.requestThroughSig(user_secretKey, instance_deploy_req_body)
-    except Exception as e:
+    except Exception as e:  # 생성 실패 에러 체크용, 인스턴스 생성 로직만 제대로 돌면 필요없는 부분
         print("에러 내용: ", e)
+        return "인스턴스 생성 시 에러 발생"
     
-    while(True):    
+    while(True):        # 클라우드스택 인스턴스 생성됐는지 확인 및 생성된 인스턴스 정보 저장
         instance_info_req_body = {"apiKey" : user_apiKey, "response" : "json", "command" : "listVirtualMachines", "name" : instance_name}
         instance_info_req = csc.requestThroughSig(user_secretKey, instance_info_req_body)
         instance_info_res = json.loads(instance_info_req)
@@ -272,12 +271,11 @@ def deployCloudstackInstance(user_id, user_apiKey, user_secretKey, instance_name
         disk_size = created_instance_disk_size,
         num_cpu = created_instance_num_cpu
     )
-
     print("Created Instance " + backup_img_file_name + " to cloudstack")
 
     return backup_template_id, instance_deploy_req
 
-def deleteCloudstackInstanceAndTemplate(admin_apiKey, admin_secretKey, instance_id, template_id):
+def deleteCloudstackInstanceAndTemplate(admin_apiKey, admin_secretKey, instance_id, template_id):   # 이미 백업프로세스가 한 번이라도 진행됐을 경우 그 전에 존재하던 인스턴스, 템플릿 삭제 용
     import cloudstack_controller as csc
 
     instance_del_req_body = {"apiKey": admin_apiKey, "response": "json", "command": "expungeVirtualMachine",
@@ -293,8 +291,8 @@ def deleteCloudstackInstanceAndTemplate(admin_apiKey, admin_secretKey, instance_
     
     return instance_del_req, template_del_req
 
-
-def CloudstackInstanceDeleteAndCreate(user_id, cloudstack_user_apiKey, cloudstack_user_secretKey, backup_instance_name, cloudstack_user_network_id, backup_img_file_name, backup_instance_os_type):
+# 이미 백업프로세스가 한 번이라도 진행됐을 경우 클라우드스택 인스턴스, 그 인스턴스에 쓰인 템플릿 삭제 후 다시 템플릿 등록 및 인스턴스 생성
+def cloudstackInstanceDeleteAndCreate(user_id, cloudstack_user_apiKey, cloudstack_user_secretKey, backup_instance_name, cloudstack_user_network_id, backup_img_file_name, backup_instance_os_type):
     import cloudstack_controller as csc
     admin_apiKey = csc.admin_apiKey
     admin_secretKey = csc.admin_secretKey
@@ -303,10 +301,11 @@ def CloudstackInstanceDeleteAndCreate(user_id, cloudstack_user_apiKey, cloudstac
     del_instance_id = del_cloudstack_instance_info.instance_id
     del_template_id = del_cloudstack_instance_info.template_id
     
+    # 그 전에 생성됐던 백업본 삭제
     instance_del_req, template_del_req = deleteCloudstackInstanceAndTemplate(admin_apiKey, admin_secretKey, del_instance_id, del_template_id)
 
     # ---삭제하고 타이밍 얼마나 줄 지 생각해볼 것--- #
-
+    # 삭제 후 다시 템플릿 등록, 인스턴스 생성
     backup_template_id, instance_deploy_req = deployCloudstackInstance(user_id, cloudstack_user_apiKey, cloudstack_user_secretKey, backup_instance_name, cloudstack_user_network_id, backup_img_file_name, backup_instance_os_type)
 
     return backup_template_id, instance_deploy_req
@@ -404,8 +403,8 @@ def backup(cycle):
                     os.remove(backup_instance_id + ".qcow2")
 
                     #------cloudstack instance expunge, template delete & template register, instance deploy------#
-                    backup_template_id, instance_deploy_req = deployCloudstackInstance(user_id, cloudstack_user_apiKey, cloudstack_user_secretKey, backup_instance_name, cloudstack_user_network_id, backup_img_file_name, backup_instance_os_type)
-                    # backup_template_id, instance_deploy_req = CloudstackInstanceDeleteAndCreate(user_id, cloudstack_user_apiKey, cloudstack_user_secretKey, backup_instance_name, cloudstack_user_network_id, backup_img_file_name, backup_instance_os_type)
+                    # backup_template_id, instance_deploy_req = deployCloudstackInstance(user_id, cloudstack_user_apiKey, cloudstack_user_secretKey, backup_instance_name, cloudstack_user_network_id, backup_img_file_name, backup_instance_os_type)
+                    backup_template_id, instance_deploy_req = cloudstackInstanceDeleteAndCreate(user_id, cloudstack_user_apiKey, cloudstack_user_secretKey, backup_instance_name, cloudstack_user_network_id, backup_img_file_name, backup_instance_os_type)
                     
                 else:
                     print("Backup data not updated")
@@ -480,12 +479,12 @@ def deleteStackbeforeRestore(user_id, user_token, tenant_id_for_restore, stack_i
         print("스택 삭제 중")
         time.sleep(2)
     
-    try:
-        keypair_delete_req = req_checker.reqChecker("delete", "http://" + openstack_hostIP + "/compute/v2.1/os-keypairs/" + user_id + "_" + stack_name_for_del, user_token)
-        print("키페어 삭제 완료")
-    except Exception as e:
-        print("키페어 삭제 요청의 에러 내용: ", e, " 요청에 대한 리스폰스 상태 코드: ", keypair_delete_req.status_code)
-        pass
+    # try:      # 키페어 삭제 안됐을 경우를 위한 로직이었으나 키페어를 등록하지 않게 되었으므로 필요 없어짐. 일단은 주석처리
+    #     keypair_delete_req = req_checker.reqChecker("delete", "http://" + openstack_hostIP + "/compute/v2.1/os-keypairs/" + user_id + "_" + stack_name_for_del, user_token)
+    #     print("키페어 삭제 완료")
+    # except Exception as e:
+    #     print("키페어 삭제 요청의 에러 내용: ", e, " 요청에 대한 리스폰스 상태 코드: ", keypair_delete_req.status_code)
+    #     pass
         
     OpenstackInstance.objects.get(stack_id=stack_id_for_del).delete()
     
