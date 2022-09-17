@@ -2,79 +2,14 @@ import os      #여기서 부터
 import sys
 sys.path.append(os.path.dirname(os.path.abspath(os.path.dirname(__file__))))    #여기까지는 상위 디렉토리 모듈 import 하기 위한 코드
 
+import openstack_controller as oc
+from openstack_controller import OpenstackServerError, OverSizeError
 import json
 import requests
 import time
 from .models import OpenstackInstance
+from account.models import AccountInfo
 
-
-class TemplateModifier:
-    # 램, 디스크, 이미지, 네트워크 이름, 키페어 네임,
-    def getUserRequirement(self, input_data):
-        user_os = input_data["os"]
-        user_package = input_data["package"]
-        disk_size = round(input_data["num_people"] * input_data["data_size"])   # flavor select에 쓰일 값
-
-        if disk_size < 5:   # flavor select 로직
-            flavor = "ds512M"
-        elif 5 <= disk_size <= 10:
-            flavor = "ds1G"  # test한다고 tiny 준거임.
-        elif 10 < disk_size :
-            flavor = "EXCEEDED"
-
-        user_instance_name = input_data["instance_name"]
-        if OpenstackInstance.objects.filter(instance_name=user_instance_name).exists():
-            user_instance_name = "Duplicated"
-            
-        backup_time = input_data["backup_time"]
-
-        return user_os, user_package, input_data["num_people"], input_data["data_size"], flavor, user_instance_name, backup_time
-
-    def getUserUpdateRequirement(self, input_data):
-        # user_os = input_data["os"]
-        user_package = input_data["package"]
-        disk_size = round(input_data["num_people"] * input_data["data_size"])   # flavor select에 쓰일 값
-        
-        if disk_size < 5:   # flavor select 로직
-            flavor = "ds512M"
-        elif 5 <= disk_size <= 10:
-            flavor = "ds1G"  # test한다고 tiny 준거임.
-        elif 10 < disk_size :
-            flavor = "EXCEEDED"
-
-        # user_instance_name = input_data["instance_name"]
-        backup_time = input_data["backup_time"]
-
-        return user_package, input_data["num_people"], input_data["data_size"], flavor, backup_time, # user_os, user_instance_name
-
-    def templateModify(self, template, user_id, user_instance_name, flavor, user_package):
-        template_data = template
-        template_data["stack_name"] = str(user_instance_name)   # 스택 name 설정
-        template_data["template"]["resources"]["mybox"]["properties"]["name"] = str(user_instance_name) # 인스턴스 name 설정
-        # template_data["template"]["resources"]["demo_key"]["properties"]["name"] = user_id + "_" + user_instance_name  # 키페어 name 설정
-        template_data["template"]["resources"]["mynet"]["properties"]["name"] = user_id + "-net" + user_instance_name    # 네트워크 name 설정
-        template_data["template"]["resources"]["mysub_net"]["properties"]["name"] = user_id + "-subnet" + user_instance_name # sub네트워크 name 설정
-        template_data["template"]["resources"]["mysecurity_group"]["properties"]["name"] = user_id + "-security_group" + user_instance_name # 보안그룹 name 설정
-        template_data["parameters"]["flavor"] = flavor    # flavor 설정
-        template_data["parameters"]["packages"] = user_package    # package 설정
-        print(json.dumps(template_data))
-
-        return(json.dumps(template_data))
-    
-    def templateModifyWhenRestore(self, backup_img_name, template, user_id, user_instance_name, flavor):
-        template_data = template
-        template_data["stack_name"] = str(user_instance_name)   # 스택 name 설정
-        template_data["template"]["resources"]["mybox"]["properties"]["name"] = str(user_instance_name)# 인스턴스 name 설정
-        # template_data["template"]["resources"]["demo_key"]["properties"]["name"] = user_id + "_" + user_instance_name  # 키페어 name 설정
-        template_data["template"]["resources"]["mynet"]["properties"]["name"] = user_id + "-net" + user_instance_name    # 네트워크 name 설정
-        template_data["template"]["resources"]["mysub_net"]["properties"]["name"] = user_id + "-subnet" + user_instance_name # sub네트워크 name 설정
-        template_data["template"]["resources"]["mysecurity_group"]["properties"]["name"] = user_id + "-security_group" + user_instance_name # 보안그룹 name 설정
-        template_data["parameters"]["image"] = backup_img_name  # 백업해놓은 이미지로 img 설정
-        template_data["parameters"]["flavor"] = flavor    # flavor 설정
-        
-        print(json.dumps(template_data))
-
-        return(json.dumps(template_data))
 
 class RequestChecker:
     def reqCheckerWithData(self, method, req_url, req_header, req_data):
@@ -153,7 +88,80 @@ class RequestChecker:
             return None
 
 
-class Stack(RequestChecker):
+class TemplateModifier:
+    # 램, 디스크, 이미지, 네트워크 이름, 키페어 네임,
+    def getUserRequirement(self, input_data):
+        user_os = input_data["os"]
+        user_package = input_data["package"]
+        disk_size = round(input_data["num_people"] * input_data["data_size"])   # flavor select에 쓰일 값
+
+        if disk_size < 5:   # flavor select 로직
+            flavor = "ds512M"
+        elif 5 <= disk_size <= 10:
+            flavor = "ds1G"  # test한다고 tiny 준거임.
+        elif 10 < disk_size :
+            flavor = "EXCEEDED"
+
+        user_instance_name = input_data["instance_name"]
+        if OpenstackInstance.objects.filter(instance_name=user_instance_name).exists():
+            user_instance_name = "Duplicated"
+            
+        backup_time = input_data["backup_time"]
+
+        return user_os, user_package, input_data["num_people"], input_data["data_size"], flavor, user_instance_name, backup_time
+
+    def getUserUpdateRequirement(self, input_data):
+        # user_os = input_data["os"]
+        user_package = input_data["package"]
+        disk_size = round(input_data["num_people"] * input_data["data_size"])   # flavor select에 쓰일 값
+        
+        if disk_size < 5:   # flavor select 로직
+            flavor = "ds512M"
+        elif 5 <= disk_size <= 10:
+            flavor = "ds1G"  # test한다고 tiny 준거임.
+        elif 10 < disk_size :
+            flavor = "EXCEEDED"
+
+        # user_instance_name = input_data["instance_name"]
+        backup_time = input_data["backup_time"]
+
+        return user_package, input_data["num_people"], input_data["data_size"], flavor, backup_time, # user_os, user_instance_name
+
+    def templateModify(self, template, user_id, user_instance_name, flavor, user_package):
+        template_data = template
+        template_data["stack_name"] = str(user_instance_name)   # 스택 name 설정
+        template_data["template"]["resources"]["mybox"]["properties"]["name"] = str(user_instance_name) # 인스턴스 name 설정
+        # template_data["template"]["resources"]["demo_key"]["properties"]["name"] = user_id + "_" + user_instance_name  # 키페어 name 설정
+        template_data["template"]["resources"]["server_floating_ip"]["properties"]["floating_network_id"] = oc.public_network_id
+        template_data["template"]["resources"]["mynet"]["properties"]["name"] = user_id + "-net" + user_instance_name    # 네트워크 name 설정
+        template_data["template"]["resources"]["mysub_net"]["properties"]["name"] = user_id + "-subnet" + user_instance_name # sub네트워크 name 설정
+        template_data["template"]["resources"]["router_gateway"]["properties"]["network_id"] = oc.public_network_id
+        template_data["template"]["resources"]["mysecurity_group"]["properties"]["name"] = user_id + "-security_group" + user_instance_name # 보안그룹 name 설정
+        template_data["parameters"]["flavor"] = flavor    # flavor 설정
+        template_data["parameters"]["packages"] = user_package    # package 설정
+        print(json.dumps(template_data))
+
+        return(json.dumps(template_data))
+    
+    def templateModifyWhenRestore(self, backup_img_name, template, user_id, user_instance_name, flavor):
+        template_data = template
+        template_data["stack_name"] = str(user_instance_name)   # 스택 name 설정
+        template_data["template"]["resources"]["mybox"]["properties"]["name"] = str(user_instance_name)# 인스턴스 name 설정
+        # template_data["template"]["resources"]["demo_key"]["properties"]["name"] = user_id + "_" + user_instance_name  # 키페어 name 설정
+        template_data["template"]["resources"]["server_floating_ip"]["properties"]["floating_network_id"] = oc.public_network_id
+        template_data["template"]["resources"]["mynet"]["properties"]["name"] = user_id + "-net" + user_instance_name    # 네트워크 name 설정
+        template_data["template"]["resources"]["mysub_net"]["properties"]["name"] = user_id + "-subnet" + user_instance_name # sub네트워크 name 설정
+        template_data["template"]["resources"]["router_gateway"]["properties"]["network_id"] = oc.public_network_id
+        template_data["template"]["resources"]["mysecurity_group"]["properties"]["name"] = user_id + "-security_group" + user_instance_name # 보안그룹 name 설정
+        template_data["parameters"]["image"] = backup_img_name  # 백업해놓은 이미지로 img 설정
+        template_data["parameters"]["flavor"] = flavor    # flavor 설정
+        
+        print(json.dumps(template_data))
+
+        return(json.dumps(template_data))
+
+
+class Stack(RequestChecker, TemplateModifier):
     def stackResourceGetter(self, usage, openstack_hostIP, openstack_tenant_id, user_id, stack_name, stack_id, token):
         time.sleep(3)
         while(True):
@@ -224,6 +232,167 @@ class Stack(RequestChecker):
         print("CPU 개수: ", instance_num_cpu)
 
         return instance_id, instance_name, instance_ip_address, instance_status, instance_image_name, instance_flavor_name, instance_ram_size, instance_disk_size, instance_num_cpu
+
+    def stackUpdater(self, openstack_hostIP, input_data, token, user_id):    
+        update_openstack_tenant_id = AccountInfo.objects.get(user_id=user_id).openstack_user_project_id
+        stack_data = OpenstackInstance.objects.get(instance_pk=input_data["instance_pk"])
+        instance_id = stack_data.instance_id
+        update_stack_id = stack_data.stack_id
+        update_stack_name = stack_data.stack_name
+        flavor_before_update = stack_data.flavor_name   # 요구사항 변경에 따른 플레이버가 변경되는지 체크용
+        before_update_template_package = stack_data.package.split(",")
+        image_used_for_update = stack_data.update_image_ID
+
+        user_req_package, updated_num_people, updated_data_size, user_req_flavor, user_req_backup_time = super().getUserUpdateRequirement(input_data)
+        if user_req_flavor == "EXCEEDED":   # 용량이 10GB를 넘어간 경우
+            raise OverSizeError
+        elif user_req_flavor == flavor_before_update:   # 원래 쓰려던 용량과 같은 범위 내의 용량을 요구사항으로 입력했을 경우
+            user_req_flavor = "NOTUPDATE"
+        else:
+            if flavor_before_update == "ds1G" and user_req_flavor == "ds512M":  # 원래 쓰려던 용량보다 작은 용량을 요구사항으로 입력했을 경우
+                user_req_flavor = "NOTUPDATE"
+        print("요청 정보: ", user_req_package, user_req_flavor, user_req_backup_time)
+
+        # stack_environment_req = super().reqChecker("get", "http://" + openstack_hostIP + "/heat-api/v1/" + update_openstack_tenant_id + "/stacks/" 
+        #     + update_stack_name + "/" + update_stack_id + "/environment", token)
+        # if stack_environment_req == None:
+        #     raise OpenstackServerError
+        # print("기존 스택의 템플릿: ", stack_environment_req.json())
+        # before_update_template_package = stack_environment_req.json()["parameters"]["packages"]
+        # print("기존 스택의 템플릿 패키지: ", before_update_template_package)  # 원래 db에 저장 안돼있어서 요청해서 가져왔었는데, db에 저장해서 그럴 필요 없어짐. 일단은 놔둠.
+        
+        package_origin_plus_user_req = before_update_template_package + user_req_package    # 기존 패키지 + 유저의 요청 패키지
+        package_for_db = ""     # db에 저장할 패키지 목록 문자화
+        for i in range(len(package_origin_plus_user_req)):
+            package_for_db += package_origin_plus_user_req[i]
+            if i != len(package_origin_plus_user_req)-1:
+                package_for_db += ","
+
+        openstack_img_payload = { # 인스턴스의 스냅샷 이미지 만들기위한 payload
+            "createImage": {
+                "name": "backup_for_update_" + instance_id
+            }
+        }
+        snapshot_req = super().reqCheckerWithData("post", "http://" + openstack_hostIP + "/compute/v2.1/servers/" + instance_id + "/action", 
+            token, json.dumps(openstack_img_payload))
+        if snapshot_req == None:
+            raise OpenstackServerError
+        print("인스턴스로부터 이미지 생성 리스폰스: ", snapshot_req)
+        snapshotID_for_update = snapshot_req.headers["Location"].split("/")[6]
+        print("image_ID : " + snapshotID_for_update)
+
+        while(True):
+            image_status_req = super().reqChecker("get", "http://" + openstack_hostIP + "/image/v2/images/" + snapshotID_for_update, token)
+            if image_status_req == None:
+                raise OpenstackServerError
+            print("이미지 상태 조회 리스폰스: ", image_status_req.json())
+
+            image_status = image_status_req.json()["status"]
+            if image_status == "active":
+                break
+            time.sleep(2)
+
+        update_template = {   # 이미지와 요구사항을 반영한 템플릿 생성
+            "parameters": {
+                "image": "backup_for_update_" + instance_id
+            }
+        }
+        if len(user_req_package) != 0:
+            update_template["parameters"]["packages"] = user_req_package
+        if user_req_flavor != "NOTUPDATE":
+            update_template["parameters"]["flavor"] = user_req_flavor
+        print("업데이트용 Template : ", json.dumps(update_template))
+
+        stack_update_req = super().reqCheckerWithData("patch", "http://" + openstack_hostIP + "/heat-api/v1/" + update_openstack_tenant_id + "/stacks/" + update_stack_name + "/" + update_stack_id,
+            token, json.dumps(update_template))
+        if stack_update_req == None:
+            raise OpenstackServerError
+        print("stack 업데이트 결과: ", stack_update_req)
+        print("stack 업데이트 결과 헤더: ", stack_update_req.headers)
+
+        if image_used_for_update != None:
+            image_used_for_update_del_req = super().reqChecker("delete", "http://" + openstack_hostIP + "/image/v2/images/" + image_used_for_update, token)
+            if image_used_for_update_del_req == None:
+                raise OpenstackServerError
+            print("업데이트용 이미지의 이전 버전 삭제 요청 결과: ", image_used_for_update_del_req)
+
+        try:
+            updated_instance_id, updated_instance_name, updated_instance_ip_address, updated_instance_status, updated_instance_image_name, updated_instance_flavor_name, updated_instance_ram_size, updated_disk_size, updated_num_cpu = self.stackResourceGetter("update", openstack_hostIP, update_openstack_tenant_id, user_id, update_stack_name, update_stack_id, token)
+        except Exception as e:  # stackResourceGetter에서 None이 반환 된 경우
+            print("스택 정보 불러오는 중 예외 발생: ", e)
+            raise OpenstackServerError
+        
+        return updated_instance_id, updated_instance_name, updated_instance_ip_address, updated_instance_status, updated_instance_image_name, updated_instance_flavor_name, updated_instance_ram_size, updated_disk_size, updated_num_cpu, package_for_db, updated_num_people,  updated_data_size, user_req_backup_time, snapshotID_for_update
+    
+    def stackUpdaterWhenFreezerRestored(self, openstack_hostIP, input_data, token, user_id):    # feezer로 restore 됐을 경우(stack_id, stack_name 없음)
+        update_openstack_tenant_id = AccountInfo.objects.get(user_id=user_id).openstack_user_project_id
+        stack_data = OpenstackInstance.objects.get(instance_pk=input_data["instance_pk"])
+        instance_name = stack_data.instance_name
+        instance_id = stack_data.instance_id
+        instance_os = stack_data.os
+        flavor_before_update = stack_data.flavor_name   # 요구사항 변경에 따른 플레이버가 변경되는지 체크용
+        package_before_update = stack_data.package.split(",")
+
+        user_req_package, updated_num_people, updated_data_size, user_req_flavor, user_req_backup_time = super().getUserUpdateRequirement(input_data)
+        if user_req_flavor == "EXCEEDED":   # 용량이 10GB를 넘어간 경우
+            raise OverSizeError
+        elif user_req_flavor == flavor_before_update:   # 원래 쓰려던 용량과 같은 범위 내의 용량을 요구사항으로 입력했을 경우
+            user_req_flavor = "NOTUPDATE"
+        else:
+            if flavor_before_update == "ds1G" and user_req_flavor == "ds512M":  # 원래 쓰려던 용량보다 작은 용량을 요구사항으로 입력했을 경우
+                user_req_flavor = "NOTUPDATE"
+        print("요청 정보: ", user_req_package, user_req_flavor, user_req_backup_time)
+
+        update_package = package_before_update + user_req_package
+        package_for_db = (",").join(update_package)
+
+        openstack_img_payload = { # 인스턴스의 스냅샷 이미지 만들기위한 payload
+            "createImage": {
+                "name": "backup_for_update_" + instance_id
+            }
+        }
+        snapshot_req = super().reqCheckerWithData("post", "http://" + openstack_hostIP + "/compute/v2.1/servers/" + instance_id + "/action", 
+            token, json.dumps(openstack_img_payload))
+        if snapshot_req == None:
+            raise OpenstackServerError
+        print("인스턴스로부터 이미지 생성 리스폰스: ", snapshot_req)
+        freezer_restored_instance_snapshotID = snapshot_req.headers["Location"].split("/")[6]
+        print("image_ID : " + freezer_restored_instance_snapshotID)
+
+        # stack create
+        if instance_os == "ubuntu":
+            with open('templates/ubuntu_1804.json','r') as f:
+                json_template_skeleton = json.load(f)
+                json_template = super().templateModify(json_template_skeleton, user_id, instance_name, user_req_flavor, update_package)
+        elif instance_os == "centos":
+            with open('templates/cirros.json','r') as f:    # 오픈스택에 centos 이미지 안올려놔서 일단 cirros.json으로
+                json_template_skeleton = json.load(f)
+                json_template = super().templateModify(json_template_skeleton, user_id, instance_name, user_req_flavor, update_package)
+        elif instance_os == "fedora":
+            with open('templates/fedora.json','r') as f:    #이걸로 생성 test
+                json_template_skeleton = json.load(f)
+                json_template = super().templateModify(json_template_skeleton, user_id, instance_name, user_req_flavor, update_package)
+
+        stack_req = super().reqCheckerWithData("post", "http://" + openstack_hostIP + "/heat-api/v1/" + update_openstack_tenant_id + "/stacks",
+            token, json_template)   # 스택 생성 요청
+        if stack_req == None:
+            raise OpenstackServerError
+        print("stack생성", stack_req.json())
+        stack_id = stack_req.json()["stack"]["id"]
+        stack_name_req = super().reqChecker("get", "http://" + openstack_hostIP + "/heat-api/v1/" + update_openstack_tenant_id + "/stacks?id=" + stack_id,
+            token)
+        if stack_name_req == None:
+            raise OpenstackServerError
+        print("스택 이름 정보: ", stack_name_req.json())
+        stack_name = stack_name_req.json()["stacks"][0]["stack_name"]
+
+        try:    # 생성된 스택 정보
+            updated_instance_id, updated_instance_name, updated_instance_ip_address, updated_instance_status, updated_instance_image_name, updated_instance_flavor_name, updated_instance_ram_size, updated_disk_size, updated_num_cpu = self.stackResourceGetter("create", openstack_hostIP, update_openstack_tenant_id, user_id, stack_name, stack_id, token)
+        except Exception as e:  # stackResourceGetter에서 None이 반환 된 경우
+            print("스택 정보 불러오는 중 예외 발생: ", e)
+            raise OpenstackServerError
+
+        return updated_instance_id, updated_instance_name, updated_instance_ip_address, updated_instance_status, updated_instance_image_name, updated_instance_flavor_name, updated_instance_ram_size, updated_disk_size, updated_num_cpu, package_for_db, updated_num_people,  updated_data_size, user_req_backup_time, freezer_restored_instance_snapshotID
 
 
 class Instance:    # 인스턴스 요청에 대한 공통 요소 클래스
