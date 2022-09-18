@@ -14,8 +14,8 @@ class OpenstackInstance(models.Model):  #유저와 연관짓기 위한 외래키
     instance_pk = models.AutoField(primary_key=True)
     instance_id = models.CharField(max_length=50) # backup image에서 외래키로 참조
     instance_name = models.CharField(max_length=50)
-    stack_id = models.CharField(max_length=50)
-    stack_name = models.CharField(max_length=50)
+    stack_id = models.CharField(max_length=50, null=True)
+    stack_name = models.CharField(max_length=50, null=True)
     ip_address = models.GenericIPAddressField()
     status = models.CharField(max_length=50)
     image_name = models.CharField(max_length=50)

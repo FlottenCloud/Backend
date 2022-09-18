@@ -611,12 +611,17 @@ def freezerRestoreWithCycle(cycle):
                 restored_instance_id = error_instance_list_req.json()["servers"][0]["id"]
                 restored_instance_name = error_instance_list_req.json()["servers"][0]["name"]
                 print("freezer로 복구된 인스턴스 정보: ", restored_instance_id, restored_instance_name)
+                instance_info_req = req_checker.reqChecker("get", "http://" + oc.hostIP + "/compute/v2.1/servers/" + restored_instance_id, admin_token)     #인스턴스 정보 get, 여기서 image id, flavor id 받아와서 다시 get 요청해서 세부 정보 받아와야 함
+                if instance_info_req == None:
+                    return "Error occured when getting restored instance information!!!"
+                print("인스턴스 정보: ", instance_info_req.json())
+                restored_instance_ip_address = instance_info_req.json()["server"]["addresses"]["public"][1]["addr"]
                 break
 
             time.sleep(2)
         
         OpenstackInstance.objects.filter(instance_name=restored_instance_name).update(instance_id=restored_instance_id, instance_name=restored_instance_name,
-            stack_id=None, stack_name=None, update_image_ID=None, freezer_completed=False)
+            stack_id=None, stack_name=None, ip_address=restored_instance_ip_address, status="ACTIVE", image_name="RESTORE"+restored_instance_name, update_image_ID=None, freezer_completed=False)
         end_time = time.time()
         print(f"{end_time - start_time:.5f} sec")
 
@@ -677,8 +682,16 @@ def freezerBackup6():
     freezer_backup_res = freezerBackupWithCycle(6)
     print(freezer_backup_res)
 
+def freezerBackup12():
+    freezer_backup_res = freezerBackupWithCycle(12)
+    print(freezer_backup_res)
+
 def freezerRestore6():
     freezer_restore_res = freezerRestoreWithCycle(6)
+    print(freezer_restore_res)
+    
+def freezerRestore12():
+    freezer_restore_res = freezerRestoreWithCycle(12)
     print(freezer_restore_res)
 
 def backup6():
@@ -692,11 +705,16 @@ def backup12():
     
 
 def deleter():
-    AccountInfo.objects.all().delete()
-    # OpenstackInstance.objects.all().delete()
+    # AccountInfo.objects.all().delete()
+    OpenstackInstance.objects.all().delete()
     # OpenstackBackupImage.objects.all().delete()
     # CloudstackInstance.objects.all().delete()
     print("all-deleted")
+    
+def dbModifier():
+    OpenstackInstance.objects.filter(instance_name="test1").update(instance_id="96063d0f-d3c7-4339-b124-494f9112b555", instance_name="test1",
+            stack_id=None, stack_name=None, ip_address="172.24.4.104", status="ACTIVE", image_name="RESTOREtest1", update_image_ID=None, package="pwgen,apache2", freezer_completed=False)
+    print("updated")
 
 
 def start():
@@ -704,9 +722,11 @@ def start():
     # scheduler.add_job(deleter, 'interval', seconds=2)
     # scheduler.add_job(backup6, 'interval', seconds=30)
     # scheduler.add_job(backup12, 'interval', seconds=120)
-    # scheduler.add_job(freezerBackup6, 'interval', seconds=30)
+    # scheduler.add_job(freezerBackup12, 'interval', seconds=30)
     # scheduler.add_job(backup6, 'interval', seconds=20)
-    scheduler.add_job(freezerRestore6, 'interval', seconds=20)
+    # scheduler.add_job(freezerRestore6, 'interval', seconds=20)
+    # scheduler.add_job(freezerRestore12, 'interval', seconds=10)
+    scheduler.add_job(dbModifier, "interval", seconds=5)
     # scheduler.add_job(errorCheckAndUpdateDBstatus, 'interval', seconds=10)
 
     scheduler.start()

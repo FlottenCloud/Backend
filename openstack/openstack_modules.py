@@ -144,7 +144,7 @@ class TemplateModifier:
 
         return(json.dumps(template_data))
     
-    def templateModifyWhenRestore(self, backup_img_name, template, user_id, user_instance_name, flavor):
+    def templateModifyWhenRestored(self, backup_img_name, template, user_id, user_instance_name, flavor, user_package):
         template_data = template
         template_data["stack_name"] = str(user_instance_name)   # 스택 name 설정
         template_data["template"]["resources"]["mybox"]["properties"]["name"] = str(user_instance_name)# 인스턴스 name 설정
@@ -156,6 +156,7 @@ class TemplateModifier:
         # template_data["template"]["resources"]["mysecurity_group"]["properties"]["name"] = user_id + "-security_group" + user_instance_name # 보안그룹 name 설정
         template_data["parameters"]["image"] = backup_img_name  # 백업해놓은 이미지로 img 설정
         template_data["parameters"]["flavor"] = flavor    # flavor 설정
+        template_data["parameters"]["packages"] = user_package    # package 설정
         template_data["parameters"]["network_id"] = oc.public_network_id
         
         print(json.dumps(template_data))
@@ -203,7 +204,7 @@ class Stack(RequestChecker, TemplateModifier):
 
         instance_name = instance_info_req.json()["server"]["name"]
         print("인스턴스 이름: ", instance_name)
-        instance_ip_address = instance_info_req.json()["server"]["addresses"][user_id + "-net" + instance_name][0]["addr"]
+        instance_ip_address = instance_info_req.json()["server"]["addresses"]["public"][1]["addr"]
         print("인스턴스 ip: ", instance_ip_address)
         instance_status =  instance_info_req.json()["server"]["status"]
         print("인스턴스 상태: ",instance_status)
@@ -275,7 +276,7 @@ class Stack(RequestChecker, TemplateModifier):
 
         instance_name = instance_info_req.json()["server"]["name"]
         print("인스턴스 이름: ", instance_name)
-        instance_ip_address = instance_info_req.json()["server"]["addresses"][user_id + "-net" + instance_name][0]["addr"]
+        instance_ip_address = instance_info_req.json()["server"]["addresses"]["public"][1]["addr"]
         print("인스턴스 ip: ", instance_ip_address)
         instance_status =  instance_info_req.json()["server"]["status"]
         print("인스턴스 상태: ",instance_status)
@@ -421,6 +422,8 @@ class Stack(RequestChecker, TemplateModifier):
         else:
             if flavor_before_update == "ds1G" and user_req_flavor == "ds512M":  # 원래 쓰려던 용량보다 작은 용량을 요구사항으로 입력했을 경우
                 user_req_flavor = "NOTUPDATE"
+        if user_req_flavor == "NOTUPDATE":
+            user_req_flavor = flavor_before_update
         print("요청 정보: ", user_req_package, user_req_flavor, user_req_backup_time)
 
         if package_before_update[0] != "":
@@ -449,19 +452,30 @@ class Stack(RequestChecker, TemplateModifier):
         freezer_restored_instance_snapshotID = snapshot_req.headers["Location"].split("/")[6]
         print("image_ID : " + freezer_restored_instance_snapshotID)
 
+        while(True):
+            image_status_req = super().reqChecker("get", "http://" + openstack_hostIP + "/image/v2/images/" + freezer_restored_instance_snapshotID, token)
+            if image_status_req == None:
+                raise OpenstackServerError
+            print("이미지 상태 조회 리스폰스: ", image_status_req.json())
+
+            image_status = image_status_req.json()["status"]
+            if image_status == "active":
+                break
+            time.sleep(2)
+        
         # stack create
         if instance_os == "ubuntu":
-            with open('templates/ubuntu_1804.json','r') as f:
+            with open('templates/ubuntu_1804.json','r') as f:  #backup_img_name, template, user_id, user_instance_name, flavor, package
                 json_template_skeleton = json.load(f)
-                json_template = super().templateModify(json_template_skeleton, user_id, instance_name, user_req_flavor, package_origin_plus_user_req)
+                json_template = super().templateModifyWhenRestored("backup_for_update_" + instance_id, json_template_skeleton, user_id, instance_name, user_req_flavor, user_req_package)
         elif instance_os == "centos":
             with open('templates/cirros.json','r') as f:    # 오픈스택에 centos 이미지 안올려놔서 일단 cirros.json으로
                 json_template_skeleton = json.load(f)
-                json_template = super().templateModify(json_template_skeleton, user_id, instance_name, user_req_flavor, package_origin_plus_user_req)
+                json_template = super().templateModifyWhenRestored("backup_for_update_" + instance_id, json_template_skeleton, user_id, instance_name, user_req_flavor, user_req_package)
         elif instance_os == "fedora":
             with open('templates/fedora.json','r') as f:    #이걸로 생성 test
                 json_template_skeleton = json.load(f)
-                json_template = super().templateModify(json_template_skeleton, user_id, instance_name, user_req_flavor, package_origin_plus_user_req)
+                json_template = super().templateModifyWhenRestored("backup_for_update_" + instance_id, json_template_skeleton, user_id, instance_name, user_req_flavor, user_req_package)
 
         stack_req = super().reqCheckerWithData("post", "http://" + openstack_hostIP + "/heat-api/v1/" + update_openstack_tenant_id + "/stacks",
             token, json_template)   # 스택 생성 요청
