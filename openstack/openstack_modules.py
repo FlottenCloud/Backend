@@ -331,17 +331,20 @@ class Stack(RequestChecker, TemplateModifier):
         # before_update_template_package = stack_environment_req.json()["parameters"]["packages"]
         # print("기존 스택의 템플릿 패키지: ", before_update_template_package)  # 원래 db에 저장 안돼있어서 요청해서 가져왔었는데, db에 저장해서 그럴 필요 없어짐. 일단은 놔둠.
         
-        # if before_update_template_package != "":
-        #     package_origin_plus_user_req = before_update_template_package + user_req_package    # 기존 패키지 + 유저의 요청 패키지
-        # else:
-        #     package_origin_plus_user_req = user_req_package
-        # package_for_db = (",").join(package_origin_plus_user_req)   # db에 저장할 패키지 목록 문자화
-        package_origin_plus_user_req = before_update_template_package + user_req_package    # 기존 패키지 + 유저의 요청 패키지
-        package_for_db = ""
-        for i in range(len(package_origin_plus_user_req)):
-            package_for_db += package_origin_plus_user_req[i]
-            if i != len(package_origin_plus_user_req)-1:
-                package_for_db += ","
+        if before_update_template_package[0] != "":
+            package_origin_plus_user_req = before_update_template_package + user_req_package    # 기존 패키지 + 유저의 요청 패키지
+        else:
+            package_origin_plus_user_req = user_req_package
+        package_for_db = (",").join(package_origin_plus_user_req)   # db에 저장할 패키지 목록 문자화
+        # package_origin_plus_user_req = before_update_template_package + user_req_package    # 기존 패키지 + 유저의 요청 패키지
+        # print("Before update package: ", before_update_template_package)
+        # print("User package req: ", user_req_package)
+        # print("Total package: ", package_origin_plus_user_req)
+        # package_for_db = ""
+        # for i in range(len(package_origin_plus_user_req)):
+        #     package_for_db += package_origin_plus_user_req[i]
+        #     if i != len(package_origin_plus_user_req)-1:
+        #         package_for_db += ","
 
         openstack_img_payload = { # 인스턴스의 스냅샷 이미지 만들기위한 payload
             "createImage": {
@@ -418,18 +421,18 @@ class Stack(RequestChecker, TemplateModifier):
                 user_req_flavor = "NOTUPDATE"
         print("요청 정보: ", user_req_package, user_req_flavor, user_req_backup_time)
 
-        # if package_before_update != "":
-        #     update_package = package_before_update + user_req_package    # 기존 패키지 + 유저의 요청 패키지
-        # else:
-        #     update_package = user_req_package
-        # package_for_db = (",").join(update_package)
+        if package_before_update[0] != "":
+            package_origin_plus_user_req = package_before_update + user_req_package    # 기존 패키지 + 유저의 요청 패키지
+        else:
+            package_origin_plus_user_req = user_req_package
+        package_for_db = (",").join(package_origin_plus_user_req)
         
-        package_origin_plus_user_req = package_before_update + user_req_package    # 기존 패키지 + 유저의 요청 패키지
-        package_for_db = ""
-        for i in range(len(package_origin_plus_user_req)):
-            package_for_db += package_origin_plus_user_req[i]
-            if i != len(package_origin_plus_user_req)-1:
-                package_for_db += ","
+        # package_origin_plus_user_req = package_before_update + user_req_package    # 기존 패키지 + 유저의 요청 패키지
+        # package_for_db = ""
+        # for i in range(len(package_origin_plus_user_req)):
+        #     package_for_db += package_origin_plus_user_req[i]
+        #     if i != len(package_origin_plus_user_req)-1:
+        #         package_for_db += ","
 
         openstack_img_payload = { # 인스턴스의 스냅샷 이미지 만들기위한 payload
             "createImage": {

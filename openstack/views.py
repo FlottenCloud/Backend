@@ -83,12 +83,12 @@ class Openstack(Stack, APIView):
                 print("예외 발생: ", e)
                 return JsonResponse({"message" : "오픈스택 서버에 문제가 생겨 생성된 스택의 정보를 불러올 수 없습니다."}, status=404)
             
-            # package_for_db = (",").join(user_package)   # db에 패키지 목록 문자화해서 저장하는 로직
-            package_for_db = ""
-            for i in range(len(user_package)):
-                package_for_db += user_package[i]
-                if i != len(user_package)-1:
-                    package_for_db += ","
+            package_for_db = (",").join(user_package)   # db에 패키지 목록 문자화해서 저장하는 로직
+            # package_for_db = ""
+            # for i in range(len(user_package)):
+            #     package_for_db += user_package[i]
+            #     if i != len(user_package)-1:
+            #         package_for_db += ","
             instance_data = {   # db에 저장 할 인스턴스 정보
                 "user_id" : user_id,
                 "stack_id" : stack_id,
