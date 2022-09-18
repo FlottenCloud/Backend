@@ -216,11 +216,11 @@ class Openstack(Stack, APIView):
                     return JsonResponse({"message" : "오픈스택 서버에 문제가 생겨 업데이트 때 사용한 이미지를 삭제할 수 없습니다."}, status=404)
                 
             if openstack_stack_data.instance_backup_img_file.filter(instance_pk=input_data["instance_pk"]).exists():
-                del_backup_image_id = openstack_stack_data.instance_backup_img_file.get(instance_pk=input_data["instance_pk"])
+                del_backup_image_id = openstack_stack_data.instance_backup_img_file.get(instance_pk=input_data["instance_pk"]).image_id
                 backup_img_del_req = super().reqChecker("delete", "http://" + openstack_hostIP + "/image/v2/images/" + del_backup_image_id, token)
                 print("인스턴스의 백업 이미지 삭제 리스폰스: ", backup_img_del_req)
                 if backup_img_del_req == None:
-                    return JsonResponse({"message" : "오픈스택 서버에 문제가 생겨 업데이트 때 사용한 이미지를 삭제할 수 없습니다."}, status=404)
+                    return JsonResponse({"message" : "오픈스택 서버에 문제가 생겨 백업해놓은 이미지를 삭제할 수 없습니다."}, status=404)
                 
             openstack_stack_data.delete() # DB에서 해당 stack row 삭제
                 
@@ -243,7 +243,6 @@ class Openstack(Stack, APIView):
             return JsonResponse({"message" : str(e)}, status=401)
 
         return JsonResponse({"message" : "가상머신 " + del_instance_name + " 삭제 완료"}, status=200)
-
 
 # request django url = /openstack/<int:instance_pk>/
 class InstanceInfo(APIView):
@@ -286,6 +285,8 @@ class InstanceInfo(APIView):
             "update_image" : object_update_image_id}, status=200)
         
         return response
+
+
 
 # request django url = /openstack/dashboard/            대쉬보드에 리소스 사용량 보여주기 용
 class DashBoard(RequestChecker, APIView):
