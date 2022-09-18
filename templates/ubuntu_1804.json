@@ -15,7 +15,11 @@
             "image":{
                 "default": "ubuntu",
                 "type":"string"
-            }
+            },
+            "network_id": {
+				"default": "4c301b10-0d25-4528-9679-bc4f1b2d617f",
+				"type":"string"
+			}
         },
 		"resources": {
             "mybox": {
@@ -49,86 +53,8 @@
                 "type": "OS::Neutron::Port",
                 "properties": {
 					"network_id": {
-						"get_resource": "mynet"
-					},
-					"security_groups": [
-						{
-							"get_resource": "mysecurity_group"
-						}
-					]
-                }
-            },
-            "server_floating_ip": {
-                "type": "OS::Neutron::FloatingIP",
-                "properties": {
-					"floating_network_id": "",
-					"port_id": {
-						"get_resource": "mybox_management_port"
+						"get_param" : "network_id"
 					}
-                }
-            },
-            "mynet": {
-                "type": "OS::Neutron::Net",
-                "properties": {
-					"name": "management-net"
-                }
-            },
-            "mysub_net": {
-                "type": "OS::Neutron::Subnet",
-                "properties": {
-					"name": "management-sub-net",
-					"network_id": {
-						"get_resource": "mynet"
-					},
-					"cidr": "10.0.0.0/24",
-					"gateway_ip": "10.0.0.1",
-					"enable_dhcp": "true",
-					"dns_nameservers": [
-						"8.8.8.8",
-						"8.8.4.4"
-					]
-                }
-            },
-            "mysecurity_group": {
-                "type": "OS::Neutron::SecurityGroup",
-                "properties": {
-					"name": "mysecurity_group",
-					"rules": [
-						{
-							"remote_ip_prefix": "0.0.0.0/0",
-							"protocol": "tcp",
-							"port_range_min": 22,
-							"port_range_max": 22
-						},
-						{
-							"remote_ip_prefix": "0.0.0.0/0",
-							"protocol": "icmp",
-							"direction": "ingress"
-						}
-					]
-                }
-            },
-            "router": {
-                "type": "OS::Neutron::Router"
-            },
-            "router_gateway": {
-                "type": "OS::Neutron::RouterGateway",
-                "properties": {
-                    "router_id": {
-                        "get_resource": "router"
-                    },
-                    "network_id": ""
-                }
-            },
-            "router_interface": {
-                "type": "OS::Neutron::RouterInterface",
-                "properties": {
-                    "router_id": {
-                        "get_resource": "router"
-                    },
-                    "subnet_id": {
-                        "get_resource": "mysub_net"
-                    }
                 }
             }
         }
@@ -136,7 +62,8 @@
       "parameters":{
         "flavor" : "ds512M",
         "packages" : [],
-        "image" : "ubuntu"
+        "image" : "ubuntu",
+        "network_id" : ""
     }
 
 }

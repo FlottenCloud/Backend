@@ -3,7 +3,7 @@ import sys
 sys.path.append(os.path.dirname(os.path.abspath(os.path.dirname(__file__))))    #여기까지는 상위 디렉토리 모듈 import 하기 위한 코드
 
 import openstack_controller as oc
-from openstack_controller import OpenstackServerError, OverSizeError
+from openstack_controller import OpenstackServerError, OverSizeError, StackUpdateFailedError
 import json
 import requests
 import time
@@ -132,29 +132,32 @@ class TemplateModifier:
         template_data["stack_name"] = str(user_instance_name)   # 스택 name 설정
         template_data["template"]["resources"]["mybox"]["properties"]["name"] = str(user_instance_name) # 인스턴스 name 설정
         # template_data["template"]["resources"]["demo_key"]["properties"]["name"] = user_id + "_" + user_instance_name  # 키페어 name 설정
-        template_data["template"]["resources"]["server_floating_ip"]["properties"]["floating_network_id"] = oc.public_network_id
-        template_data["template"]["resources"]["mynet"]["properties"]["name"] = user_id + "-net" + user_instance_name    # 네트워크 name 설정
-        template_data["template"]["resources"]["mysub_net"]["properties"]["name"] = user_id + "-subnet" + user_instance_name # sub네트워크 name 설정
-        template_data["template"]["resources"]["router_gateway"]["properties"]["network_id"] = oc.public_network_id
-        template_data["template"]["resources"]["mysecurity_group"]["properties"]["name"] = user_id + "-security_group" + user_instance_name # 보안그룹 name 설정
+        # template_data["template"]["resources"]["server_floating_ip"]["properties"]["floating_network_id"] = oc.public_network_id
+        # template_data["template"]["resources"]["mynet"]["properties"]["name"] = user_id + "-net" + user_instance_name    # 네트워크 name 설정
+        # template_data["template"]["resources"]["mysub_net"]["properties"]["name"] = user_id + "-subnet" + user_instance_name # sub네트워크 name 설정
+        # template_data["template"]["resources"]["router_gateway"]["properties"]["network_id"] = oc.public_network_id
+        # template_data["template"]["resources"]["mysecurity_group"]["properties"]["name"] = user_id + "-security_group" + user_instance_name # 보안그룹 name 설정
         template_data["parameters"]["flavor"] = flavor    # flavor 설정
         template_data["parameters"]["packages"] = user_package    # package 설정
+        template_data["parameters"]["network_id"] = oc.public_network_id
         print(json.dumps(template_data))
 
         return(json.dumps(template_data))
     
-    def templateModifyWhenRestore(self, backup_img_name, template, user_id, user_instance_name, flavor):
+    def templateModifyWhenRestored(self, backup_img_name, template, user_id, user_instance_name, flavor, user_package):
         template_data = template
         template_data["stack_name"] = str(user_instance_name)   # 스택 name 설정
         template_data["template"]["resources"]["mybox"]["properties"]["name"] = str(user_instance_name)# 인스턴스 name 설정
         # template_data["template"]["resources"]["demo_key"]["properties"]["name"] = user_id + "_" + user_instance_name  # 키페어 name 설정
-        template_data["template"]["resources"]["server_floating_ip"]["properties"]["floating_network_id"] = oc.public_network_id
-        template_data["template"]["resources"]["mynet"]["properties"]["name"] = user_id + "-net" + user_instance_name    # 네트워크 name 설정
-        template_data["template"]["resources"]["mysub_net"]["properties"]["name"] = user_id + "-subnet" + user_instance_name # sub네트워크 name 설정
-        template_data["template"]["resources"]["router_gateway"]["properties"]["network_id"] = oc.public_network_id
-        template_data["template"]["resources"]["mysecurity_group"]["properties"]["name"] = user_id + "-security_group" + user_instance_name # 보안그룹 name 설정
+        # template_data["template"]["resources"]["server_floating_ip"]["properties"]["floating_network_id"] = oc.public_network_id
+        # template_data["template"]["resources"]["mynet"]["properties"]["name"] = user_id + "-net" + user_instance_name    # 네트워크 name 설정
+        # template_data["template"]["resources"]["mysub_net"]["properties"]["name"] = user_id + "-subnet" + user_instance_name # sub네트워크 name 설정
+        # template_data["template"]["resources"]["router_gateway"]["properties"]["network_id"] = oc.public_network_id
+        # template_data["template"]["resources"]["mysecurity_group"]["properties"]["name"] = user_id + "-security_group" + user_instance_name # 보안그룹 name 설정
         template_data["parameters"]["image"] = backup_img_name  # 백업해놓은 이미지로 img 설정
         template_data["parameters"]["flavor"] = flavor    # flavor 설정
+        template_data["parameters"]["packages"] = user_package    # package 설정
+        template_data["parameters"]["network_id"] = oc.public_network_id
         
         print(json.dumps(template_data))
 
@@ -201,7 +204,79 @@ class Stack(RequestChecker, TemplateModifier):
 
         instance_name = instance_info_req.json()["server"]["name"]
         print("인스턴스 이름: ", instance_name)
-        instance_ip_address = instance_info_req.json()["server"]["addresses"][user_id + "-net" + instance_name][0]["addr"]
+        instance_ip_address = instance_info_req.json()["server"]["addresses"]["public"][1]["addr"]
+        print("인스턴스 ip: ", instance_ip_address)
+        instance_status =  instance_info_req.json()["server"]["status"]
+        print("인스턴스 상태: ",instance_status)
+        image_id = instance_info_req.json()["server"]["image"]["id"]
+        flavor_id = instance_info_req.json()["server"]["flavor"]["id"]
+
+        image_req = super().reqChecker("get", "http://" + openstack_hostIP + "/compute/v2.1/images/" + image_id, token)
+        if image_req == None:
+            return None
+        instance_image_name = image_req.json()["image"]["name"]
+        print("이미지 이름: ", instance_image_name)
+
+        flavor_req = super().reqChecker("get", "http://" + openstack_hostIP + "/compute/v2.1/flavors/" + flavor_id, token)
+        if flavor_req == None:
+            return None
+        print("flavor정보: ", flavor_req.json())
+
+        instance_flavor_name = flavor_req.json()["flavor"]["name"]
+        print("flavor 이름: ", instance_flavor_name)
+        instance_ram_size = round(flavor_req.json()["flavor"]["ram"]/1024, 2)
+        print("서버에서 넘겨주는 램 크기: ", flavor_req.json()["flavor"]["ram"])
+        print("램 크기: ", instance_ram_size)
+        instance_disk_size = flavor_req.json()["flavor"]["disk"]
+        print("디스크 용량: ", instance_disk_size)
+        instance_num_cpu = flavor_req.json()["flavor"]["vcpus"]
+        print("CPU 개수: ", instance_num_cpu)
+
+        return instance_id, instance_name, instance_ip_address, instance_status, instance_image_name, instance_flavor_name, instance_ram_size, instance_disk_size, instance_num_cpu
+    
+    def stackResourceGetterWhenUpdate(self, usage, openstack_hostIP, openstack_tenant_id, user_id, stack_name, stack_id, snapshotID_for_update, token):
+        time.sleep(2)
+        while(True):
+            if usage == "update":
+                while(True):
+                    stack_status_req = super().reqChecker("get", "http://" + openstack_hostIP + "/heat-api/v1/" + openstack_tenant_id + "/stacks?id=" + stack_id, token)
+                    if stack_status_req == None:
+                        return None
+                    print(stack_status_req.json()["stacks"][0]["stack_status"])
+                    if stack_status_req.json()["stacks"][0]["stack_status"] == "UPDATE_COMPLETE":
+                        break
+                    elif stack_status_req.json()["stacks"][0]["stack_status"] == "UPDATE_FAILED":
+                        
+                        raise StackUpdateFailedError
+                    time.sleep(2)
+
+            stack_resource_req = super().reqChecker("get", "http://" + openstack_hostIP + "/heat-api/v1/" + openstack_tenant_id + "/stacks/" + stack_name + "/" # 스택으로 만든 인스턴스가 생성 완료될 때까지 기다림
+                + stack_id + "/resources", token)
+            if stack_resource_req == None:
+                return None
+            stack_resource = stack_resource_req.json()["resources"]
+
+            for resource in stack_resource: # 스택 리스폰스에서 리소스들의 순서가 바뀌어 오는 경우 발견. 순회로 해결함.
+                if resource["resource_type"] == "OS::Nova::Server":
+                    print("리소스 정보: ", resource)
+                    resource_instance = resource
+                    break
+            if resource_instance["resource_status"] == "CREATE_COMPLETE":
+                instance_id = resource_instance["physical_resource_id"]
+                print("인스턴스 CREATE 완료")
+                break
+            time.sleep(2)
+        print("인스턴스 id: ", instance_id)
+        time.sleep(1)
+        
+        instance_info_req = super().reqChecker("get", "http://" + openstack_hostIP + "/compute/v2.1/servers/" + instance_id, token)     #인스턴스 정보 get, 여기서 image id, flavor id 받아와서 다시 get 요청해서 세부 정보 받아와야 함
+        if instance_info_req == None:
+            return None
+        print("인스턴스 정보: ", instance_info_req.json())
+
+        instance_name = instance_info_req.json()["server"]["name"]
+        print("인스턴스 이름: ", instance_name)
+        instance_ip_address = instance_info_req.json()["server"]["addresses"]["public"][1]["addr"]
         print("인스턴스 ip: ", instance_ip_address)
         instance_status =  instance_info_req.json()["server"]["status"]
         print("인스턴스 상태: ",instance_status)
@@ -259,8 +334,15 @@ class Stack(RequestChecker, TemplateModifier):
         # before_update_template_package = stack_environment_req.json()["parameters"]["packages"]
         # print("기존 스택의 템플릿 패키지: ", before_update_template_package)  # 원래 db에 저장 안돼있어서 요청해서 가져왔었는데, db에 저장해서 그럴 필요 없어짐. 일단은 놔둠.
         
-        package_origin_plus_user_req = before_update_template_package + user_req_package    # 기존 패키지 + 유저의 요청 패키지
+        if before_update_template_package[0] != "":
+            package_origin_plus_user_req = before_update_template_package + user_req_package    # 기존 패키지 + 유저의 요청 패키지
+        else:
+            package_origin_plus_user_req = user_req_package
         package_for_db = (",").join(package_origin_plus_user_req)   # db에 저장할 패키지 목록 문자화
+        # package_origin_plus_user_req = before_update_template_package + user_req_package    # 기존 패키지 + 유저의 요청 패키지
+        # print("Before update package: ", before_update_template_package)
+        # print("User package req: ", user_req_package)
+        # print("Total package: ", package_origin_plus_user_req)
         # package_for_db = ""
         # for i in range(len(package_origin_plus_user_req)):
         #     package_for_db += package_origin_plus_user_req[i]
@@ -316,7 +398,7 @@ class Stack(RequestChecker, TemplateModifier):
             print("업데이트용 이미지의 이전 버전 삭제 요청 결과: ", image_used_for_update_del_req)
 
         try:
-            updated_instance_id, updated_instance_name, updated_instance_ip_address, updated_instance_status, updated_instance_image_name, updated_instance_flavor_name, updated_instance_ram_size, updated_disk_size, updated_num_cpu = self.stackResourceGetter("update", openstack_hostIP, update_openstack_tenant_id, user_id, update_stack_name, update_stack_id, token)
+            updated_instance_id, updated_instance_name, updated_instance_ip_address, updated_instance_status, updated_instance_image_name, updated_instance_flavor_name, updated_instance_ram_size, updated_disk_size, updated_num_cpu = self.stackResourceGetterWhenUpdate("update", openstack_hostIP, update_openstack_tenant_id, user_id, update_stack_name, update_stack_id, snapshotID_for_update, token)
         except Exception as e:  # stackResourceGetter에서 None이 반환 된 경우
             print("스택 정보 불러오는 중 예외 발생: ", e)
             raise OpenstackServerError
@@ -340,10 +422,22 @@ class Stack(RequestChecker, TemplateModifier):
         else:
             if flavor_before_update == "ds1G" and user_req_flavor == "ds512M":  # 원래 쓰려던 용량보다 작은 용량을 요구사항으로 입력했을 경우
                 user_req_flavor = "NOTUPDATE"
+        if user_req_flavor == "NOTUPDATE":
+            user_req_flavor = flavor_before_update
         print("요청 정보: ", user_req_package, user_req_flavor, user_req_backup_time)
 
-        update_package = package_before_update + user_req_package
-        package_for_db = (",").join(update_package)
+        if package_before_update[0] != "":
+            package_origin_plus_user_req = package_before_update + user_req_package    # 기존 패키지 + 유저의 요청 패키지
+        else:
+            package_origin_plus_user_req = user_req_package
+        package_for_db = (",").join(package_origin_plus_user_req)
+        
+        # package_origin_plus_user_req = package_before_update + user_req_package    # 기존 패키지 + 유저의 요청 패키지
+        # package_for_db = ""
+        # for i in range(len(package_origin_plus_user_req)):
+        #     package_for_db += package_origin_plus_user_req[i]
+        #     if i != len(package_origin_plus_user_req)-1:
+        #         package_for_db += ","
 
         openstack_img_payload = { # 인스턴스의 스냅샷 이미지 만들기위한 payload
             "createImage": {
@@ -358,19 +452,30 @@ class Stack(RequestChecker, TemplateModifier):
         freezer_restored_instance_snapshotID = snapshot_req.headers["Location"].split("/")[6]
         print("image_ID : " + freezer_restored_instance_snapshotID)
 
+        while(True):
+            image_status_req = super().reqChecker("get", "http://" + openstack_hostIP + "/image/v2/images/" + freezer_restored_instance_snapshotID, token)
+            if image_status_req == None:
+                raise OpenstackServerError
+            print("이미지 상태 조회 리스폰스: ", image_status_req.json())
+
+            image_status = image_status_req.json()["status"]
+            if image_status == "active":
+                break
+            time.sleep(2)
+        
         # stack create
         if instance_os == "ubuntu":
-            with open('templates/ubuntu_1804.json','r') as f:
+            with open('templates/ubuntu_1804.json','r') as f:  #backup_img_name, template, user_id, user_instance_name, flavor, package
                 json_template_skeleton = json.load(f)
-                json_template = super().templateModify(json_template_skeleton, user_id, instance_name, user_req_flavor, update_package)
+                json_template = super().templateModifyWhenRestored("backup_for_update_" + instance_id, json_template_skeleton, user_id, instance_name, user_req_flavor, user_req_package)
         elif instance_os == "centos":
             with open('templates/cirros.json','r') as f:    # 오픈스택에 centos 이미지 안올려놔서 일단 cirros.json으로
                 json_template_skeleton = json.load(f)
-                json_template = super().templateModify(json_template_skeleton, user_id, instance_name, user_req_flavor, update_package)
+                json_template = super().templateModifyWhenRestored("backup_for_update_" + instance_id, json_template_skeleton, user_id, instance_name, user_req_flavor, user_req_package)
         elif instance_os == "fedora":
             with open('templates/fedora.json','r') as f:    #이걸로 생성 test
                 json_template_skeleton = json.load(f)
-                json_template = super().templateModify(json_template_skeleton, user_id, instance_name, user_req_flavor, update_package)
+                json_template = super().templateModifyWhenRestored("backup_for_update_" + instance_id, json_template_skeleton, user_id, instance_name, user_req_flavor, user_req_package)
 
         stack_req = super().reqCheckerWithData("post", "http://" + openstack_hostIP + "/heat-api/v1/" + update_openstack_tenant_id + "/stacks",
             token, json_template)   # 스택 생성 요청

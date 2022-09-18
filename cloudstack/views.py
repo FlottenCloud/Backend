@@ -107,7 +107,7 @@ class InstanceStop(APIView):
 class InstanceConsole(APIView):
     @swagger_auto_schema(tags=["Cloudstack Instance API"], manual_parameters=[cloudstack_user_apiKey, cloudstack_user_secretKey], request_body=CloudstackInstanceIDSerializer, responses={202:"Accepted", 404:"Not Found"})
     def post(self, request):  # header: apiKey,secretKey, body: instance_id
-        baseURL = "http://211.197.83.186:8080/client/console?" #"http://172.30.1.29:8080/client/console?"   #다른 메소드들과 달리 마지막 api? 가 아닌 console?이다.
+        baseURL = "http://10.125.70.28:8080/client/console?" #"http://172.30.1.29:8080/client/console?"   #다른 메소드들과 달리 마지막 api? 가 아닌 console?이다.
         user_apiKey = request.headers["apiKey"]
         user_secretKey = request.headers["secretKey"]
         instance_id = json.loads(request.body)["instance_pk"]

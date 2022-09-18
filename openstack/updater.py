@@ -497,8 +497,7 @@ def writeTxtFile(mode, instance_id):
     file.write('source admin-openrc.sh')                         #환경에 맞게 설정해야됨 본인 리눅스 환경
     file.write('\nfreezer-agent --action ' + mode + ' --nova-inst-id ')
     file.write(instance_id)
-    file.write(
-        ' --storage local --container /home/hoo/' + instance_id + '_backup' + ' --backup-name ' + instance_id + '_backup' + ' --mode nova --engine nova --no-incremental true')
+    file.write(' --storage local --container /home/test/' + instance_id + '_backup' + ' --backup-name ' + instance_id + '_backup' + ' --mode nova --engine nova --no-incremental true')
     file.close()
 
 def readTxtFile(mode):               #mode : backup, restore
@@ -523,9 +522,9 @@ def readTxtFile(mode):               #mode : backup, restore
 def freezerBackup(instance_id):
     cli = paramiko.SSHClient()
     cli.set_missing_host_key_policy(paramiko.AutoAddPolicy)
-    server = ""
-    user = ""                                      #리눅스 Host ID
-    pwd = ""                                       #리눅스 Host Password
+    server = "211.197.83.186"
+    user = "test"                                      #리눅스 Host ID
+    pwd = "0000"                                       #리눅스 Host Password
     cli.connect(server, port=22, username=user, password=pwd)
 
     writeTxtFile("backup", instance_id)
@@ -541,9 +540,9 @@ def freezerBackup(instance_id):
 def freezerRestore(instance_id):
     cli = paramiko.SSHClient()
     cli.set_missing_host_key_policy(paramiko.AutoAddPolicy)
-    server = ""
-    user = ""
-    pwd = ""
+    server = "211.197.83.186"
+    user = "test"
+    pwd = "0000"
     cli.connect(server, port=22, username=user, password=pwd)
 
     writeTxtFile("restore", instance_id)
@@ -558,10 +557,12 @@ def freezerRestore(instance_id):
 
 
 def freezerRestoreWithCycle(cycle):
+    import time
     import openstack_controller as oc
     admin_token = oc.admin_token()
     req_checker = RequestChecker()
 
+    start_time = time.time()
     print("freezerRestore With Cycle function Start!!")
     error_instance_count = OpenstackInstance.objects.filter(status="ERROR").count()
     if error_instance_count == 0:
@@ -579,8 +580,8 @@ def freezerRestoreWithCycle(cycle):
         # --------- error 터진 stack 삭제 --------- #
         del_stack_id = restore_instance.stack_id
         del_stack_name = restore_instance.stack_name
-        del_update_image_id = restore_instance.update_image_id
-        del_openstack_tenant_id = restore_instance.openstack_user_project_id
+        del_update_image_id = restore_instance.update_image_ID
+        del_openstack_tenant_id = restore_instance.user_id.openstack_user_project_id
         stack_del_req = req_checker.reqChecker("delete", "http://" + oc.hostIP + "/heat-api/v1/" + del_openstack_tenant_id + "/stacks/"
             + del_stack_name + "/" + del_stack_id, admin_token)
         if stack_del_req == None:
@@ -606,16 +607,23 @@ def freezerRestoreWithCycle(cycle):
 
         while(True):
             error_instance_list_req = req_checker.reqChecker("get", "http://" + oc.hostIP + "/compute/v2.1/servers?name=" + restore_instance_name + "&status=ACTIVE", admin_token)
-            if len(error_instance_list_req["servers"]) != 0:
+            if len(error_instance_list_req.json()["servers"]) != 0:
                 restored_instance_id = error_instance_list_req.json()["servers"][0]["id"]
                 restored_instance_name = error_instance_list_req.json()["servers"][0]["name"]
                 print("freezer로 복구된 인스턴스 정보: ", restored_instance_id, restored_instance_name)
+                instance_info_req = req_checker.reqChecker("get", "http://" + oc.hostIP + "/compute/v2.1/servers/" + restored_instance_id, admin_token)     #인스턴스 정보 get, 여기서 image id, flavor id 받아와서 다시 get 요청해서 세부 정보 받아와야 함
+                if instance_info_req == None:
+                    return "Error occured when getting restored instance information!!!"
+                print("인스턴스 정보: ", instance_info_req.json())
+                restored_instance_ip_address = instance_info_req.json()["server"]["addresses"]["public"][1]["addr"]
                 break
 
             time.sleep(2)
         
         OpenstackInstance.objects.filter(instance_name=restored_instance_name).update(instance_id=restored_instance_id, instance_name=restored_instance_name,
-            stack_id=None, stack_name=None, update_image_ID=None, freezer_completed=False)
+            stack_id=None, stack_name=None, ip_address=restored_instance_ip_address, status="ACTIVE", image_name="RESTORE"+restored_instance_name, update_image_ID=None, freezer_completed=False)
+        end_time = time.time()
+        print(f"{end_time - start_time:.5f} sec")
 
     return "All ERRORed instances restored!!"
 
@@ -641,8 +649,8 @@ def freezerBackupWithCycle(cycle):
                 try:
                     cli = paramiko.SSHClient()
                     cli.set_missing_host_key_policy(paramiko.AutoAddPolicy)
-                    server = "119.198.160.6"
-                    user = "hoo"  # 리눅스 Host ID
+                    server = "211.197.83.186"
+                    user = "test"  # 리눅스 Host ID
                     pwd = "0000"  # 리눅스 Host Password
                     cli.connect(server, port=10022, username=user, password=pwd)
                     stdin, stdout, stderr = cli.exec_command("rm -rf " + instance_id_for_OSremove + "_backup")
@@ -674,6 +682,18 @@ def freezerBackup6():
     freezer_backup_res = freezerBackupWithCycle(6)
     print(freezer_backup_res)
 
+def freezerBackup12():
+    freezer_backup_res = freezerBackupWithCycle(12)
+    print(freezer_backup_res)
+
+def freezerRestore6():
+    freezer_restore_res = freezerRestoreWithCycle(6)
+    print(freezer_restore_res)
+    
+def freezerRestore12():
+    freezer_restore_res = freezerRestoreWithCycle(12)
+    print(freezer_restore_res)
+
 def backup6():
     backup_res = backup(6)
     print(backup_res)
@@ -686,10 +706,15 @@ def backup12():
 
 def deleter():
     # AccountInfo.objects.all().delete()
-    # OpenstackInstance.objects.all().delete()
+    OpenstackInstance.objects.all().delete()
     # OpenstackBackupImage.objects.all().delete()
-    CloudstackInstance.objects.all().delete()
+    # CloudstackInstance.objects.all().delete()
     print("all-deleted")
+    
+def dbModifier():
+    OpenstackInstance.objects.filter(instance_name="test1").update(instance_id="96063d0f-d3c7-4339-b124-494f9112b555", instance_name="test1",
+            stack_id=None, stack_name=None, ip_address="172.24.4.104", status="ACTIVE", image_name="RESTOREtest1", update_image_ID=None, package="pwgen,apache2", freezer_completed=False)
+    print("updated")
 
 
 def start():
@@ -697,8 +722,11 @@ def start():
     # scheduler.add_job(deleter, 'interval', seconds=2)
     # scheduler.add_job(backup6, 'interval', seconds=30)
     # scheduler.add_job(backup12, 'interval', seconds=120)
-    # scheduler.add_job(freezerBackup6, 'interval', seconds=60)
-    scheduler.add_job(backup6, 'interval', seconds=20)
-    # scheduler.add_job(errorCheckRestoreInOpenstack, 'interval', seconds=10)
+    # scheduler.add_job(freezerBackup12, 'interval', seconds=30)
+    # scheduler.add_job(backup6, 'interval', seconds=20)
+    # scheduler.add_job(freezerRestore6, 'interval', seconds=20)
+    # scheduler.add_job(freezerRestore12, 'interval', seconds=10)
+    scheduler.add_job(dbModifier, "interval", seconds=5)
+    # scheduler.add_job(errorCheckAndUpdateDBstatus, 'interval', seconds=10)
 
     scheduler.start()

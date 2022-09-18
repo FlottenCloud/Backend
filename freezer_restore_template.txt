@@ -1,0 +1,2 @@
+source admin-openrc.sh
+freezer-agent --action restore --nova-inst-id 27a36b17-4985-4d7a-9944-cf5224119e9b --storage local --container /home/test/27a36b17-4985-4d7a-9944-cf5224119e9b_backup --backup-name 27a36b17-4985-4d7a-9944-cf5224119e9b_backup --mode nova --engine nova --no-incremental true
