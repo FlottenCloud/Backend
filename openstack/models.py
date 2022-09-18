@@ -29,6 +29,7 @@ class OpenstackInstance(models.Model):  #유저와 연관짓기 위한 외래키
     package = models.TextField(null=True, blank=True)
     backup_time = models.IntegerField(validators=[MaxValueValidator(25)])
     update_image_ID = models.CharField(max_length=100, null=True)   # 스택 처음 생성 시 update에 쓰인 image가 없음.
+    freezer_completed = models.BooleanField(default=False)
 
     class Meta:
         db_table = 'openstack_instance'
