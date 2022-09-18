@@ -83,12 +83,12 @@ class Openstack(Stack, APIView):
                 print("예외 발생: ", e)
                 return JsonResponse({"message" : "오픈스택 서버에 문제가 생겨 생성된 스택의 정보를 불러올 수 없습니다."}, status=404)
             
-            package_for_db = (",").join(user_package)   # db에 패키지 목록 문자화해서 저장하는 로직
-            # package_for_db = ""
-            # for i in range(len(user_package)):
-            #     package_for_db += user_package[i]
-            #     if i != len(user_package)-1:
-            #         package_for_db += ","
+            # package_for_db = (",").join(user_package)   # db에 패키지 목록 문자화해서 저장하는 로직
+            package_for_db = ""
+            for i in range(len(user_package)):
+                package_for_db += user_package[i]
+                if i != len(user_package)-1:
+                    package_for_db += ","
             instance_data = {   # db에 저장 할 인스턴스 정보
                 "user_id" : user_id,
                 "stack_id" : stack_id,
@@ -157,7 +157,7 @@ class Openstack(Stack, APIView):
 
         return JsonResponse({"instances" : user_stack_data}, status=200)
     
-    @swagger_auto_schema(tags=["Openstack API"], manual_parameters=[openstack_user_token], request_body=UpdateStackSerializer, responses={200:"Success", 401:"Unauthorized", 404:"Not Found", 405:"Method Not Allowed"})
+    @swagger_auto_schema(tags=["Openstack API"], manual_parameters=[openstack_user_token], request_body=UpdateStackSerializer, responses={200:"Success", 401:"Unauthorized", 404:"Not Found", 405:"Method Not Allowed", 500:"Internal Server Error"})
     def patch(self, request):       # header: user_token, body: instance_id->instance_pk, 요구사항({package[], num_people, data_size, backup_time})
         try:
             input_data, token, user_id = oc.getRequestParamsWithBody(request)
@@ -185,6 +185,8 @@ class Openstack(Stack, APIView):
         except oc.OverSizeError as e:
             print("스택 업데이트 중 예외 발생: ", e)
             return JsonResponse({"message" : "인원 수 X 인원 당 예상 용량 값은 10G를 넘지 못합니다."}, status=405)
+        except oc.StackUpdateFailedError as e:
+            return JsonResponse({"message" : "스택 업데이트에 실패했습니다."}, status=500)
 
         return JsonResponse({"message" : "업데이트 완료"}, status=201)
 
