@@ -157,7 +157,7 @@ class AccountView(APIView):
     @swagger_auto_schema(tags=["User API"], manual_parameters=[openstack_user_token, cloudstack_user_apiKey, cloudstack_user_secretKey], responses={200:"Success"})
     def get(self, request):                                   # 리퀘스트 헤더 중에 apiKey, secretKey는 무조건 오니까 apiKey로 유저 정보 get
         try:
-            user_token = request.header["X-Auth-Token"]
+            user_token = request.headers["X-Auth-Token"]
         except Exception as e:
             print("오픈스택 서버 에러, 오픈스택 유저 토큰 없음. 에러 내용: ", e)
             pass

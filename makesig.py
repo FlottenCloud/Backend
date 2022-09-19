@@ -25,7 +25,7 @@ def requestThroughSig(secretKey, request_body):
         hmac.new(secretKey.encode('utf-8'), sig_str.encode('utf-8'), hashlib.sha1).digest()).strip()
     sig = urllib.parse.quote_plus(base64.encodebytes(
         hmac.new(secretKey.encode('utf-8'), sig_str.encode('utf-8'), hashlib.sha1).digest()).strip())
-    req_url = "http://211.197.83.186:8080/client/api?" + request_str + '&signature=' + sig
+    req_url = "http://10.125.70.28:8080/client/api?" + request_str + '&signature=' + sig
     print("클라우드 스택으로의 리퀘스트:", req_url)
     # res=urllib.request.urlopen(req)
     # response=res.read()
@@ -33,6 +33,7 @@ def requestThroughSig(secretKey, request_body):
     header = {"sessionkey" : "6agWewdCWRPj70ceEeKfAXX85Ic"}
     req = requests.get(req_url, headers = header)
     print("리퀘스트 리스폰스: ", req.json())
+    print("Status code: ", req)
     
     print("시그니처:", sig)
     return sig, req
@@ -52,9 +53,12 @@ def main():
     #         "name": "test1", "url": url, "ostypeid": osTypeid, "zoneid": zoneID}
     # requestThroughSig("r6avM2ip3wtjXjbNgOHIoQEK6U0T1X3flclrt55RO4v-Fa6WL0NJAVDs80ZI-AeTpKN8lIUpW2fWF_aCHv3cRA", request_body)
 
-    request_body = {"apiKey" : admin_apiKey, "response": "json", "command": "listOsTypes", "keyword": "fedora"}
-    sig, req = requestThroughSig(admin_secretKey, request_body)
+    # request_body = {"apiKey" : admin_apiKey, "response": "json", "command": "listOsTypes", "keyword": "ubuntu"}
+    # sig, req = requestThroughSig(admin_secretKey, request_body)
 
+    request_body = {"apiKey": admin_apiKey, "response": "json", "command": "destroyVirtualMachine",
+        "id": "2ad3f87f-52bc-4888-8d3a-58a1c64a5064", "expunge": "true"}
+    sig, req = requestThroughSig(admin_secretKey, request_body)
     # request_body = {"apiKey" : admin_apiKey, "response" : "json", "command" : "registerTemplate",
     # "displaytext" : "gettest", "format" : "qcow2", "hypervisor" : "kvm",
     # "name" : "gettest", "url" : "https://cloud-images.ubuntu.com/bionic/current/bionic-server-cloudimg-amd64.img", "ostypeid" : "12bc219b-fdcb-11ec-a9c1-08002765d220", "zoneid" : zoneID}

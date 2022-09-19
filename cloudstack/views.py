@@ -75,7 +75,8 @@ class InstanceStart(APIView):
     def post(self, request):    # header: apiKey, secretKey, body: instance_id
         apiKey = request.headers["apiKey"]
         secretKey = request.headers["secretKey"]
-        start_instance_id = json.loads(request.body)["instance_pk"]
+        start_instance_pk = json.loads(request.body)["instance_pk"]
+        start_instance_id = CloudstackInstance.objects().get(instance_pk=start_instance_pk)
         if start_instance_id == None :
             return JsonResponse({"message" : "인스턴스를 찾을 수 없습니다."}, status=404)
 
@@ -91,7 +92,8 @@ class InstanceStop(APIView):
     def post(self, request):    # header: apiKey, secretKey, body: instance_id
         apiKey = request.headers["apiKey"]
         secretKey = request.headers["secretKey"]
-        stop_instance_id = json.loads(request.body)["instance_pk"]
+        stop_instance_pk = json.loads(request.body)["instance_pk"]
+        stop_instance_id = CloudstackInstance.objects().get(instance_pk=stop_instance_pk)
         if stop_instance_id == None :
             return JsonResponse({"message" : "인스턴스를 찾을 수 없습니다."}, status=404)
 

@@ -80,7 +80,7 @@ def registerCloudstackTemplate(zoneID, template_name, backup_img_file_name, os_t
 
     request_body = {"apiKey" : admin_apiKey, "response" : "json", "command" : "registerTemplate",
         "displaytext" : template_name, "format" : "qcow2", "hypervisor" : "kvm",
-        "name" : template_name, "url" : "http://119.198.160.6:8000/media/img-files/" + backup_img_file_name, "ostypeid" : os_type_id, "zoneid" : zoneID}
+        "name" : template_name, "url" : "http://10.125.70.26:8000/media/img-files/" + backup_img_file_name, "ostypeid" : os_type_id, "zoneid" : zoneID}
     template_register_req = csc.requestThroughSigForTemplateRegist(admin_secretKey, request_body)
     webbrowser.open(template_register_req)  # url 오픈으로 해결 안돼서 webbrowser로 open함
     
@@ -112,11 +112,11 @@ def deployCloudstackInstance(user_id, user_apiKey, user_secretKey, instance_pk, 
     user_id_instance = AccountInfo.objects.get(user_id=user_id)
     template_name = instance_name + "Template"
     if os_type == "ubuntu" :     # ubuntu(18.04 LTS)
-        os_type_id = "b3ce66f1-34ed-11ed-914c-0800270aea06"  #"12bc219b-fdcb-11ec-a9c1-08002765d220"
+        os_type_id = "75fa3d78-b98e-4fe6-96f5-2e6ecf256370"
     elif os_type == "centos" :   # centos
         os_type_id = "abc"
     else:   # fedora(openstack default)
-        os_type_id = "26e61d3e-246f-4822-8a66-6a8b08806d7e"   #"8682cef8-a3f3-47a0-886d-87b9398469b3"
+        os_type_id = "1679062f-fe92-11ec-ae65-525400c8d027"
     backup_template_id = registerCloudstackTemplate(zoneID, template_name, backup_img_file_name, os_type_id)    # 템플릿 등록 후 템플릿 id 받아옴
     instance_deploy_req_body = {"apiKey" : user_apiKey, "response" : "json", "command" : "deployVirtualMachine",
         "networkids" : cloudstack_user_network_id, "serviceofferingId" : medium_offeringID,
@@ -171,14 +171,14 @@ def deployCloudstackInstance(user_id, user_apiKey, user_secretKey, instance_pk, 
 def deleteCloudstackInstanceAndTemplate(admin_apiKey, admin_secretKey, instance_id, template_id):   # 이미 백업프로세스가 한 번이라도 진행됐을 경우 그 전에 존재하던 인스턴스, 템플릿 삭제 용
     import cloudstack_controller as csc
 
-    instance_del_req_body = {"apiKey": admin_apiKey, "response": "json", "command": "expungeVirtualMachine",
-                   "id": instance_id, "expunge": "true"}
+    instance_del_req_body = {"apiKey": admin_apiKey, "response": "json", "command": "destroyVirtualMachine",
+        "id": instance_id, "expunge": "true"}
     instance_del_req = csc.requestThroughSig(admin_secretKey, instance_del_req_body)
     
     time.sleep(2)
     
     template_del_req_body = {"apiKey": admin_apiKey, "response": "json", "command": "deleteTemplate",
-                "id": template_id}
+        "id": template_id}
 
     template_del_req = csc.requestThroughSig(admin_secretKey, template_del_req_body)
     
@@ -190,12 +190,13 @@ def cloudstackInstanceDeleteAndCreate(user_id, cloudstack_user_apiKey, cloudstac
     admin_apiKey = csc.admin_apiKey
     admin_secretKey = csc.admin_secretKey
 
-    del_cloudstack_instance_info = CloudstackInstance.objects.get(backup_instance_name + "Template")
+    del_cloudstack_instance_info = CloudstackInstance.objects.get(instance_name=backup_instance_name)
     del_instance_id = del_cloudstack_instance_info.instance_id
-    del_template_id = del_cloudstack_instance_info.template_id
+    del_template_id = del_cloudstack_instance_info.image_id
     
     # 그 전에 생성됐던 백업본 삭제
     instance_del_req, template_del_req = deleteCloudstackInstanceAndTemplate(admin_apiKey, admin_secretKey, del_instance_id, del_template_id)
+    del_cloudstack_instance_info.delete()   # Delete instance information from Database
 
     # 삭제하고 타이밍 얼마나 줄 지 생각해볼 것
     # 삭제 후 다시 템플릿 등록, 인스턴스 생성
@@ -934,6 +935,8 @@ def freezerBackup(instance_id):
     resultData = ''.join(lines)
     print(resultData) # 결과 확인
     cli.close()
+    
+    return resultData
 
 def freezerRestore(instance_id):
     cli = paramiko.SSHClient()
@@ -952,6 +955,8 @@ def freezerRestore(instance_id):
     resultData = ''.join(lines)
     print(resultData) # 결과 확인
     cli.close()
+    
+    return resultData
 
 def deleteStackBeforeFreezerRestore(tenant_id_for_restore, stack_id_for_del, stack_name_for_del, instance_update_image_id_for_del):
     import openstack_controller as oc
@@ -1033,7 +1038,8 @@ def freezerBackupWithCycle(cycle):
             print("인스턴스 id: ", backup_instance_id)
 
             try:
-                freezerBackup(backup_instance_id)
+                resultData = freezerBackup(backup_instance_id)
+                print(resultData)
             except:
                 return ("Error!! When trying freezer Backup")
 
@@ -1043,7 +1049,7 @@ def freezerBackupWithCycle(cycle):
     except OperationalError:
         return "인스턴스가 없습니다."
 
-def freezerRestore():
+def freezerRestoreWithCycle():
     import time
     import openstack_controller as oc
     admin_token = oc.admin_token()
@@ -1078,7 +1084,8 @@ def freezerRestore():
 
             # --------- freezer restore --------- #
             try:
-                freezerRestore(restore_instance_id)
+                resultData = freezerRestore(restore_instance_id)
+                print(resultData)
             except Exception as e:
                 return "Error! When trying freezer restore " + restore_instance_id + "!!"
 
@@ -1158,9 +1165,9 @@ def backup12():
 # ---- 야매용 함수들 ---- #
 def deleter():
     # AccountInfo.objects.all().delete()
-    OpenstackInstance.objects.all().delete()
-    # OpenstackBackupImage.objects.all().delete()
-    # CloudstackInstance.objects.all().delete()
+    # OpenstackInstance.objects.all().delete()
+    OpenstackBackupImage.objects.all().delete()
+    CloudstackInstance.objects.all().delete()
     print("all-deleted")
     
 def dbModifier():
@@ -1173,13 +1180,17 @@ def dbModifier():
 def start():
     scheduler = BackgroundScheduler() # ({'apscheduler.job_defaults.max_instances': 2}) # max_instance = 한 번에 실행할 수 있는 같은 job의 개수
     # scheduler.add_job(deleter, 'interval', seconds=2)
-    # scheduler.add_job(backup6, 'interval', seconds=30)
-    # scheduler.add_job(backup12, 'interval', seconds=120)
-    # scheduler.add_job(freezerBackup12, 'interval', seconds=30)
-    # scheduler.add_job(backup6, 'interval', seconds=20)
-    # scheduler.add_job(freezerRestore, 'interval', seconds=20)
     # scheduler.add_job(dbModifier, "interval", seconds=5)
+    
+    scheduler.add_job(backup6, 'interval', seconds=60)
+    # scheduler.add_job(backup12, 'interval', seconds=170)
+    
+    scheduler.add_job(freezerBackup6, 'interval', seconds=60)
+    # scheduler.add_job(freezerBackup12, 'interval', seconds=70)
+    
+    scheduler.add_job(freezerRestoreWithCycle, 'interval', seconds=30)
+    
     scheduler.add_job(errorCheckAndUpdateDBstatus, 'interval', seconds=10)
-    scheduler.add_job(openstackServerChecker, 'interval', seconds=10)
+    scheduler.add_job(openstackServerChecker, 'interval', seconds=20)
 
     scheduler.start()

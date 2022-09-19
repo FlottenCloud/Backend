@@ -205,7 +205,7 @@ class Stack(RequestChecker, TemplateModifier):
 
         instance_name = instance_info_req.json()["server"]["name"]
         print("인스턴스 이름: ", instance_name)
-        instance_ip_address = instance_info_req.json()["server"]["addresses"]["public"][1]["addr"]
+        instance_ip_address = instance_info_req.json()["server"]["addresses"]["public"][0]["addr"]
         print("인스턴스 ip: ", instance_ip_address)
         instance_status =  instance_info_req.json()["server"]["status"]
         print("인스턴스 상태: ",instance_status)
@@ -277,7 +277,7 @@ class Stack(RequestChecker, TemplateModifier):
 
         instance_name = instance_info_req.json()["server"]["name"]
         print("인스턴스 이름: ", instance_name)
-        instance_ip_address = instance_info_req.json()["server"]["addresses"]["public"][1]["addr"]
+        instance_ip_address = instance_info_req.json()["server"]["addresses"]["public"][0]["addr"]
         print("인스턴스 ip: ", instance_ip_address)
         instance_status =  instance_info_req.json()["server"]["status"]
         print("인스턴스 상태: ",instance_status)
