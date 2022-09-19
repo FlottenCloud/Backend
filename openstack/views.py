@@ -52,15 +52,15 @@ class Openstack(Stack, APIView):
             if user_os == "ubuntu":
                 with open(stack_template_root + 'ubuntu_1804.json','r') as f:   # 오픈스택에 ubuntu 이미지 안올려놨음
                     json_template_skeleton = json.load(f)
-                    json_template = super().templateModify(json_template_skeleton, user_id, user_instance_name, flavor, user_package)
+                    json_template = super().templateModify(json_template_skeleton, user_instance_name, flavor, user_package)
             elif user_os == "centos":
                 with open(stack_template_root + 'cirros.json','r') as f:    # 오픈스택에 centos 이미지 안올려놔서 일단 cirros.json으로
                     json_template_skeleton = json.load(f)
-                    json_template = super().templateModify(json_template_skeleton, user_id, user_instance_name, flavor, user_package)
+                    json_template = super().templateModify(json_template_skeleton, user_instance_name, flavor, user_package)
             elif user_os == "fedora":
                 with open(stack_template_root + 'fedora.json','r') as f:    #이걸로 생성 test
                     json_template_skeleton = json.load(f)
-                    json_template = super().templateModify(json_template_skeleton, user_id, user_instance_name, flavor, user_package)
+                    json_template = super().templateModify(json_template_skeleton, user_instance_name, flavor, user_package)
             
             #address heat-api v1 프로젝트 id stacks
             stack_req = super().reqCheckerWithData("post", "http://" + openstack_hostIP + "/heat-api/v1/" + openstack_tenant_id + "/stacks",
