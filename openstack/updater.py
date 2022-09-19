@@ -653,6 +653,7 @@ def cloudstack_delete_Template(cloudstack_user_apiKey, cloudstack_user_secretKey
     request = {"apiKey" : cloudstack_user_apiKey, "response" : "json", "command" : "cloudstack_delete_Template",
         "id" : template_id}
     response = csc.requestThroughSig(cloudstack_user_secretKey, request)
+
     return response
 
 def openstackImageUploader(template_name):
@@ -690,6 +691,8 @@ def openstackImageUploader(template_name):
         print("오픈스택 서버 복구 도중 문제가 생겼습니다.")
 
     file.close()
+
+    return "Uploaded image for restore to openstack"
 
 def openstackStackCreate(instance_name, template_name):  # 오픈스택 상의 해당 이름의 스택을 삭제, 오픈스택에 올린 이미지를 토대로 다시 create
     import openstack_controller as oc
@@ -781,8 +784,7 @@ def openstackStackCreate(instance_name, template_name):  # 오픈스택 상의 �
         print("Restore from cloudstack to openstack of Instance " + instance_name + " has failed. ")
         print(serializer.errors)
 
-    
-    
+    return "Restored Instance from cloudstack to openstack"
 
 def restoreFromCloudstack(cloudstack_user_apiKey, cloudstack_user_secretKey, cloudstack_instance_id, cloudstack_instance_name, cloudstack_template_name):
     import cloudstack_controller as csc
@@ -838,11 +840,15 @@ def restoreFromCloudstack(cloudstack_user_apiKey, cloudstack_user_secretKey, clo
     file.close()
     print("image file download response is", restore_res)
 
-    openstackImageUploader(template_name)   # 오픈스택에 이미지 올림
-    openstackStackCreate(cloudstack_instance_name, template_name)   # 오픈스택 상의 해당 이름의 스택을 삭제, 오픈스택에 올린 이미지를 토대로 다시 create
+    image_upload_to_openstack = openstackImageUploader(template_name)   # 오픈스택에 이미지 올림
+    print(image_upload_to_openstack)
+    restore_stack_to_openstack = openstackStackCreate(cloudstack_instance_name, template_name)   # 오픈스택 상의 해당 이름의 스택을 삭제, 오픈스택에 올린 이미지를 토대로 다시 create
+    print(restore_stack_to_openstack)
 
-    cloudstack_delete_VM(cloudstack_user_apiKey, cloudstack_user_secretKey, cloudstack_instance_id)
-    cloudstack_delete_Template(cloudstack_user_apiKey, cloudstack_user_secretKey, template_id)
+    del_cloudstack_VM_res = cloudstack_delete_VM(cloudstack_user_apiKey, cloudstack_user_secretKey, cloudstack_instance_id)
+    print(del_cloudstack_VM_res)
+    del_cloudstack_template_res = cloudstack_delete_Template(cloudstack_user_apiKey, cloudstack_user_secretKey, template_id)
+    print(del_cloudstack_template_res)
 
     return restore_res
 
@@ -851,12 +857,11 @@ def openstackServerRecoveryChecker():
     import openstack_controller as oc
 
     while True:
-    #TimeOut 발생시 계속 서버상태 체크
-        if oc.admin_token == None:
-            time.sleep(20)
+        if oc.admin_token == None:      # TimeOut 발생시 계속 서버상태 체크
+            time.sleep(10)
             pass
-        #오픈스택 서버가 정상화 되어 토큰 발급의 응답이 있을때는 restore 프로세스 수행 후 함수 종료
-        else:
+                
+        else:       # 오픈스택 서버가 정상화 되어 토큰 발급의 응답이 있을때는 restore 프로세스 수행 후 함수 종료
             accounts_list = AccountInfo.objects().all()
             for account in accounts_list:   # 모든 유저에 대해
                 cloudstack_user_apiKey = account.cloudstack_apiKey
@@ -879,6 +884,7 @@ def openstackServerChecker():
         return "오픈스택 서버 정상"
     else:
         restore_res = openstackServerRecoveryChecker()
+
     return restore_res
 
 # ------------------------------------------------------------ Freezer Backup and Restore ------------------------------------------------------------ #
@@ -1172,6 +1178,7 @@ def start():
     # scheduler.add_job(backup6, 'interval', seconds=20)
     # scheduler.add_job(freezerRestore, 'interval', seconds=20)
     # scheduler.add_job(dbModifier, "interval", seconds=5)
-    # scheduler.add_job(errorCheckAndUpdateDBstatus, 'interval', seconds=10)
+    scheduler.add_job(errorCheckAndUpdateDBstatus, 'interval', seconds=10)
+    scheduler.add_job(openstackServerChecker, 'interval', seconds=10)
 
     scheduler.start()
