@@ -2,7 +2,6 @@
     "stack_name": "ubuntu1",
     "template": {
         "heat_template_version": "2018-08-31",
-        "description": "This template demonstrates the different ways configuration resources can be used to specify boot-time cloud-init configuration.",
         "parameters":{
             "flavor": {
                 "default": "m1.tiny",
