@@ -61,23 +61,6 @@ class AccountView(APIView):
         if admin_token == None:
             return JsonResponse({"message" : "오픈스택 서버에 문제가 생겨 회원가입을 진행할 수 없습니다."}, status=404)
 
-        # # 사용자 생성 전 사용자 이름의 프로젝트 생성  # 유저 별 프로젝트 생성에서 어드민프로젝트 하나로 통합했으므로 필요없어짐
-        # openstack_user_project_payload = {
-        #     "project": {
-        #         "domain_id" : "default",
-        #         "name": "project_of_" + input_data["user_id"],
-        #         "description": input_data["user_id"] + "'s project",
-        #         "enabled": True,
-        #     }
-        # }
-        # user_project_make_req = requests.post("http://" + openstack_hostIP + "/identity/v3/projects",
-        #     headers={'X-Auth-Token': admin_token},
-        #     data=json.dumps(openstack_user_project_payload))
-        # print(user_project_make_req.json())
-
-        # openstack_user_project_id = user_project_make_req.json()["project"]["id"]
-        # print("project_ID : ", openstack_user_project_id)
-
         # 사용자의 openstack 정보
         openstack_user_payload = {
             "user": {

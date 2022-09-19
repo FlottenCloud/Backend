@@ -6,6 +6,7 @@ class CloudstackInstance(models.Model):  #유저와 연관짓기 위한 외래�
     user_id = models.ForeignKey("account.AccountInfo", related_name="user_cloudstack_resource_info", on_delete=models.CASCADE, db_column="user_id")
     # cloudstack instance info
     instance_id = models.CharField(max_length=50, primary_key=True) # backup image에서 외래키로 참조
+    instance_pk = models.IntegerField(null=False)
     instance_name = models.CharField(max_length=50)      # display name
     ip_address = models.GenericIPAddressField()        # public ip
     status = models.CharField(max_length=50)              # state

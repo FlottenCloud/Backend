@@ -55,7 +55,7 @@ class DashBoard(APIView):
             num_instances = CloudstackInstance.objects.filter(user_id=cloudstack_user_id).count()
             total_ram_size = CloudstackInstance.objects.filter(user_id=cloudstack_user_id).aggregate(Sum("ram_size"))   # 여기서부터
             total_disk_size = CloudstackInstance.objects.filter(user_id=cloudstack_user_id).aggregate(Sum("disk_size"))
-            total_num_cpu = CloudstackInstance.objects.filter(user_id=cloudstack_user_id).aggregate(Sum("num_cpu")) # 여기까지 다 dict형식
+            total_num_cpu = CloudstackInstance.objects.filter(user_id=cloudstack_user_id).aggregate(Sum("num_cpu"))     # 여기까지 다 dict형식
 
             dashboard_data = {
                 "num_instances" : num_instances,    # max = 10
@@ -68,7 +68,6 @@ class DashBoard(APIView):
             return JsonResponse({[]}, status=200)
         
         return JsonResponse(dashboard_data)
-
 
 
 class InstanceStart(APIView):
@@ -86,7 +85,6 @@ class InstanceStart(APIView):
         CloudstackInstance.objects.filter(instance_id=start_instance_id).update(status="Running")
         
         return JsonResponse({"message" : "가상머신 시작"}, status=202)
-
 
 class InstanceStop(APIView):
     @swagger_auto_schema(tags=["Cloudstack Instance API"], manual_parameters=[cloudstack_user_apiKey, cloudstack_user_secretKey], request_body=CloudstackInstanceIDSerializer, responses={202:"Accepted", 404:"Not Found"})
@@ -107,7 +105,7 @@ class InstanceStop(APIView):
 class InstanceConsole(APIView):
     @swagger_auto_schema(tags=["Cloudstack Instance API"], manual_parameters=[cloudstack_user_apiKey, cloudstack_user_secretKey], request_body=CloudstackInstanceIDSerializer, responses={202:"Accepted", 404:"Not Found"})
     def post(self, request):  # header: apiKey,secretKey, body: instance_id
-        baseURL = "http://10.125.70.28:8080/client/console?" #"http://172.30.1.29:8080/client/console?"   #다른 메소드들과 달리 마지막 api? 가 아닌 console?이다.
+        baseURL = "http://10.125.70.28:8080/client/console?"
         user_apiKey = request.headers["apiKey"]
         user_secretKey = request.headers["secretKey"]
         instance_id = json.loads(request.body)["instance_pk"]
@@ -128,5 +126,4 @@ class InstanceConsole(APIView):
         console_URL = "http://" + externalIP + "/" + console_URL_split[3] + "/" + console_URL_split[4] + "/" + port_join
         print("Console URL is : " + console_URL)
 
-        
         return JsonResponse({"instance_url": console_URL}, status=200)

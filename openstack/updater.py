@@ -101,7 +101,7 @@ def registerCloudstackTemplate(zoneID, template_name, backup_img_file_name, os_t
     
     return backup_template_id
 
-def deployCloudstackInstance(user_id, user_apiKey, user_secretKey, instance_name, cloudstack_user_network_id, backup_img_file_name, os_type):
+def deployCloudstackInstance(user_id, user_apiKey, user_secretKey, instance_pk, instance_name, cloudstack_user_network_id, backup_img_file_name, os_type):
     import cloudstack_controller as csc
     zoneID = csc.zoneID
     domainID = csc.domainID
@@ -154,6 +154,7 @@ def deployCloudstackInstance(user_id, user_apiKey, user_secretKey, instance_name
     CloudstackInstance.objects.create(
         user_id = user_id_instance,
         instance_id = created_instance_id,
+        instance_pk = instance_pk,
         instance_name = created_instance_name,
         ip_address = created_instance_ip_address,
         status = created_instance_status,
@@ -184,7 +185,7 @@ def deleteCloudstackInstanceAndTemplate(admin_apiKey, admin_secretKey, instance_
     return instance_del_req, template_del_req
 
 # 이미 백업프로세스가 한 번이라도 진행됐을 경우 클라우드스택 인스턴스, 그 인스턴스에 쓰인 템플릿 삭제 후 다시 템플릿 등록 및 인스턴스 생성
-def cloudstackInstanceDeleteAndCreate(user_id, cloudstack_user_apiKey, cloudstack_user_secretKey, backup_instance_name, cloudstack_user_network_id, backup_img_file_name, backup_instance_os_type):
+def cloudstackInstanceDeleteAndCreate(user_id, cloudstack_user_apiKey, cloudstack_user_secretKey, backup_instance_pk, backup_instance_name, cloudstack_user_network_id, backup_img_file_name, backup_instance_os_type):
     import cloudstack_controller as csc
     admin_apiKey = csc.admin_apiKey
     admin_secretKey = csc.admin_secretKey
@@ -198,7 +199,7 @@ def cloudstackInstanceDeleteAndCreate(user_id, cloudstack_user_apiKey, cloudstac
 
     # 삭제하고 타이밍 얼마나 줄 지 생각해볼 것
     # 삭제 후 다시 템플릿 등록, 인스턴스 생성
-    backup_template_id, instance_deploy_req = deployCloudstackInstance(user_id, cloudstack_user_apiKey, cloudstack_user_secretKey, backup_instance_name, cloudstack_user_network_id, backup_img_file_name, backup_instance_os_type)
+    backup_template_id, instance_deploy_req = deployCloudstackInstance(user_id, cloudstack_user_apiKey, cloudstack_user_secretKey, backup_instance_pk, backup_instance_name, cloudstack_user_network_id, backup_img_file_name, backup_instance_os_type)
 
     return backup_template_id, instance_deploy_req
 
@@ -297,7 +298,7 @@ def backup(cycle):
 
                     #------cloudstack instance expunge, template delete & template register, instance deploy------#
                     # backup_template_id, instance_deploy_req = deployCloudstackInstance(user_id, cloudstack_user_apiKey, cloudstack_user_secretKey, backup_instance_name, cloudstack_user_network_id, backup_img_file_name, backup_instance_os_type)
-                    backup_template_id, instance_deploy_req = cloudstackInstanceDeleteAndCreate(user_id, cloudstack_user_apiKey, cloudstack_user_secretKey, backup_instance_name, cloudstack_user_network_id, backup_img_file_name, backup_instance_os_type)
+                    backup_template_id, instance_deploy_req = cloudstackInstanceDeleteAndCreate(user_id, cloudstack_user_apiKey, cloudstack_user_secretKey, backup_instance_pk, backup_instance_name, cloudstack_user_network_id, backup_img_file_name, backup_instance_os_type)
                     
                 else:
                     print("Backup data not updated")
@@ -320,7 +321,7 @@ def backup(cycle):
                     os.remove(backup_instance_id + ".qcow2")
                     
                     #------cloudstack template register & instance deploy------#
-                    backup_template_id, instance_deploy_req = deployCloudstackInstance(user_id, cloudstack_user_apiKey, cloudstack_user_secretKey, backup_instance_name, cloudstack_user_network_id, backup_img_file_name, backup_instance_os_type)
+                    backup_template_id, instance_deploy_req = deployCloudstackInstance(user_id, cloudstack_user_apiKey, cloudstack_user_secretKey, backup_instance_pk, backup_instance_name, cloudstack_user_network_id, backup_img_file_name, backup_instance_os_type)
                     
                 else:
                     print("Backup data not saved")
@@ -1016,7 +1017,7 @@ def freezerBackupWithCycle(cycle):
                     server = "211.197.83.186"
                     user = "test"  # 리눅스 Host ID
                     pwd = "0000"  # 리눅스 Host Password
-                    cli.connect(server, port=10022, username=user, password=pwd)
+                    cli.connect(server, port=22, username=user, password=pwd)
                     stdin, stdout, stderr = cli.exec_command("rm -rf " + instance_id_for_OSremove + "_backup")
                     print("리눅스 명령 수행 결과: ", ''.join(stdout.readlines()))
                     cli.close()
