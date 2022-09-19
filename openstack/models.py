@@ -3,7 +3,7 @@ import sys
 sys.path.append(os.path.dirname(os.path.abspath(os.path.dirname(__file__))))    #여기까지는 상위 디렉토리 모듈 import 하기 위한 코드
 
 from django.db import models
-from django.core.validators import MaxValueValidator
+from django.core.validators import MaxValueValidator, MinValueValidator
 #import account
 
 # Create your models here.
@@ -11,31 +11,37 @@ class OpenstackInstance(models.Model):  #유저와 연관짓기 위한 외래키
     # Foreign key(user - stack info)
     user_id = models.ForeignKey("account.AccountInfo", related_name="user_resource_info", on_delete=models.CASCADE, db_column="user_id")
     # stack info
-    instance_id = models.CharField(max_length=50, primary_key=True) # backup image에서 외래키로 참조
+    instance_pk = models.AutoField(primary_key=True)
+    instance_id = models.CharField(max_length=50) # backup image에서 외래키로 참조
     instance_name = models.CharField(max_length=50)
     stack_id = models.CharField(max_length=50)
     stack_name = models.CharField(max_length=50)
     ip_address = models.GenericIPAddressField()
     status = models.CharField(max_length=50)
     image_name = models.CharField(max_length=50)
+    os = models.CharField(max_length=10)
     flavor_name = models.CharField(max_length=50)
     ram_size = models.FloatField(validators=[MaxValueValidator(12)])
+    num_people = models.IntegerField(validators=[MinValueValidator(1)], null=True)
+    expected_data_size = models.IntegerField(validators=[MinValueValidator(1)], null=True)
     disk_size = models.FloatField(validators=[MaxValueValidator(100)])
     num_cpu = models.IntegerField(validators=[MaxValueValidator(12)])
+    package = models.TextField(null=True, blank=True)
     backup_time = models.IntegerField(validators=[MaxValueValidator(25)])
-    update_image_ID = models.CharField(max_length=5, null=True)
+    update_image_ID = models.CharField(max_length=100, null=True)   # 스택 처음 생성 시 update에 쓰인 image가 없음.
+    freezer_completed = models.BooleanField(default=False)
 
     class Meta:
         db_table = 'openstack_instance'
 
 class OpenstackBackupImage(models.Model):
     # Foreign key(instance - image-file)
-    instance_id = models.ForeignKey("OpenstackInstance", related_name="instance_backup_img_file", on_delete=models.CASCADE, db_column="instance_id")
+    instance_pk = models.ForeignKey("OpenstackInstance", related_name="instance_backup_img_file", on_delete=models.CASCADE, db_column="instance_pk")
     # backup image file info
     image_id = models.CharField(max_length=50, primary_key=True)
+    instance_id = models.CharField(max_length=50)
     image_url = models.CharField(max_length=100)
     instance_img_file = models.FileField(max_length=255, blank=True, upload_to="img-files")
-    created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:

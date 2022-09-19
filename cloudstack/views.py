@@ -1,5 +1,6 @@
 from sqlite3 import OperationalError
 import json
+from bs4 import BeautifulSoup
 import cloudstack_controller as csc
 from .models import CloudstackInstance
 from django.db.models import Sum
@@ -30,10 +31,12 @@ class Cloudstack(APIView):
     def get(self, request):  # header: apiKey, secretKey
         try:
             apiKey = request.headers["apiKey"]
+            print(apiKey)
             secretKey = request.headers["secretKey"]
             cloudstack_user_id = AccountInfo.objects.filter(cloudstack_apiKey=apiKey)[0].user_id
+            print(cloudstack_user_id)
             user_instance_info_list = list(CloudstackInstance.objects.filter(user_id=cloudstack_user_id).values())
-            #cloud stack DB 최신화는 ㄴㄴ
+            print(user_instance_info_list)
 
         except OperationalError:
             return JsonResponse({[]}, status=200)
@@ -73,7 +76,7 @@ class InstanceStart(APIView):
     def post(self, request):    # header: apiKey, secretKey, body: instance_id
         apiKey = request.headers["apiKey"]
         secretKey = request.headers["secretKey"]
-        start_instance_id = json.loads(request.body)["instance_id"]
+        start_instance_id = json.loads(request.body)["instance_pk"]
         if start_instance_id == None :
             return JsonResponse({"message" : "인스턴스를 찾을 수 없습니다."}, status=404)
 
@@ -90,7 +93,7 @@ class InstanceStop(APIView):
     def post(self, request):    # header: apiKey, secretKey, body: instance_id
         apiKey = request.headers["apiKey"]
         secretKey = request.headers["secretKey"]
-        stop_instance_id = json.loads(request.body)["instance_id"]
+        stop_instance_id = json.loads(request.body)["instance_pk"]
         if stop_instance_id == None :
             return JsonResponse({"message" : "인스턴스를 찾을 수 없습니다."}, status=404)
 
@@ -104,14 +107,26 @@ class InstanceStop(APIView):
 class InstanceConsole(APIView):
     @swagger_auto_schema(tags=["Cloudstack Instance API"], manual_parameters=[cloudstack_user_apiKey, cloudstack_user_secretKey], request_body=CloudstackInstanceIDSerializer, responses={202:"Accepted", 404:"Not Found"})
     def post(self, request):  # header: apiKey,secretKey, body: instance_id
-        baseURL = "http://119.198.160.6:8080/client/console?"   #다른 메소드들과 달리 마지막 api? 가 아닌 console?이다.
+        baseURL = "http://211.197.83.186:8080/client/console?" #"http://172.30.1.29:8080/client/console?"   #다른 메소드들과 달리 마지막 api? 가 아닌 console?이다.
         user_apiKey = request.headers["apiKey"]
         user_secretKey = request.headers["secretKey"]
-        instance_id = json.loads(request.body)["instance_id"]
+        instance_id = json.loads(request.body)["instance_pk"]
         if instance_id == None :
             return JsonResponse({"message" : "인스턴스를 찾을 수 없습니다."}, status=404)
 
         request_body = {"vm" : instance_id ,"apiKey": user_apiKey, "response" : "json" , "cmd": "access"}
-        console_URL = csc.requestThroughSigWithURL(baseURL, user_secretKey, request_body)
-        print(console_URL)
+        console_URL_req = csc.requestThroughSigWithURL(baseURL, user_secretKey, request_body)
+        htmlData = BeautifulSoup(console_URL_req, features="html.parser")
+        console_url_body = htmlData.html.frameset.frame['src']
+        console_URL = "http:" + console_url_body
+        console_URL_split = console_URL.split("/")
+        port = console_URL_split[5].split("&")
+        port[1] = "port=6060"
+        port_join = "&".join(port)
+        externalIPwithPort=csc.hostIP.split(":")
+        externalIP=externalIPwithPort[0]
+        console_URL = "http://" + externalIP + "/" + console_URL_split[3] + "/" + console_URL_split[4] + "/" + port_join
+        print("Console URL is : " + console_URL)
+
+        
         return JsonResponse({"instance_url": console_URL}, status=200)

@@ -6,4 +6,4 @@ from openstack.models import OpenstackBackupImage
 
 @admin.register(OpenstackBackupImage)
 class POSTAdmin(admin.ModelAdmin):
-    list_display = ["instance_id", "image_id", "instance_img_file", "created_at", "updated_at"]
+    list_display = ["instance_id", "image_id", "instance_img_file", "updated_at"]

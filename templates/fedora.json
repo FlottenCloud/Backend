@@ -24,9 +24,6 @@
 					"name": "fedora_instance",
 					"flavor": {"get_param":"flavor"},
 					"image": {"get_param":"image"},
-					"key_name": {
-						"get_resource": "demo_key"
-					},
 					"networks": [
 						{
 							"port": {
@@ -48,12 +45,6 @@
                     }
 				}
 			},
-			"demo_key": {
-				"type": "OS::Nova::KeyPair",
-				"properties": {
-					"name": "test-key"
-				}
-			},
 			"mybox_management_port": {
 				"type": "OS::Neutron::Port",
 				"properties": {
@@ -70,7 +61,7 @@
 			"server_floating_ip": {
 				"type": "OS::Neutron::FloatingIP",
 				"properties": {
-					"floating_network_id": "23c31ec3-4445-4c73-9fba-fcd9e8fc0337",
+					"floating_network_id": "",
 					"port_id": {
 						"get_resource": "mybox_management_port"
 					}
@@ -126,7 +117,7 @@
 					"router_id": {
 						"get_resource": "router"
 					},
-					"network_id": "23c31ec3-4445-4c73-9fba-fcd9e8fc0337"
+					"network_id": ""
 				}
 			},
 			"router_interface": {
@@ -144,7 +135,7 @@
 	},
       "parameters":{
         "flavor" : "ds512M",
-        "packages" : ["vim", "pwgen"],
+        "packages" : [],
         "image" : "Fedora-Cloud-Base-36-1.5.x86_64"
     }
 }
