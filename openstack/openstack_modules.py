@@ -340,15 +340,6 @@ class Stack(RequestChecker, TemplateModifier):
         else:
             package_origin_plus_user_req = user_req_package
         package_for_db = (",").join(package_origin_plus_user_req)   # db에 저장할 패키지 목록 문자화
-        # package_origin_plus_user_req = before_update_template_package + user_req_package    # 기존 패키지 + 유저의 요청 패키지
-        # print("Before update package: ", before_update_template_package)
-        # print("User package req: ", user_req_package)
-        # print("Total package: ", package_origin_plus_user_req)
-        # package_for_db = ""
-        # for i in range(len(package_origin_plus_user_req)):
-        #     package_for_db += package_origin_plus_user_req[i]
-        #     if i != len(package_origin_plus_user_req)-1:
-        #         package_for_db += ","
 
         openstack_img_payload = { # 인스턴스의 스냅샷 이미지 만들기위한 payload
             "createImage": {
@@ -406,7 +397,7 @@ class Stack(RequestChecker, TemplateModifier):
         
         return updated_instance_id, updated_instance_name, updated_instance_ip_address, updated_instance_status, updated_instance_image_name, updated_instance_flavor_name, updated_instance_ram_size, updated_disk_size, updated_num_cpu, package_for_db, updated_num_people,  updated_data_size, user_req_backup_time, snapshotID_for_update
     
-    def stackUpdaterWhenFreezerRestored(self, openstack_hostIP, input_data, token, user_id):    # freezer로 restore 됐을 경우(stack_id, stack_name 없음)
+    def stackUpdaterWhenFreezerRestored(self, openstack_hostIP, input_data, user_token, user_id):    # freezer로 restore 됐을 경우(stack_id, stack_name 없음)
         update_openstack_tenant_id = AccountInfo.objects.get(user_id=user_id).openstack_user_project_id
         stack_data = OpenstackInstance.objects.get(instance_pk=input_data["instance_pk"])
         instance_name = stack_data.instance_name
@@ -432,13 +423,6 @@ class Stack(RequestChecker, TemplateModifier):
         else:
             package_origin_plus_user_req = user_req_package
         package_for_db = (",").join(package_origin_plus_user_req)
-        
-        # package_origin_plus_user_req = package_before_update + user_req_package    # 기존 패키지 + 유저의 요청 패키지
-        # package_for_db = ""
-        # for i in range(len(package_origin_plus_user_req)):
-        #     package_for_db += package_origin_plus_user_req[i]
-        #     if i != len(package_origin_plus_user_req)-1:
-        #         package_for_db += ","
 
         openstack_img_payload = { # 인스턴스의 스냅샷 이미지 만들기위한 payload
             "createImage": {
@@ -446,7 +430,7 @@ class Stack(RequestChecker, TemplateModifier):
             }
         }
         snapshot_req = super().reqCheckerWithData("post", "http://" + openstack_hostIP + "/compute/v2.1/servers/" + instance_id + "/action", 
-            token, json.dumps(openstack_img_payload))
+            user_token, json.dumps(openstack_img_payload))
         if snapshot_req == None:
             raise OpenstackServerError
         print("인스턴스로부터 이미지 생성 리스폰스: ", snapshot_req)
@@ -454,7 +438,7 @@ class Stack(RequestChecker, TemplateModifier):
         print("image_ID : " + freezer_restored_instance_snapshotID)
 
         while(True):
-            image_status_req = super().reqChecker("get", "http://" + openstack_hostIP + "/image/v2/images/" + freezer_restored_instance_snapshotID, token)
+            image_status_req = super().reqChecker("get", "http://" + openstack_hostIP + "/image/v2/images/" + freezer_restored_instance_snapshotID, user_token)
             if image_status_req == None:
                 raise OpenstackServerError
             print("이미지 상태 조회 리스폰스: ", image_status_req.json())
@@ -463,6 +447,13 @@ class Stack(RequestChecker, TemplateModifier):
             if image_status == "active":
                 break
             time.sleep(2)
+        
+        before_update_instance__del_req = super().reqChecker("delete", "http://" + openstack_hostIP + "/compute/v2.1/servers/" + instance_id, user_token)
+        print("프리저로 복원된 인스턴스 삭제 리스폰스: ", before_update_instance__del_req)
+        before_update_image_id_req = super().reqChecker("get", "http://" + openstack_hostIP + "/image/v2/images/?name=" + "RESTORE" + instance_name, user_token)
+        before_update_image_id = before_update_image_id_req.json()["images"][0]["id"]
+        before_update_image_del_req = super().reqChecker("delete", "http://" + openstack_hostIP + "/image/v2/images/" + before_update_image_id, user_token)
+        print("프리저로 복원된 인스턴스의 이미지 삭제 리스폰스: ", before_update_image_del_req)
         
         # stack create
         if instance_os == "ubuntu":
@@ -479,20 +470,20 @@ class Stack(RequestChecker, TemplateModifier):
                 json_template = super().templateModifyWhenRestored("backup_for_update_" + instance_id, json_template_skeleton, instance_name, user_req_flavor, user_req_package)
 
         stack_req = super().reqCheckerWithData("post", "http://" + openstack_hostIP + "/heat-api/v1/" + update_openstack_tenant_id + "/stacks",
-            token, json_template)   # 스택 생성 요청
+            user_token, json_template)   # 스택 생성 요청
         if stack_req == None:
             raise OpenstackServerError
         print("stack생성", stack_req.json())
         stack_id = stack_req.json()["stack"]["id"]
         stack_name_req = super().reqChecker("get", "http://" + openstack_hostIP + "/heat-api/v1/" + update_openstack_tenant_id + "/stacks?id=" + stack_id,
-            token)
+            user_token)
         if stack_name_req == None:
             raise OpenstackServerError
         print("스택 이름 정보: ", stack_name_req.json())
         stack_name = stack_name_req.json()["stacks"][0]["stack_name"]
 
         try:    # 생성된 스택 정보
-            updated_instance_id, updated_instance_name, updated_instance_ip_address, updated_instance_status, updated_instance_image_name, updated_instance_flavor_name, updated_instance_ram_size, updated_disk_size, updated_num_cpu = self.stackResourceGetter("create", openstack_hostIP, update_openstack_tenant_id, user_id, stack_name, stack_id, token)
+            updated_instance_id, updated_instance_name, updated_instance_ip_address, updated_instance_status, updated_instance_image_name, updated_instance_flavor_name, updated_instance_ram_size, updated_disk_size, updated_num_cpu = self.stackResourceGetter("create", openstack_hostIP, update_openstack_tenant_id, user_id, stack_name, stack_id, user_token)
         except Exception as e:  # stackResourceGetter에서 None이 반환 된 경우
             print("스택 정보 불러오는 중 예외 발생: ", e)
             raise OpenstackServerError
