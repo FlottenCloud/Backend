@@ -14,6 +14,7 @@ from apscheduler.schedulers.background import BackgroundScheduler
 from django.core.files import File
 from django.http import JsonResponse
 from account.models import AccountInfo
+from openstack import serializers
 
 from openstack.models import OpenstackBackupImage, OpenstackInstance
 from cloudstack.models import CloudstackInstance
@@ -21,8 +22,30 @@ from openstack.serializers import OpenstackInstanceSerializer,OpenstackBackupIma
 from openstack.openstack_modules import RequestChecker, Stack, TemplateModifier
 
 
-# ------------------------------Backup Part------------------------------ #
+# ------------------------------------------------------------ Instance Error Check Part ------------------------------------------------------------ #
 
+def errorCheckAndUpdateDBstatus():
+    import openstack_controller as oc
+    admin_token = oc.admin_token()
+    openstack_hostIP = oc.hostIP
+    req_checker = RequestChecker()
+
+    error_instance_list_req = req_checker.reqChecker("get", "http://" + openstack_hostIP + "/compute/v2.1/servers?status=ERROR&all_tenants=1", admin_token)
+    print(error_instance_list_req)
+    print(error_instance_list_req.json())
+    error_instance_list = error_instance_list_req.json()["servers"]
+    print("에러 상태인 인스턴스 리스트: ", error_instance_list)
+    if len(error_instance_list) == 0:
+        return print("에러상태인 인스턴스가 없습니다.")
+    
+    for error_instance in error_instance_list:
+        OpenstackInstance.objects.filter(instance_id=error_instance["id"]).update(status="ERROR")
+        print("instance " + error_instance["id"] + "에러 감지")
+
+
+# ------------------------------------------------------------ Backup Part ------------------------------------------------------------ #
+
+    # ------------------------------ Cloudstack Module ------------------------------ #
 def templateStatusGetter(admin_apiKey, admin_secretKey, template_name):
     import cloudstack_controller as csc
     
@@ -173,12 +196,13 @@ def cloudstackInstanceDeleteAndCreate(user_id, cloudstack_user_apiKey, cloudstac
     # 그 전에 생성됐던 백업본 삭제
     instance_del_req, template_del_req = deleteCloudstackInstanceAndTemplate(admin_apiKey, admin_secretKey, del_instance_id, del_template_id)
 
-    # ---삭제하고 타이밍 얼마나 줄 지 생각해볼 것--- #
+    # 삭제하고 타이밍 얼마나 줄 지 생각해볼 것
     # 삭제 후 다시 템플릿 등록, 인스턴스 생성
     backup_template_id, instance_deploy_req = deployCloudstackInstance(user_id, cloudstack_user_apiKey, cloudstack_user_secretKey, backup_instance_name, cloudstack_user_network_id, backup_img_file_name, backup_instance_os_type)
 
     return backup_template_id, instance_deploy_req
 
+    # ------------------------------ Total Backup ------------------------------ #
 def backup(cycle):
     import openstack_controller as oc                            # import는 여기 고정 -> 컴파일 시간에 circular import 때문에 걸려서
     openstack_hostIP = oc.hostIP
@@ -317,18 +341,18 @@ def backup(cycle):
     except requests.exceptions.ConnectionError:
             return "요청이 거부되었습니다."
 
-# ------------------------------Restore Part------------------------------ #
+# ------------------------------------------------------------ Restore Part ------------------------------------------------------------ #
 
 def deleteStackBeforeRestore(user_id, user_token, tenant_id_for_restore, stack_id_for_del, stack_name_for_del, instance_update_image_id_for_del):
     import openstack_controller as oc
     token = oc.admin_token()
     openstack_hostIP = oc.hostIP
     req_checker = RequestChecker()
-    
-    print("삭제한 스택 이름: " + stack_name_for_del + "\n삭제한 스택 ID: " + stack_id_for_del)
 
-    tenant_id_for_restore
-    stack_del_req = req_checker.reqChecker("delete", "http://" + openstack_hostIP + "/heat-api/v1/" + tenant_id_for_restore + "/stacks/"
+    del_instance_object = OpenstackInstance.objects().get(stack_id=stack_id_for_del)
+    del_instance_id = del_instance_object.instance_id
+
+    stack_del_req = req_checker.reqChecker("delete", "http://" + openstack_hostIP + "/heat-api/v1/" + tenant_id_for_restore + "/stacks/"    # 스택 삭제 요청
         + stack_name_for_del + "/" + stack_id_for_del, token)
     if stack_del_req == None:
         return "오픈스택 서버에 문제가 생겨 인스턴스(스택)을 삭제할 수 없습니다."
@@ -339,41 +363,38 @@ def deleteStackBeforeRestore(user_id, user_token, tenant_id_for_restore, stack_i
         if update_image_del_req == None:
             return "오픈스택 서버에 문제가 생겨 업데이트 때 사용한 이미지를 삭제할 수 없습니다."
     
-    while(True):
+    while(True):    # 스택이 삭제됐는지 확인
         del_stack_status_req = req_checker.reqChecker("get", "http://" + openstack_hostIP + "/heat-api/v1/" + tenant_id_for_restore + "/stacks/" + stack_name_for_del + "/" + stack_id_for_del, token)
         if del_stack_status_req.json()["stack"]["stack_status"] == "DELETE_COMPLETE":
             print("스택 " + stack_name_for_del + " 삭제 완료")
             break
-        
         print("스택 삭제 중")
         time.sleep(2)
-        
-    OpenstackInstance.objects.get(stack_id=stack_id_for_del).delete()
+
+    if del_instance_object.instance_backup_img_file.filter(instance_id=del_instance_id).exists():   # 에러가 발생한 스택이 한 번이라도 백업 프로세스가 진행된 스택이라면
+        del_backup_image_id = del_instance_object.instance_backup_img_file.get(instance_id=del_instance_id).image_id    # 그 백업 이미지 삭제
+        backup_img_del_req = req_checker.reqChecker("delete", "http://" + oc.hostIP + "/image/v2/images/" + del_backup_image_id, token)
+        print("인스턴스의 백업 이미지 삭제 리스폰스: ", backup_img_del_req)
+        if backup_img_del_req == None:
+            return JsonResponse({"message" : "오픈스택 서버에 문제가 생겨 백업해놓은 이미지를 삭제할 수 없습니다."}, status=404)
+
+    print("에러가 발생해 삭제한 스택 이름: " + stack_name_for_del + "\n에러가 발생해 삭제한 스택 ID: " + stack_id_for_del)
+    OpenstackInstance.objects.get(stack_id=stack_id_for_del).delete()   # 이 경우는 스택 정보를 db에서 날리는 것이므로 backup 이미지 정보도 db에서 사라짐.
     
     return "에러 발생한 스택 삭제 완료"
 
 def errorCheckRestoreInOpenstack():
+    import time
     import openstack_controller as oc
     admin_token = oc.admin_token()
     openstack_hostIP = oc.hostIP
     req_checker = RequestChecker()
     template_modifier = TemplateModifier()
     stack_saver = Stack()
-
-    error_instance_list_req = req_checker.reqChecker("get", "http://" + openstack_hostIP + "/compute/v2.1/servers?status=ERROR&all_tenants=1", admin_token)
-    print(error_instance_list_req)
-    print(error_instance_list_req.json())
-    error_instance_list = error_instance_list_req.json()["servers"]
-    print("에러 상태인 인스턴스 리스트: ", error_instance_list)
-    if len(error_instance_list) == 0:
-        return print("에러상태인 인스턴스가 없습니다.")
-    
-    for error_instance in error_instance_list:
-        OpenstackInstance.objects.filter(instance_id=error_instance["id"]).update(status="ERROR")
-        print("instance " + error_instance["id"] + "에러 감지")
     
     restore_instance_list = OpenstackInstance.objects.filter(status="ERROR")
     for error_instance in restore_instance_list:
+        start_time = time.time()
         user_id = error_instance.user_id.user_id
         user_password = error_instance.user_id.password
         instance_id_for_restore = error_instance.instance_id  # restore 할 인스턴스
@@ -456,34 +477,16 @@ def errorCheckRestoreInOpenstack():
     
         if serializer.is_valid():
             serializer.save()
-            print("saved")
-            print(serializer.data)
+            print("Saved restored instance data: ", serializer.data)
         else:
-            print("not saved")
-            print(serializer.errors)
-        
+            print("Not saved restored instance data for reason: ", serializer.errors)
+        end_time = time.time()
+        print(f"{end_time - start_time:.5f} sec")
+
     return "복구 완료"
 
 
-# ------------------------------Freezer Backup------------------------------ #
-
-def errorCheckAndUpdateDBstatus():
-    import openstack_controller as oc
-    admin_token = oc.admin_token()
-    openstack_hostIP = oc.hostIP
-    req_checker = RequestChecker()
-
-    error_instance_list_req = req_checker.reqChecker("get", "http://" + openstack_hostIP + "/compute/v2.1/servers?status=ERROR&all_tenants=1", admin_token)
-    print(error_instance_list_req)
-    print(error_instance_list_req.json())
-    error_instance_list = error_instance_list_req.json()["servers"]
-    print("에러 상태인 인스턴스 리스트: ", error_instance_list)
-    if len(error_instance_list) == 0:
-        return print("에러상태인 인스턴스가 없습니다.")
-    
-    for error_instance in error_instance_list:
-        OpenstackInstance.objects.filter(instance_id=error_instance["id"]).update(status="ERROR")
-        print("instance " + error_instance["id"] + "에러 감지")
+# ------------------------------------------------------------ Freezer Backup and Restore ------------------------------------------------------------ #
 
 def writeTxtFile(mode, instance_id):
     file = open("freezer_" + mode +"_template.txt", "w", encoding="UTF-8")
@@ -548,15 +551,54 @@ def freezerRestore(instance_id):
     print(resultData) # 결과 확인
     cli.close()
 
+def deleteStackBeforeFreezerRestore(tenant_id_for_restore, stack_id_for_del, stack_name_for_del, instance_update_image_id_for_del):
+    import openstack_controller as oc
+    token = oc.admin_token()
+    openstack_hostIP = oc.hostIP
+    req_checker = RequestChecker()
 
-def freezerRestoreWithCycle(cycle):
+    del_instance_object = OpenstackInstance.objects().get(stack_id=stack_id_for_del)
+    del_instance_id = del_instance_object.instance_id
+
+    stack_del_req = req_checker.reqChecker("delete", "http://" + openstack_hostIP + "/heat-api/v1/" + tenant_id_for_restore + "/stacks/"    # 스택 삭제 요청
+        + stack_name_for_del + "/" + stack_id_for_del, token)
+    if stack_del_req == None:
+        return "오픈스택 서버에 문제가 생겨 인스턴스(스택)을 삭제할 수 없습니다."
+    
+    if instance_update_image_id_for_del != None: # 업데이트를 한 번이라도 했을 시 업데이트에 쓰인 이미지도 삭제
+        update_image_del_req = req_checker.reqChecker("delete", "http://" + openstack_hostIP + "/image/v2/images/" + instance_update_image_id_for_del, token)
+        print("업데이트에 쓰인 이미지 삭제 리스폰스: ", update_image_del_req)
+        if update_image_del_req == None:
+            return "오픈스택 서버에 문제가 생겨 업데이트 때 사용한 이미지를 삭제할 수 없습니다."
+    
+    while(True):    # 스택이 삭제됐는지 확인
+        del_stack_status_req = req_checker.reqChecker("get", "http://" + openstack_hostIP + "/heat-api/v1/" + tenant_id_for_restore + "/stacks/" + stack_name_for_del + "/" + stack_id_for_del, token)
+        if del_stack_status_req.json()["stack"]["stack_status"] == "DELETE_COMPLETE":
+            print("스택 " + stack_name_for_del + " 삭제 완료")
+            break
+        print("스택 삭제 중")
+        time.sleep(2)
+
+    if del_instance_object.instance_backup_img_file.filter(instance_id=del_instance_id).exists():   # 에러가 발생한 스택이 한 번이라도 백업 프로세스가 진행된 스택이라면
+        del_backup_image_id = del_instance_object.instance_backup_img_file.get(instance_id=del_instance_id).image_id    # 그 백업 이미지 삭제
+        backup_img_del_req = req_checker.reqChecker("delete", "http://" + oc.hostIP + "/image/v2/images/" + del_backup_image_id, token)
+        print("인스턴스의 백업 이미지 삭제 리스폰스: ", backup_img_del_req)
+        if backup_img_del_req == None:
+            return JsonResponse({"message" : "오픈스택 서버에 문제가 생겨 백업해놓은 이미지를 삭제할 수 없습니다."}, status=404)
+        del_instance_object.instance_backup_img_file.delete()   # 이 경우는 db의 stack정보를 삭제하는 것이 아니기 때문에 backup이미지 정보만 db에서 delete
+
+    print("에러가 발생해 삭제한 스택 이름: " + stack_name_for_del + "\n에러가 발생해 삭제한 스택 ID: " + stack_id_for_del)
+    
+    return "에러 발생한 스택 삭제 완료"
+
+
+def freezerRestoreWithCycle():
     import time
     import openstack_controller as oc
     admin_token = oc.admin_token()
     req_checker = RequestChecker()
 
-    start_time = time.time()
-    print("freezerRestore With Cycle function Start!!")
+    print("freezerRestore function Start!!")
     error_instance_count = OpenstackInstance.objects.filter(status="ERROR").count()
     if error_instance_count == 0:
         return "Error 상태의 instance 없음"
@@ -565,6 +607,7 @@ def freezerRestoreWithCycle(cycle):
         return "Error 상태인 instance 중 프리저를 통해 백업 된 인스턴스가 없음"
 
     for restore_instance in restore_instance_list:
+        start_time = time.time()
         print("리스토어할 인스턴스 오브젝트: ", restore_instance)
         restore_instance_id = restore_instance.instance_id
         restore_instance_name = restore_instance.instance_name
@@ -575,22 +618,34 @@ def freezerRestoreWithCycle(cycle):
         del_stack_name = restore_instance.stack_name
         del_update_image_id = restore_instance.update_image_ID
         del_openstack_tenant_id = restore_instance.user_id.openstack_user_project_id
+        del_error_stack_result = deleteStackBeforeFreezerRestore(del_openstack_tenant_id, del_stack_id, del_stack_name, del_update_image_id)
+        print(del_error_stack_result)
         stack_del_req = req_checker.reqChecker("delete", "http://" + oc.hostIP + "/heat-api/v1/" + del_openstack_tenant_id + "/stacks/"
             + del_stack_name + "/" + del_stack_id, admin_token)
         if stack_del_req == None:
             return "에러삭제인 스택 삭제 도중 오픈스택 서버에 문제가 생겼습니다."
+
         if del_update_image_id != None: # 업데이트를 한 번이라도 했을 시 업데이트에 쓰인 이미지도 삭제
             update_image_del_req = req_checker.reqChecker("delete", "http://" + oc.hostIP + "/image/v2/images/" + del_update_image_id, admin_token)
             print("업데이트에 쓰인 이미지 삭제 리스폰스: ", update_image_del_req)
             if update_image_del_req == None:
                 return JsonResponse({"message" : "오픈스택 서버에 문제가 생겨 업데이트 때 사용한 이미지를 삭제할 수 없습니다."}, status=404)
+
+        while(True):    # 스택이 삭제됐는지 확인
+            del_stack_status_req = req_checker.reqChecker("get", "http://" + oc.hostIP + "/heat-api/v1/" + del_openstack_tenant_id + "/stacks/" + del_stack_name + "/" + del_stack_id, admin_token)
+            if del_stack_status_req.json()["stack"]["stack_status"] == "DELETE_COMPLETE":
+                print("스택 " + del_stack_name + " 삭제 완료")
+                break
+            print("스택 삭제 중")
+            time.sleep(2)
+
         if restore_instance.instance_backup_img_file.filter(instance_id=restore_instance_id).exists():
             del_backup_image_id = restore_instance.instance_backup_img_file.get(instance_id=restore_instance_id).image_id
             backup_img_del_req = req_checker.reqChecker("delete", "http://" + oc.hostIP + "/image/v2/images/" + del_backup_image_id, admin_token)
             print("인스턴스의 백업 이미지 삭제 리스폰스: ", backup_img_del_req)
             if backup_img_del_req == None:
                 return JsonResponse({"message" : "오픈스택 서버에 문제가 생겨 백업해놓은 이미지를 삭제할 수 없습니다."}, status=404)
-            del_backup_image_id
+            restore_instance.instance_backup_img_file.delete()
 
         # --------- freezer restore --------- #
         try:
@@ -615,6 +670,7 @@ def freezerRestoreWithCycle(cycle):
         
         OpenstackInstance.objects.filter(instance_name=restored_instance_name).update(instance_id=restored_instance_id, instance_name=restored_instance_name,
             stack_id=None, stack_name=None, ip_address=restored_instance_ip_address, status="ACTIVE", image_name="RESTORE"+restored_instance_name, update_image_ID=None, freezer_completed=False)
+
         end_time = time.time()
         print(f"{end_time - start_time:.5f} sec")
 
@@ -679,14 +735,6 @@ def freezerBackup12():
     freezer_backup_res = freezerBackupWithCycle(12)
     print(freezer_backup_res)
 
-def freezerRestore6():
-    freezer_restore_res = freezerRestoreWithCycle(6)
-    print(freezer_restore_res)
-    
-def freezerRestore12():
-    freezer_restore_res = freezerRestoreWithCycle(12)
-    print(freezer_restore_res)
-
 def backup6():
     backup_res = backup(6)
     print(backup_res)
@@ -717,8 +765,7 @@ def start():
     # scheduler.add_job(backup12, 'interval', seconds=120)
     # scheduler.add_job(freezerBackup12, 'interval', seconds=30)
     # scheduler.add_job(backup6, 'interval', seconds=20)
-    # scheduler.add_job(freezerRestore6, 'interval', seconds=20)
-    # scheduler.add_job(freezerRestore12, 'interval', seconds=10)
+    # scheduler.add_job(freezerRestore, 'interval', seconds=20)
     scheduler.add_job(dbModifier, "interval", seconds=5)
     # scheduler.add_job(errorCheckAndUpdateDBstatus, 'interval', seconds=10)
 
