@@ -99,10 +99,7 @@ def requestThroughSigUsingRequests(secretKey, request_body):
     req_url = api_base_url + request_str + '&signature=' + sig
     print("클라우드 스택으로의 리퀘스트:", req_url)
     req = requests.get(req_url)
-    # res = req.json()
-    # urllib.request.urlcleanup()
-    # res = urllib.request.urlopen(req)
-    # response = res.read()
-    
-    print("클라우드 스택에서의 리스폰스:", req.json())
-    return req
+    res = req.json()
+    print("클라우드 스택에서의 리스폰스:", res)
+
+    return res
