@@ -1,7 +1,7 @@
 import os   #여기서부터 장고와 환경을 맞추기 위한 import
-os.environ.setdefault("DJANGO_SETTINGS_MODULE", "cloudmanager.settings")    # INSTALLED_APPS에 등록된 앱 내의 함수가 아니기 때문에, INSTALLED APPS에 있는 모듈을 임포트 할 때 필요
-import django
-django.setup()
+# os.environ.setdefault("DJANGO_SETTINGS_MODULE", "cloudmanager.settings")    # INSTALLED_APPS에 등록된 앱 내의 함수가 아니기 때문에, INSTALLED APPS에 있는 모듈을 임포트 할 때 필요
+# import django
+# django.setup()
 
 import requests
 import json
@@ -9,6 +9,7 @@ from django.http import JsonResponse
 
 # from openstack.models import OpenstackInstance
 
+<<<<<<< HEAD
 <<<<<<< HEAD
 hostIP = "119.198.160.6"    #김영후 집 데스크탑 공인 ip
 admin_project_id = "33cba7ea48164446b6525331a99b985a" #김영후 데탑에 깔린 오픈스택 서버의 id들
@@ -22,6 +23,13 @@ admins_group_id = ""
 admin_role_id = ""
 public_network_id = ""
 >>>>>>> 767073b4badb1e91b51ff26f98c7f58d902e471d
+=======
+hostIP = "211.197.83.186"    #김영후 집 데스크탑 공인 ip     # 얘네들 학교에 깔린 오픈스택에 맞출 것
+admin_project_id = "6d3c418129734350b114b3fcee7acc44" #김영후 데탑에 깔린 오픈스택 서버의 id들
+admins_group_id = "4902de7b29814942b79ea13a93c300cb"
+admin_role_id = "f1a406fefefe4672b32846e217a2a2c5"
+public_network_id = "4c301b10-0d25-4528-9679-bc4f1b2d617f"
+>>>>>>> 3286821280d1532106a3f4ccb7b78255d8950004
 
 class TokenExpiredError(Exception):
     def __init__(self):
@@ -34,6 +42,10 @@ class OpenstackServerError(Exception):
 class OverSizeError(Exception):
     def __init__(self):
         super().__init__("인원 수 X 인원 당 예상 용량 값은 10G를 넘지 못합니다.")
+        
+class StackUpdateFailedError(Exception):
+    def __init__(self):
+        super().__init__("Stack update failed.")
 
 def admin_token():  # admin user의 token을 발급받는 함수
     admin_token_payload = {   # admin user token 발급 Body

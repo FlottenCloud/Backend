@@ -224,11 +224,11 @@ class AccountView(APIView):
                     headers = {'X-Auth-Token' : admin_token})
                 print("업데이트에 쓰인 이미지 삭제 리스폰스: ", image_del_req)
 
-        openstack_project_del_req = requests.delete("http://" + openstack_hostIP + "/identity/v3/projects/" + del_project_id_openstack,
-            headers={'X-Auth-Token': admin_token})     #오픈스택에 해당 프로젝트 삭제 request
+        # openstack_project_del_req = requests.delete("http://" + openstack_hostIP + "/identity/v3/projects/" + del_project_id_openstack,
+        #     headers={'X-Auth-Token': admin_token})     #오픈스택에 해당 프로젝트 삭제 request
         openstack_user_del_req = requests.delete("http://" + openstack_hostIP + "/identity/v3/users/" + del_user_id_openstack,
             headers={'X-Auth-Token': admin_token})     #오픈스택에 해당 유저 삭제 request
-        print("오픈스택 유저 프로젝트 삭제 리스폰스 :", openstack_project_del_req, " 오픈스택 유저 삭제 리스폰스: ", openstack_user_del_req)
+        print("오픈스택 유저 삭제 리스폰스: ", openstack_user_del_req)
 
         #------cloudstack account delete------#
         cloudstack_account_del_body={     # cloudstack account 삭제 request body

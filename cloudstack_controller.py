@@ -14,6 +14,7 @@ import urllib.parse
 import urllib.request
 
 <<<<<<< HEAD
+<<<<<<< HEAD
 hostIP = "211.197.83.186:8080"
 api_base_url = "http://211.197.83.186:8080/client/api?"
 admin_apiKey = "CPS5vA56-gQ3RPyshKyzf7zc27ECdCS2dfHf-8_b8yU23r8KiqKDmZfLAnZ8bogRdcoqSFkCdmMzXPuzUyscvQ"
@@ -36,6 +37,18 @@ hostID = ""
 small_offeringID = ""
 medium_offeringID = ""
 >>>>>>> 767073b4badb1e91b51ff26f98c7f58d902e471d
+=======
+hostIP = "10.125.70.28"
+api_base_url = "http://10.125.70.28:8080/client/api?"
+admin_apiKey = "W52i_LjFrXiTApR6FseHUkkGH24fIHnKvZ7Oq8rZQVZ8ow1TIl4JTmYIkbjmF-9_7t7zplyR-YkcWIHQIOYU9Q"
+admin_secretKey = "smYL6tn_2ghP8q64qfEz8Ewq1htWcNhDlgDV3ugy53dsWZ1tjFW3LaiYU1RtpnhtzjQpfSPKk4G9MJAAWfHspQ"
+netOfferingID_L2VLAN = "9b55e8b7-8a32-401e-86bc-92eeb087a02b"
+zoneID = "aee60d64-ae63-4319-85f1-92687f1875ff"
+domainID = "e5934522-fe91-11ec-ae65-525400c8d027"
+hostID = "db1f8fad-efa5-4cdb-92e6-19ff286a2253"
+small_offeringID = "6906780f-3625-46ea-86f0-5ed272dc2f73"
+medium_offeringID = "9700927a-d86d-431f-a81d-3b9e6eb1be13"
+>>>>>>> 3286821280d1532106a3f4ccb7b78255d8950004
 
 def requestThroughSig(secretKey, request_body):
     request_str = '&'.join(['='.join([k, urllib.parse.quote_plus(request_body[k])]) for k in request_body.keys()])
@@ -112,10 +125,7 @@ def requestThroughSigUsingRequests(secretKey, request_body):
     req_url = api_base_url + request_str + '&signature=' + sig
     print("클라우드 스택으로의 리퀘스트:", req_url)
     req = requests.get(req_url)
-    # res = req.json()
-    # urllib.request.urlcleanup()
-    # res = urllib.request.urlopen(req)
-    # response = res.read()
-    
-    print("클라우드 스택에서의 리스폰스:", req.json())
-    return req
+    res = req.json()
+    print("클라우드 스택에서의 리스폰스:", res)
+
+    return res

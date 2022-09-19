@@ -52,15 +52,15 @@ class Openstack(Stack, APIView):
             if user_os == "ubuntu":
                 with open(stack_template_root + 'ubuntu_1804.json','r') as f:   # 오픈스택에 ubuntu 이미지 안올려놨음
                     json_template_skeleton = json.load(f)
-                    json_template = super().templateModify(json_template_skeleton, user_id, user_instance_name, flavor, user_package)
+                    json_template = super().templateModify(json_template_skeleton, user_instance_name, flavor, user_package)
             elif user_os == "centos":
                 with open(stack_template_root + 'cirros.json','r') as f:    # 오픈스택에 centos 이미지 안올려놔서 일단 cirros.json으로
                     json_template_skeleton = json.load(f)
-                    json_template = super().templateModify(json_template_skeleton, user_id, user_instance_name, flavor, user_package)
+                    json_template = super().templateModify(json_template_skeleton, user_instance_name, flavor, user_package)
             elif user_os == "fedora":
                 with open(stack_template_root + 'fedora.json','r') as f:    #이걸로 생성 test
                     json_template_skeleton = json.load(f)
-                    json_template = super().templateModify(json_template_skeleton, user_id, user_instance_name, flavor, user_package)
+                    json_template = super().templateModify(json_template_skeleton, user_instance_name, flavor, user_package)
             
             #address heat-api v1 프로젝트 id stacks
             stack_req = super().reqCheckerWithData("post", "http://" + openstack_hostIP + "/heat-api/v1/" + openstack_tenant_id + "/stacks",
@@ -157,7 +157,7 @@ class Openstack(Stack, APIView):
 
         return JsonResponse({"instances" : user_stack_data}, status=200)
     
-    @swagger_auto_schema(tags=["Openstack API"], manual_parameters=[openstack_user_token], request_body=UpdateStackSerializer, responses={200:"Success", 401:"Unauthorized", 404:"Not Found", 405:"Method Not Allowed"})
+    @swagger_auto_schema(tags=["Openstack API"], manual_parameters=[openstack_user_token], request_body=UpdateStackSerializer, responses={200:"Success", 401:"Unauthorized", 404:"Not Found", 405:"Method Not Allowed", 500:"Internal Server Error"})
     def patch(self, request):       # header: user_token, body: instance_id->instance_pk, 요구사항({package[], num_people, data_size, backup_time})
         try:
             input_data, token, user_id = oc.getRequestParamsWithBody(request)
@@ -185,6 +185,8 @@ class Openstack(Stack, APIView):
         except oc.OverSizeError as e:
             print("스택 업데이트 중 예외 발생: ", e)
             return JsonResponse({"message" : "인원 수 X 인원 당 예상 용량 값은 10G를 넘지 못합니다."}, status=405)
+        except oc.StackUpdateFailedError as e:
+            return JsonResponse({"message" : "스택 업데이트에 실패했습니다."}, status=500)
 
         return JsonResponse({"message" : "업데이트 완료"}, status=201)
 
