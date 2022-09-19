@@ -122,7 +122,7 @@ def deployCloudstackInstance(user_id, user_apiKey, user_secretKey, instance_pk, 
         "networkids" : cloudstack_user_network_id, "serviceofferingId" : medium_offeringID,
         'templateId': backup_template_id, "zoneId": zoneID,
         "displayname" : instance_name, "name" : instance_name, "domainid" : domainID,
-        "account" : user_id, "hostid" : hostID, "startvm" : "false"
+        "account" : user_id, "hostid" : hostID, "startvm" : "true"
     }
     try :   # 클라우드스택 인스턴스 생성 시작
         print("인스턴스 생성 시작")
