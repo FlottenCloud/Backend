@@ -317,6 +317,8 @@ class Stack(RequestChecker, TemplateModifier):
         before_update_template_package = stack_data.package.split(",")
         image_used_for_update = stack_data.update_image_ID
 
+        print("백업 전 패키지: ", before_update_template_package)
+
         user_req_package, updated_num_people, updated_data_size, user_req_flavor, user_req_backup_time = super().getUserUpdateRequirement(input_data)
         if user_req_flavor == "EXCEEDED":   # 용량이 10GB를 넘어간 경우
             raise OverSizeError
@@ -337,6 +339,7 @@ class Stack(RequestChecker, TemplateModifier):
         
         if before_update_template_package[0] != "":
             package_origin_plus_user_req = before_update_template_package + user_req_package    # 기존 패키지 + 유저의 요청 패키지
+            print("기존 패키지 + 유저의 요청 패키지: ", package_origin_plus_user_req)
         else:
             package_origin_plus_user_req = user_req_package
         package_for_db = (",").join(package_origin_plus_user_req)   # db에 저장할 패키지 목록 문자화
