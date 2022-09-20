@@ -46,3 +46,7 @@ class OpenstackBackupImage(models.Model):
 
     class Meta:
         db_table = 'openstack_backup_image'
+
+class ServerStatusFlag(models.Model):
+    platform_name = models.CharField(max_length=50)
+    status = models.BooleanField()

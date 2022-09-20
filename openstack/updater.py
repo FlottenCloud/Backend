@@ -16,7 +16,7 @@ from django.http import JsonResponse
 from account.models import AccountInfo
 from openstack import serializers
 
-from openstack.models import OpenstackBackupImage, OpenstackInstance
+from openstack.models import OpenstackBackupImage, OpenstackInstance, ServerStatusFlag
 from cloudstack.models import CloudstackInstance
 from openstack.serializers import OpenstackInstanceSerializer,OpenstackBackupImageSerializer
 from openstack.openstack_modules import RequestChecker, Stack, TemplateModifier
@@ -882,6 +882,8 @@ def openstackServerRecoveryChecker():
                     restore_res = restoreFromCloudstack(cloudstack_user_apiKey, cloudstack_user_secretKey, cloudstack_instance_id, cloudstack_instance_name, cloudstack_template_name, cloudstack_del_template_id)
                     print(restore_res)
             
+            ServerStatusFlag.objects.filter(platform_name="openstack").update(status=True)
+
             return print("All User's Instance Recovered From Cloudstack!!")
                 
 
@@ -889,9 +891,11 @@ def openstackServerChecker():
     import openstack_controller as oc
 
     if oc.admin_token() != None:
+        print("Openstack Server On: ", ServerStatusFlag.objects.get(platform_name="openstack").status)
         return print("오픈스택 서버 정상")
     else:
         print("openstack server error occured")
+        ServerStatusFlag.objects.filter(platform_name="openstack").update(status=False)
         restore_res = openstackServerRecoveryChecker()
 
     return restore_res
@@ -1128,10 +1132,13 @@ def freezerBackup6():
 
     openstack_server_check = oc.admin_token()
     if openstack_server_check == None:
-        return "오픈스택 서버 문제 발생, 백업 불가"
+        return print("오픈스택 서버 문제 발생, Freezer Backup with cycle 6 불가")
     else:
-        freezer_backup_res = freezerBackupWithCycle(6)
-        print(freezer_backup_res)
+        if ServerStatusFlag.objects.get(platform_name="openstack").status == True:
+            freezer_backup_res = freezerBackupWithCycle(6)
+            print(freezer_backup_res)
+        else:
+            return  print("오픈스택서버가 아직 복구되지 않았습니다.")
 
     return print("All Freezer Backup With 6 Hour Cycle Completed!!")
 
@@ -1140,22 +1147,43 @@ def freezerBackup12():
 
     openstack_server_check = oc.admin_token()
     if openstack_server_check == None:
-        return "오픈스택 서버 문제 발생, 백업 불가"
+        return "오픈스택 서버 문제 발생, Freezer Backup with cycle 12 불가"
     else:
-        freezer_backup_res = freezerBackupWithCycle(12)
-        print(freezer_backup_res)
+        if ServerStatusFlag.objects.get(platform_name="openstack").status == True:
+            freezer_backup_res = freezerBackupWithCycle(12)
+            print(freezer_backup_res)
+        else:
+            return  print("오픈스택서버가 아직 복구되지 않았습니다.")
     
     return print("All Freezer Backup With 12 Hour Cycle Completed!!")
+
+def freezerRestore6():
+    import openstack_controller as oc
+
+    openstack_server_check = oc.admin_token()
+    if openstack_server_check == None:
+        return "오픈스택 서버 문제 발생, Freezer Restore 불가"
+    else:
+        if ServerStatusFlag.objects.get(platform_name="openstack").status == True:
+            freezer_restore_res = freezerRestoreWithCycle()
+            print(freezer_restore_res)
+        else:
+            return  print("오픈스택서버가 아직 복구되지 않았습니다.")
+
+    return print("All Freezer Restore Completed!!")
 
 def backup6():
     import openstack_controller as oc
 
     openstack_server_check = oc.admin_token()
     if openstack_server_check == None:
-        return "오픈스택 서버 문제 발생, 백업 불가"
+        return "오픈스택 서버 문제 발생, 주기 6시간짜리 백업 불가"
     else:
-        backup_res = backup(6)
-        print(backup_res)
+        if ServerStatusFlag.objects.get(platform_name="openstack").status == True:
+            backup_res = backup(6)
+            print(backup_res)
+        else:
+            return  print("오픈스택서버가 아직 복구되지 않았습니다.")
     
     return print("All Backup With 6 Hour Cycle Completed!!")
 
@@ -1164,10 +1192,13 @@ def backup12():
 
     openstack_server_check = oc.admin_token()
     if openstack_server_check == None:
-        return "오픈스택 서버 문제 발생, 백업 불가"
+        return "오픈스택 서버 문제 발생, 주기 12시간짜리 백업 불가"
     else:
-        backup_res = backup(12)
-        print(backup_res)
+        if ServerStatusFlag.objects.get(platform_name="openstack").status == True:
+            backup_res = backup(12)
+            print(backup_res)
+        else:
+            return  print("오픈스택서버가 아직 복구되지 않았습니다.")
 
     return print("All Backup With 12 Hour Cycle Completed!!")
     
@@ -1197,6 +1228,10 @@ def dbModifier():
     #     disk_size = 5,
     #     num_cpu = 1
     # )
+    ServerStatusFlag.objects.create(
+        platform = "openstack",
+        status = True
+    )
     print("updated")
 
 
@@ -1215,6 +1250,6 @@ def start():
     # scheduler.add_job(freezerRestoreWithCycle, 'interval', seconds=20)
     
     # scheduler.add_job(errorCheckAndUpdateDBstatus, 'interval', seconds=10)
-    scheduler.add_job(openstackServerChecker, 'interval', seconds=30)
+    scheduler.add_job(openstackServerChecker, 'interval', seconds=10)
 
     scheduler.start()
