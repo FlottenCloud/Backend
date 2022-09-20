@@ -59,6 +59,7 @@ def main():
     request_body = {"apiKey": admin_apiKey, "response": "json", "command": "destroyVirtualMachine",
         "id": "2ad3f87f-52bc-4888-8d3a-58a1c64a5064", "expunge": "true"}
     sig, req = requestThroughSig(admin_secretKey, request_body)
+    
     # request_body = {"apiKey" : admin_apiKey, "response" : "json", "command" : "registerTemplate",
     # "displaytext" : "gettest", "format" : "qcow2", "hypervisor" : "kvm",
     # "name" : "gettest", "url" : "https://cloud-images.ubuntu.com/bionic/current/bionic-server-cloudimg-amd64.img", "ostypeid" : "12bc219b-fdcb-11ec-a9c1-08002765d220", "zoneid" : zoneID}

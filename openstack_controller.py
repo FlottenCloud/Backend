@@ -13,7 +13,7 @@ hostIP = "211.197.83.186"    #김영후 집 데스크탑 공인 ip     # 얘네�
 admin_project_id = "16aa441c434e4669a56f4ccde9c7a053" #김영후 데탑에 깔린 오픈스택 서버의 id들
 admins_group_id = "b1a32377994848dc9f3b2395d3dfa368"
 admin_role_id = "7459ab064e7540d080bf946c1b095aff"
-public_network_id = "9c6a5e04-a396-4ea3-8c6a-ead26990fbb6"
+public_network_id = "2d476eb6-f5f8-4632-80a7-b0ffe5337d3f"  # mainnetwork id
 
 class TokenExpiredError(Exception):
     def __init__(self):
@@ -30,6 +30,10 @@ class OverSizeError(Exception):
 class StackUpdateFailedError(Exception):
     def __init__(self):
         super().__init__("Stack update failed.")
+
+class InstanceImgageUploadingError(Exception):
+    def __init__(self):
+        super().__init__("인스턴스가 현재 image uploading 상태입니다.")
 
 def admin_token():  # admin user의 token을 발급받는 함수
     admin_token_payload = {   # admin user token 발급 Body

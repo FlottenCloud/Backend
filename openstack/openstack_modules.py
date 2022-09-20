@@ -3,13 +3,14 @@ import sys
 sys.path.append(os.path.dirname(os.path.abspath(os.path.dirname(__file__))))    #여기까지는 상위 디렉토리 모듈 import 하기 위한 코드
 
 import openstack_controller as oc
-from openstack_controller import OpenstackServerError, OverSizeError, StackUpdateFailedError
+from openstack_controller import OpenstackServerError, OverSizeError, StackUpdateFailedError, InstanceImgageUploadingError
 import json
 import requests
 import time
 from .models import OpenstackInstance
 from account.models import AccountInfo
 
+openstack_hostIP = oc.hostIP
 
 class RequestChecker:
     def reqCheckerWithData(self, method, req_url, req_header, req_data):
@@ -164,8 +165,25 @@ class TemplateModifier:
 
         return(json.dumps(template_data))
 
+class Instance(RequestChecker):    # 인스턴스 요청에 대한 공통 요소 클래스
+    def checkDataBaseInstanceID(self, input_data):  # DB에서 Instance의 ID를 가져 오는 함수(request를 통해 받은 instance_id가 DB에 존재하는지 유효성 검증을 위해 존재)
+        instance_pk = input_data["instance_pk"]
+        try:
+            instance_pk = OpenstackInstance.objects.get(instance_pk=instance_pk).instance_pk    # DB에 request로 받은 instance_id와 일치하는 instance_id가 있으면 instance_id 반환
+        except :
+            return None # DB에 일치하는 instance_id가 없으면 None(NULL) 반환
 
-class Stack(RequestChecker, TemplateModifier):
+        return instance_pk
+    
+    def instance_image_uploading_checker(self, instance_id):
+        image_uploading_check = super().reqChecker("get", "http://" + openstack_hostIP + "/compute/v2.1/servers/" + instance_id, oc.admin_token())
+        is_image_uploading = image_uploading_check.json()["server"]["OS-EXT-STS:task_state"]
+        if is_image_uploading == None:
+            return False
+        else:
+            return True
+
+class Stack(TemplateModifier, Instance):
     def stackResourceGetter(self, usage, openstack_hostIP, openstack_tenant_id, user_id, stack_name, stack_id, token):
         time.sleep(2)
         while(True):
@@ -205,7 +223,7 @@ class Stack(RequestChecker, TemplateModifier):
 
         instance_name = instance_info_req.json()["server"]["name"]
         print("인스턴스 이름: ", instance_name)
-        instance_ip_address = instance_info_req.json()["server"]["addresses"]["public"][0]["addr"]
+        instance_ip_address = instance_info_req.json()["server"]["addresses"]["mainnetwork"][0]["addr"]
         print("인스턴스 ip: ", instance_ip_address)
         instance_status =  instance_info_req.json()["server"]["status"]
         print("인스턴스 상태: ",instance_status)
@@ -277,7 +295,7 @@ class Stack(RequestChecker, TemplateModifier):
 
         instance_name = instance_info_req.json()["server"]["name"]
         print("인스턴스 이름: ", instance_name)
-        instance_ip_address = instance_info_req.json()["server"]["addresses"]["public"][0]["addr"]
+        instance_ip_address = instance_info_req.json()["server"]["addresses"]["mainnetwork"][0]["addr"]
         print("인스턴스 ip: ", instance_ip_address)
         instance_status =  instance_info_req.json()["server"]["status"]
         print("인스턴스 상태: ",instance_status)
@@ -344,6 +362,11 @@ class Stack(RequestChecker, TemplateModifier):
             package_origin_plus_user_req = user_req_package
         package_for_db = (",").join(package_origin_plus_user_req)   # db에 저장할 패키지 목록 문자화
 
+        
+        if super().instance_image_uploading_checker(instance_id) == True:  # instance snapshot create in progress
+            print("Instance is image uploading state!!!")
+            raise InstanceImgageUploadingError
+        
         openstack_img_payload = { # 인스턴스의 스냅샷 이미지 만들기위한 payload
             "createImage": {
                 "name": "backup_for_update_" + instance_id
@@ -427,6 +450,11 @@ class Stack(RequestChecker, TemplateModifier):
             package_origin_plus_user_req = user_req_package
         package_for_db = (",").join(package_origin_plus_user_req)
 
+        
+        if super().instance_image_uploading_checker(instance_id) == True:  # instance snapshot create in progress
+            print("Instance is image uploading state!!!")
+            raise InstanceImgageUploadingError
+        
         openstack_img_payload = { # 인스턴스의 스냅샷 이미지 만들기위한 payload
             "createImage": {
                 "name": "backup_for_update_" + instance_id
@@ -492,14 +520,3 @@ class Stack(RequestChecker, TemplateModifier):
             raise OpenstackServerError
 
         return updated_instance_id, updated_instance_name, updated_instance_ip_address, updated_instance_status, updated_instance_image_name, updated_instance_flavor_name, updated_instance_ram_size, updated_disk_size, updated_num_cpu, package_for_db, updated_num_people,  updated_data_size, user_req_backup_time, freezer_restored_instance_snapshotID
-
-
-class Instance:    # 인스턴스 요청에 대한 공통 요소 클래스
-    def checkDataBaseInstanceID(self, input_data):  # DB에서 Instance의 ID를 가져 오는 함수(request를 통해 받은 instance_id가 DB에 존재하는지 유효성 검증을 위해 존재)
-        instance_pk = input_data["instance_pk"]
-        try:
-            instance_pk = OpenstackInstance.objects.get(instance_pk=instance_pk).instance_pk    # DB에 request로 받은 instance_id와 일치하는 instance_id가 있으면 instance_id 반환
-        except :
-            return None # DB에 일치하는 instance_id가 없으면 None(NULL) 반환
-
-        return instance_pk

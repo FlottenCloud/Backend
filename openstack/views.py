@@ -187,6 +187,8 @@ class Openstack(Stack, APIView):
             return JsonResponse({"message" : "인원 수 X 인원 당 예상 용량 값은 10G를 넘지 못합니다."}, status=405)
         except oc.StackUpdateFailedError as e:
             return JsonResponse({"message" : "스택 업데이트에 실패했습니다."}, status=500)
+        except oc.InstanceImgageUploadingError as e:
+            return JsonResponse({"message" : "인스턴스가 현재 이미지 업로딩 상태입니다. 잠시 후 시도해주세요."}, status=500)
 
         return JsonResponse({"message" : "업데이트 완료"}, status=201)
 
@@ -332,8 +334,7 @@ class DashBoard(RequestChecker, APIView):
         return JsonResponse(dashboard_data)
 
 
-
-class InstanceStart(RequestChecker, Instance, APIView):
+class InstanceStart(Instance, APIView):
     @swagger_auto_schema(tags=["Openstack Instance API"], manual_parameters=[openstack_user_token], request_body=InstancePKSerializer, responses={202:"Accepted", 404:"Not Found"})
     def post(self, request):    # header: user_token, body: instance_pk
         try:
@@ -363,7 +364,7 @@ class InstanceStart(RequestChecker, Instance, APIView):
         return JsonResponse({"message" : "가상머신 시작"}, status=202)
 
 
-class InstanceStop(RequestChecker, Instance, APIView):
+class InstanceStop(Instance, APIView):
     @swagger_auto_schema(tags=["Openstack Instance API"], manual_parameters=[openstack_user_token], request_body=InstancePKSerializer, responses={202:"Accepted", 404:"Not Found"})
     def post(self, request):    # header: user_token, body: instance_pk
         try:
@@ -392,7 +393,7 @@ class InstanceStop(RequestChecker, Instance, APIView):
         return JsonResponse({"message" : "가상머신 전원 끔"}, status=202)
 
 
-class InstanceConsole(RequestChecker, Instance, APIView):
+class InstanceConsole(Instance, APIView):
     @swagger_auto_schema(tags=["Openstack Instance API"], manual_parameters=[openstack_user_token], request_body=InstancePKSerializer, responses={200:"Success", 404:"Not Found"})
     def post(self, request):    # header: user_token, body: instance_pk
         try:

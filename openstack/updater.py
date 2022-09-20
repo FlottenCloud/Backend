@@ -19,7 +19,7 @@ from openstack import serializers
 from openstack.models import OpenstackBackupImage, OpenstackInstance, ServerStatusFlag
 from cloudstack.models import CloudstackInstance
 from openstack.serializers import OpenstackInstanceSerializer,OpenstackBackupImageSerializer
-from openstack.openstack_modules import RequestChecker, Stack, TemplateModifier
+from openstack.openstack_modules import RequestChecker, Stack, TemplateModifier, Instance
 
 
 # ------------------------------------------------------------ Instance Error Check Part ------------------------------------------------------------ #
@@ -213,6 +213,7 @@ def backup(cycle):
 
     print("this function runs every", cycle, "seconds")
     req_checker = RequestChecker()
+    instance_tool = Instance()
 
     try:
         instance_count = OpenstackInstance.objects.filter(backup_time=cycle).count()
@@ -248,6 +249,10 @@ def backup(cycle):
                     "rotation": 1
                 }
             }
+            if instance_tool.instance_image_uploading_checker(backup_instance_id) == True:  # instance snapshot create in progress
+                print("Instance is image uploading state!!!")
+                pass
+            
             backup_req = req_checker.reqCheckerWithData("post", "http://" + openstack_hostIP + "/compute/v2.1/servers/" +
                 backup_instance_id + "/action", admin_token,
                 json.dumps(backup_payload))
@@ -1023,6 +1028,7 @@ def deleteStackBeforeFreezerRestore(tenant_id_for_restore, stack_id_for_del, sta
     return "에러 발생한 스택 삭제 완료"
 
 def freezerBackupWithCycle(cycle):
+    instance_tool = Instance()
     print("freezerBackup With Cycle function Start!!")
     try:
         instance_count = OpenstackInstance.objects.filter(backup_time=cycle).count()
@@ -1037,6 +1043,9 @@ def freezerBackupWithCycle(cycle):
             for instance in backup_instance_list:
                 if instance.status == "ERROR":
                     print("instance " + instance.instance_name + " status is error. Can not backup with freezer.")
+                    pass
+                if instance_tool.instance_image_uploading_checker(instance.instance_id) == True:  # instance snapshot create in progress
+                    print("Instance is image uploading state!!!")
                     pass
                 print("인스턴스 오브젝트: ", instance)
                 instance_id_for_OSremove = instance.instance_id
@@ -1060,6 +1069,12 @@ def freezerBackupWithCycle(cycle):
 
         backup_instance_list = OpenstackInstance.objects.filter(freezer_completed=False).filter(backup_time=cycle)
         for instance in backup_instance_list:
+            if instance.status == "ERROR":
+                print("instance " + instance.instance_name + " status is error. Can not backup with freezer.")
+                pass
+            if instance_tool.instance_image_uploading_checker(instance.instance_id) == True:  # instance snapshot create in progress
+                print("Instance is image uploading state!!!")
+                pass
             print("인스턴스 오브젝트: ", instance)
             backup_instance_id = instance.instance_id
             print("인스턴스 id: ", backup_instance_id)
@@ -1218,10 +1233,10 @@ def backup12():
     
 # ---- 야매용 함수들 ---- #
 def deleter():
-    AccountInfo.objects.all().delete()
-    OpenstackInstance.objects.all().delete()
+    # AccountInfo.objects.all().delete()
+    # OpenstackInstance.objects.all().delete()
     OpenstackBackupImage.objects.all().delete()
-    CloudstackInstance.objects.all().delete()
+    # CloudstackInstance.objects.all().delete()
     ServerStatusFlag.objects.filter(platform_name="openstack").update(status=True)
     # ServerStatusFlag.objects.get(id=2).delete()
     print("all-deleted")
@@ -1254,18 +1269,18 @@ def dbModifier():
 # ------------------------------------------------------------------------ Total Batch Job Part ------------------------------------------------------------------------ #
 def start():
     scheduler = BackgroundScheduler() # ({'apscheduler.job_defaults.max_instances': 2}) # max_instance = 한 번에 실행할 수 있는 같은 job의 개수
-    scheduler.add_job(deleter, 'interval', seconds=2)
+    # scheduler.add_job(deleter, 'interval', seconds=10)
     # scheduler.add_job(dbModifier, "interval", seconds=5)
     
-    # scheduler.add_job(backup6, 'interval', seconds=1800)
+    scheduler.add_job(backup6, 'interval', seconds=300)
     # scheduler.add_job(backup12, 'interval', seconds=170)
     
-    # scheduler.add_job(freezerBackup6, 'interval', seconds=1800)
+    scheduler.add_job(freezerBackup6, 'interval', seconds=400)
     # scheduler.add_job(freezerBackup12, 'interval', seconds=70)
     
-    # scheduler.add_job(freezerRestore6, 'interval', seconds=1200)
+    scheduler.add_job(freezerRestore6, 'interval', seconds=200)
     
-    # scheduler.add_job(errorCheckAndUpdateDBstatus, 'interval', seconds=60)
-    # scheduler.add_job(openstackServerChecker, 'interval', seconds=60)
+    scheduler.add_job(errorCheckAndUpdateDBstatus, 'interval', seconds=60)
+    scheduler.add_job(openstackServerChecker, 'interval', seconds=60)
 
     scheduler.start()
