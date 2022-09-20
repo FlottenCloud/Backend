@@ -27,6 +27,8 @@ from openstack.openstack_modules import RequestChecker, Stack, TemplateModifier
 def errorCheckAndUpdateDBstatus():
     import openstack_controller as oc
     admin_token = oc.admin_token()
+    if admin_token == None:
+        return print("오픈스택 서버가 고장나 에러상태인 인스턴스 리스트를 받아올 수 없습니다.")
     openstack_hostIP = oc.hostIP
     req_checker = RequestChecker()
 
@@ -617,11 +619,14 @@ def getTemplateDownURL(cloudstack_user_apiKey,cloudstack_user_secretKey,extract_
         response=csc.requestThroughSig(cloudstack_user_secretKey,request)
         resJson = json.loads(response)
         url = resJson['queryasyncjobresultresponse']['jobresult']['template']['url']
-        print("DownloadURL is : \n", url)
+        url_split = url.split("/")
+        url_split[2] = "10.125.70.28:6050"
+        down_url = "/".join(url_split)
+        print("DownloadURL is : \n", down_url)
     except Exception as e:
         print("에러 내용: ", e)
 
-    return url
+    return down_url
 
 def getTemplateStatus(template_name):
     import cloudstack_controller as csc
@@ -656,7 +661,7 @@ def cloudstack_delete_VM(cloudstack_user_apiKey, cloudstack_user_secretKey, inst
 def cloudstack_delete_Template(cloudstack_user_apiKey, cloudstack_user_secretKey, template_id):
     import cloudstack_controller as csc
 
-    request = {"apiKey" : cloudstack_user_apiKey, "response" : "json", "command" : "cloudstack_delete_Template",
+    request = {"apiKey" : cloudstack_user_apiKey, "response" : "json", "command" : "deleteTemplate",
         "id" : template_id}
     response = csc.requestThroughSig(cloudstack_user_secretKey, request)
 
@@ -692,13 +697,21 @@ def openstackImageUploader(template_name):
 
     try:
         put_req = requests.put("http://" + openstack_hostIP + "/image/v2/images/" + image_id + "/file", data=imageData_put_payload,     # req_checker는 header가 토큰으로 고정된 경우만 가능해서 이건 그냥 바로 요청
-            headers={'X-Auth-Token' : admin_token, 'Content-type': 'application/octet-stream'}, timeout=5)
+            headers={'X-Auth-Token' : admin_token, 'Content-type': 'application/octet-stream'})
+        while(True):
+            image_status_req = req_checker.reqChecker("get", "http://" + openstack_hostIP + "/image/v2/images/" + image_id, admin_token)
+            print("이미지 상태 조회 리스폰스: ", image_status_req.json())
+            image_status = image_status_req.json()["status"]
+            if image_status == "active":
+                break
+            time.sleep(2)
+            
     except requests.exceptions.Timeout:
         print("오픈스택 서버 복구 도중 문제가 생겼습니다.")
 
     file.close()
 
-    return "Uploaded image for restore to openstack"
+    return print("Uploaded image for restore to openstack")
 
 def openstackStackCreate(instance_name, template_name):  # 오픈스택 상의 해당 이름의 스택을 삭제, 오픈스택에 올린 이미지를 토대로 다시 create
     import openstack_controller as oc
@@ -713,7 +726,7 @@ def openstackStackCreate(instance_name, template_name):  # 오픈스택 상의 �
     stack_id_for_del = stack_object.stack_id
     stack_name_for_del = stack_object.stack_name
     num_people = stack_object.num_people
-    data_size = stack_object.data_size
+    data_size = stack_object.expected_data_size
     flavor = stack_object.flavor_name
     package = stack_object.package.split(",")
     os_of_instance = stack_object.os
@@ -1205,11 +1218,12 @@ def backup12():
     
 # ---- 야매용 함수들 ---- #
 def deleter():
-    # AccountInfo.objects.all().delete()
-    # OpenstackInstance.objects.all().delete()
-    # OpenstackBackupImage.objects.all().delete()
-    # CloudstackInstance.objects.all().delete()
-    ServerStatusFlag.objects.get(id=2).delete()
+    AccountInfo.objects.all().delete()
+    OpenstackInstance.objects.all().delete()
+    OpenstackBackupImage.objects.all().delete()
+    CloudstackInstance.objects.all().delete()
+    ServerStatusFlag.objects.filter(platform_name="openstack").update(status=True)
+    # ServerStatusFlag.objects.get(id=2).delete()
     print("all-deleted")
     
 def dbModifier():
@@ -1229,28 +1243,29 @@ def dbModifier():
     #     disk_size = 5,
     #     num_cpu = 1
     # )
-    ServerStatusFlag.objects.create(
-        platform_name = "openstack",
-        status = True
-    )
+    # ServerStatusFlag.objects.create(
+    #     platform_name = "openstack",
+    #     status = True
+    # )
+    ServerStatusFlag.objects.filter(platform_name="openstack").update(status=True)
     print("updated")
 
 
 # ------------------------------------------------------------------------ Total Batch Job Part ------------------------------------------------------------------------ #
 def start():
     scheduler = BackgroundScheduler() # ({'apscheduler.job_defaults.max_instances': 2}) # max_instance = 한 번에 실행할 수 있는 같은 job의 개수
-    # scheduler.add_job(deleter, 'interval', seconds=2)
+    scheduler.add_job(deleter, 'interval', seconds=2)
     # scheduler.add_job(dbModifier, "interval", seconds=5)
     
-    # scheduler.add_job(backup6, 'interval', seconds=240)
+    # scheduler.add_job(backup6, 'interval', seconds=1800)
     # scheduler.add_job(backup12, 'interval', seconds=170)
     
-    # scheduler.add_job(freezerBackup6, 'interval', seconds=60)
+    # scheduler.add_job(freezerBackup6, 'interval', seconds=1800)
     # scheduler.add_job(freezerBackup12, 'interval', seconds=70)
     
-    # scheduler.add_job(freezerRestoreWithCycle, 'interval', seconds=20)
+    # scheduler.add_job(freezerRestore6, 'interval', seconds=1200)
     
-    # scheduler.add_job(errorCheckAndUpdateDBstatus, 'interval', seconds=10)
-    # scheduler.add_job(openstackServerChecker, 'interval', seconds=10)
+    # scheduler.add_job(errorCheckAndUpdateDBstatus, 'interval', seconds=60)
+    # scheduler.add_job(openstackServerChecker, 'interval', seconds=60)
 
     scheduler.start()
