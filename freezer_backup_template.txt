@@ -1,2 +1,2 @@
 source admin-openrc.sh
-freezer-agent --action backup --nova-inst-id 19c7a00f-f2e1-4da8-9c90-b8e6e67b2a35 --storage local --container /home/test/19c7a00f-f2e1-4da8-9c90-b8e6e67b2a35_backup --backup-name 19c7a00f-f2e1-4da8-9c90-b8e6e67b2a35_backup --mode nova --engine nova --no-incremental true
+freezer-agent --action backup --nova-inst-id 51e2c8b6-bb17-48d5-87cb-b0d4afc22480 --storage local --container /home/test/51e2c8b6-bb17-48d5-87cb-b0d4afc22480_backup --backup-name 51e2c8b6-bb17-48d5-87cb-b0d4afc22480_backup --mode nova --engine nova --no-incremental true

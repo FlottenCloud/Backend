@@ -269,7 +269,8 @@ def backup(cycle):
             print("image_ID : " + instance_image_ID)
 
             while(True):
-                image_status_req = req_checker.reqChecker("get", "http://" + openstack_hostIP + "/image/v2/images/" + instance_image_ID, admin_token)
+                image_status_req = requests.get("http://" + openstack_hostIP + "/image/v2/images/" + instance_image_ID,  
+                        headers = {"X-Auth-Token" : admin_token})     # 서버에 과부하 걸렸을 경우를 대비, 타임아웃 없는 요청으로.
                 if image_status_req == None:
                     raise requests.exceptions.Timeout
                 if image_status_req.status_code == 404:
@@ -693,7 +694,8 @@ def openstackImageUploader(template_name):
     #    raise OpenstackServerError
 
     while(True):
-        image_status_req = req_checker.reqChecker("get", "http://" + openstack_hostIP + "/image/v2/images/" + image_id, admin_token)
+        image_status_req = requests.get("http://" + openstack_hostIP + "/image/v2/images/" + image_id,  
+            headers = {"X-Auth-Token" : admin_token})     # 서버에 과부하 걸렸을 경우를 대비, 타임아웃 없는 요청으로.
         if image_status_req.status_code == 404:
             return "오픈스택의 Image 용량이 가득 찼습니다."
         print("이미지 상태 조회 리스폰스: ", image_status_req.json())
@@ -1228,10 +1230,10 @@ def backup12():
     
 # ---- 야매용 함수들 ---- #
 def deleter():
-    # AccountInfo.objects.all().delete()
-    # OpenstackInstance.objects.all().delete()
+    AccountInfo.objects.all().delete()
+    OpenstackInstance.objects.all().delete()
     OpenstackBackupImage.objects.all().delete()
-    # CloudstackInstance.objects.all().delete()
+    CloudstackInstance.objects.all().delete()
     ServerStatusFlag.objects.filter(platform_name="openstack").update(status=True)
     # ServerStatusFlag.objects.get(id=2).delete()
     print("all-deleted")
@@ -1264,18 +1266,18 @@ def dbModifier():
 # ------------------------------------------------------------------------ Total Batch Job Part ------------------------------------------------------------------------ #
 def start():
     scheduler = BackgroundScheduler() # ({'apscheduler.job_defaults.max_instances': 2}) # max_instance = 한 번에 실행할 수 있는 같은 job의 개수
-    # scheduler.add_job(deleter, 'interval', seconds=10)
+    scheduler.add_job(deleter, 'interval', seconds=5)
     # scheduler.add_job(dbModifier, "interval", seconds=5)
     
-    scheduler.add_job(backup6, 'interval', seconds=300)
-    # scheduler.add_job(backup12, 'interval', seconds=170)
+    # scheduler.add_job(backup6, 'interval', seconds=300)
+    # scheduler.add_job(backup12, 'interval', seconds=600)
     
-    scheduler.add_job(freezerBackup6, 'interval', seconds=400)
-    # scheduler.add_job(freezerBackup12, 'interval', seconds=70)
+    # scheduler.add_job(freezerBackup6, 'interval', seconds=400)
+    # scheduler.add_job(freezerBackup12, 'interval', seconds=800)
     
-    scheduler.add_job(freezerRestore6, 'interval', seconds=200)
+    # scheduler.add_job(freezerRestore6, 'interval', seconds=200)
     
-    scheduler.add_job(errorCheckAndUpdateDBstatus, 'interval', seconds=60)
-    scheduler.add_job(openstackServerChecker, 'interval', seconds=60)
+    # scheduler.add_job(errorCheckAndUpdateDBstatus, 'interval', seconds=60)
+    # scheduler.add_job(openstackServerChecker, 'interval', seconds=60)
 
     scheduler.start()

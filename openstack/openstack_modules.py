@@ -189,7 +189,8 @@ class Stack(TemplateModifier, Instance):
         while(True):
             if usage == "update":
                 while(True):
-                    stack_status_req = super().reqChecker("get", "http://" + openstack_hostIP + "/heat-api/v1/" + openstack_tenant_id + "/stacks?id=" + stack_id, token)
+                    stack_status_req = requests.get("http://" + openstack_hostIP + "/heat-api/v1/" + openstack_tenant_id + "/stacks?id=" + stack_id,  
+                        headers = {"X-Auth-Token" : token})     # 서버에 과부하 걸렸을 경우를 대비, 타임아웃 없는 요청으로.
                     if stack_status_req == None:
                         return None
                     print(stack_status_req.json()["stacks"][0]["stack_status"])
@@ -274,7 +275,8 @@ class Stack(TemplateModifier, Instance):
         else:
             if flavor_before_update == "ds1G" and user_req_flavor == "ds512M":  # 원래 쓰려던 용량보다 작은 용량을 요구사항으로 입력했을 경우
                 user_req_flavor = "NOTUPDATE"
-        print("요청 정보: ", user_req_package, user_req_flavor, user_req_backup_time)
+        package_for_update = list(set(user_req_package) - set(before_update_template_package))
+        print("요청 정보: ", package_for_update, user_req_flavor, user_req_backup_time)
 
         # stack_environment_req = super().reqChecker("get", "http://" + openstack_hostIP + "/heat-api/v1/" + update_openstack_tenant_id + "/stacks/" 
         #     + update_stack_name + "/" + update_stack_id + "/environment", token)
@@ -285,10 +287,10 @@ class Stack(TemplateModifier, Instance):
         # print("기존 스택의 템플릿 패키지: ", before_update_template_package)  # 원래 db에 저장 안돼있어서 요청해서 가져왔었는데, db에 저장해서 그럴 필요 없어짐. 일단은 놔둠.
         
         if before_update_template_package[0] != "":
-            package_origin_plus_user_req = before_update_template_package + user_req_package    # 기존 패키지 + 유저의 요청 패키지
+            package_origin_plus_user_req = before_update_template_package + package_for_update    # 기존 패키지 + 유저의 요청 패키지
             print("기존 패키지 + 유저의 요청 패키지: ", package_origin_plus_user_req)
         else:
-            package_origin_plus_user_req = user_req_package
+            package_origin_plus_user_req = package_for_update
         package_for_db = (",").join(package_origin_plus_user_req)   # db에 저장할 패키지 목록 문자화
 
         
@@ -310,11 +312,13 @@ class Stack(TemplateModifier, Instance):
         print("image_ID : " + snapshotID_for_update)
 
         while(True):
-            image_status_req = super().reqChecker("get", "http://" + openstack_hostIP + "/image/v2/images/" + snapshotID_for_update, token)
+            image_status_req = requests.get("http://" + openstack_hostIP + "/image/v2/images/" + snapshotID_for_update, 
+                headers = {'X-Auth-Token' : token})     # 서버에 과부하 걸렸을 경우를 대비, 타임아웃 없는 요청으로.
             if image_status_req == None:
                 raise OpenstackServerError
             elif image_status_req.status_code == 404:
                 raise ImageFullError
+            print("Image status request status code = ", image_status_req)
             print("이미지 상태 조회 리스폰스: ", image_status_req.json())
 
             image_status = image_status_req.json()["status"]
@@ -327,8 +331,8 @@ class Stack(TemplateModifier, Instance):
                 "image": "backup_for_update_" + instance_id
             }
         }
-        if len(user_req_package) != 0:
-            update_template["parameters"]["packages"] = user_req_package
+        if len(package_for_update) != 0:
+            update_template["parameters"]["packages"] = package_for_update
         if user_req_flavor != "NOTUPDATE":
             update_template["parameters"]["flavor"] = user_req_flavor
         print("업데이트용 Template : ", json.dumps(update_template))
@@ -347,7 +351,7 @@ class Stack(TemplateModifier, Instance):
             print("업데이트용 이미지의 이전 버전 삭제 요청 결과: ", image_used_for_update_del_req)
 
         try:
-            updated_instance_id, updated_instance_name, updated_instance_ip_address, updated_instance_status, updated_instance_image_name, updated_instance_flavor_name, updated_instance_ram_size, updated_disk_size, updated_num_cpu = self.stackResourceGetter("update", openstack_hostIP, update_openstack_tenant_id, update_stack_name, update_stack_id, snapshotID_for_update, token)
+            updated_instance_id, updated_instance_name, updated_instance_ip_address, updated_instance_status, updated_instance_image_name, updated_instance_flavor_name, updated_instance_ram_size, updated_disk_size, updated_num_cpu = self.stackResourceGetter("update", openstack_hostIP, update_openstack_tenant_id, update_stack_name, update_stack_id, token)
         except Exception as e:  # stackResourceGetter에서 None이 반환 된 경우
             print("스택 정보 불러오는 중 예외 발생: ", e)
             raise OpenstackServerError
@@ -373,12 +377,13 @@ class Stack(TemplateModifier, Instance):
                 user_req_flavor = "NOTUPDATE"
         if user_req_flavor == "NOTUPDATE":
             user_req_flavor = flavor_before_update
-        print("요청 정보: ", user_req_package, user_req_flavor, user_req_backup_time)
+        package_for_update = list(set(user_req_package) - set(package_before_update))
+        print("요청 정보: ", package_for_update, user_req_flavor, user_req_backup_time)
 
         if package_before_update[0] != "":
-            package_origin_plus_user_req = package_before_update + user_req_package    # 기존 패키지 + 유저의 요청 패키지
+            package_origin_plus_user_req = package_before_update + package_for_update    # 기존 패키지 + 유저의 요청 패키지
         else:
-            package_origin_plus_user_req = user_req_package
+            package_origin_plus_user_req = package_for_update
         package_for_db = (",").join(package_origin_plus_user_req)
 
         
@@ -400,7 +405,8 @@ class Stack(TemplateModifier, Instance):
         print("image_ID : " + freezer_restored_instance_snapshotID)
 
         while(True):
-            image_status_req = super().reqChecker("get", "http://" + openstack_hostIP + "/image/v2/images/" + freezer_restored_instance_snapshotID, user_token)
+            image_status_req = requests.get("http://" + openstack_hostIP + "/image/v2/images/" + freezer_restored_instance_snapshotID, 
+                headers = {"X-Auth-Token" : user_token})     # 서버에 과부하 걸렸을 경우를 대비, 타임아웃 없는 요청으로.
             if image_status_req == None:
                 raise OpenstackServerError
             elif image_status_req.status_code == 404:
@@ -423,15 +429,15 @@ class Stack(TemplateModifier, Instance):
         if instance_os == "ubuntu":
             with open('templates/ubuntu_1804.json','r') as f:  #backup_img_name, template, user_id, user_instance_name, flavor, package
                 json_template_skeleton = json.load(f)
-                json_template = super().templateModifyWhenRestored("backup_for_update_" + instance_id, json_template_skeleton, instance_name, user_req_flavor, user_req_package)
+                json_template = super().templateModifyWhenRestored("backup_for_update_" + instance_id, json_template_skeleton, instance_name, user_req_flavor, package_for_update)
         elif instance_os == "centos":
             with open('templates/cirros.json','r') as f:    # 오픈스택에 centos 이미지 안올려놔서 일단 cirros.json으로
                 json_template_skeleton = json.load(f)
-                json_template = super().templateModifyWhenRestored("backup_for_update_" + instance_id, json_template_skeleton, instance_name, user_req_flavor, user_req_package)
+                json_template = super().templateModifyWhenRestored("backup_for_update_" + instance_id, json_template_skeleton, instance_name, user_req_flavor, package_for_update)
         elif instance_os == "fedora":
             with open('templates/fedora.json','r') as f:    #이걸로 생성 test
                 json_template_skeleton = json.load(f)
-                json_template = super().templateModifyWhenRestored("backup_for_update_" + instance_id, json_template_skeleton, instance_name, user_req_flavor, user_req_package)
+                json_template = super().templateModifyWhenRestored("backup_for_update_" + instance_id, json_template_skeleton, instance_name, user_req_flavor, package_for_update)
 
         stack_req = super().reqCheckerWithData("post", "http://" + openstack_hostIP + "/heat-api/v1/" + update_openstack_tenant_id + "/stacks",
             user_token, json_template)   # 스택 생성 요청
