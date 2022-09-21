@@ -3,7 +3,7 @@ import sys
 sys.path.append(os.path.dirname(os.path.abspath(os.path.dirname(__file__))))    #여기까지는 상위 디렉토리 모듈 import 하기 위한 코드
 
 import openstack_controller as oc
-from openstack_controller import OpenstackServerError, OverSizeError, StackUpdateFailedError, InstanceImgageUploadingError
+from openstack_controller import OpenstackServerError, OverSizeError, StackUpdateFailedError, InstanceImageUploadingError
 import json
 import requests
 import time
@@ -365,7 +365,7 @@ class Stack(TemplateModifier, Instance):
         
         if super().instance_image_uploading_checker(instance_id) == True:  # instance snapshot create in progress
             print("Instance is image uploading state!!!")
-            raise InstanceImgageUploadingError
+            raise InstanceImageUploadingError
         
         openstack_img_payload = { # 인스턴스의 스냅샷 이미지 만들기위한 payload
             "createImage": {
@@ -453,7 +453,7 @@ class Stack(TemplateModifier, Instance):
         
         if super().instance_image_uploading_checker(instance_id) == True:  # instance snapshot create in progress
             print("Instance is image uploading state!!!")
-            raise InstanceImgageUploadingError
+            raise InstanceImageUploadingError
         
         openstack_img_payload = { # 인스턴스의 스냅샷 이미지 만들기위한 payload
             "createImage": {

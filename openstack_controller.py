@@ -31,7 +31,7 @@ class StackUpdateFailedError(Exception):
     def __init__(self):
         super().__init__("Stack update failed.")
 
-class InstanceImgageUploadingError(Exception):
+class InstanceImageUploadingError(Exception):
     def __init__(self):
         super().__init__("인스턴스가 현재 image uploading 상태입니다.")
 

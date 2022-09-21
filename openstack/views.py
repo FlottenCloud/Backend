@@ -187,7 +187,7 @@ class Openstack(Stack, APIView):
             return JsonResponse({"message" : "인원 수 X 인원 당 예상 용량 값은 10G를 넘지 못합니다."}, status=405)
         except oc.StackUpdateFailedError as e:
             return JsonResponse({"message" : "스택 업데이트에 실패했습니다."}, status=500)
-        except oc.InstanceImgageUploadingError as e:
+        except oc.InstanceImageUploadingError as e:
             return JsonResponse({"message" : "인스턴스가 현재 이미지 업로딩 상태입니다. 잠시 후 시도해주세요."}, status=500)
 
         return JsonResponse({"message" : "업데이트 완료"}, status=201)
