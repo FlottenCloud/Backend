@@ -78,7 +78,7 @@ class Openstack(Stack, APIView):
             stack_name = stack_name_req.json()["stacks"][0]["stack_name"]
 
             try:
-                instance_id, instance_name, instance_ip_address, instance_status, instance_image_name, instance_flavor_name, instance_ram_size, instance_disk_size, instance_num_cpu = super().stackResourceGetter("create", openstack_hostIP, openstack_tenant_id, user_id, stack_name, stack_id, token)
+                instance_id, instance_name, instance_ip_address, instance_status, instance_image_name, instance_flavor_name, instance_ram_size, instance_disk_size, instance_num_cpu = super().stackResourceGetter("create", openstack_hostIP, openstack_tenant_id, stack_name, stack_id, token)
             except Exception as e:  # stackResourceGetter에서 None이 반환 된 경우
                 print("예외 발생: ", e)
                 return JsonResponse({"message" : "오픈스택 서버에 문제가 생겨 생성된 스택의 정보를 불러올 수 없습니다."}, status=404)
@@ -189,6 +189,8 @@ class Openstack(Stack, APIView):
             return JsonResponse({"message" : "스택 업데이트에 실패했습니다."}, status=500)
         except oc.InstanceImageUploadingError as e:
             return JsonResponse({"message" : "인스턴스가 현재 이미지 업로딩 상태입니다. 잠시 후 시도해주세요."}, status=500)
+        except oc.ImageFullError as e:
+            return JsonResponse({"message" : "오픈스택의 Image 용량이 가득 찼습니다."}, status=500)
 
         return JsonResponse({"message" : "업데이트 완료"}, status=201)
 

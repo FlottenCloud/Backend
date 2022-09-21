@@ -260,7 +260,7 @@ def backup(cycle):
             if backup_req == None:
                 raise requests.exceptions.Timeout
             elif backup_req.status_code == 409:
-                return "이미지 생성 불가"
+                return print("백업 이미지 생성 불가")
 
             instance_image_URL = backup_req.headers["Location"]
             print("image_URL : " + instance_image_URL)
@@ -772,7 +772,7 @@ def openstackStackCreate(instance_name, template_name):  # 오픈스택 상의 �
     stack_name = stack_name_req.json()["stacks"][0]["stack_name"]
 
     try:
-        instance_id, instance_name, instance_ip_address, instance_status, instance_image_name, instance_flavor_name, instance_ram_size, instance_disk_size, instance_num_cpu = stack_controller.stackResourceGetter("create", oc.hostIP, tenant_id_for_restore, user_id, stack_name, stack_id, user_token)
+        instance_id, instance_name, instance_ip_address, instance_status, instance_image_name, instance_flavor_name, instance_ram_size, instance_disk_size, instance_num_cpu = stack_controller.stackResourceGetter("create", oc.hostIP, tenant_id_for_restore, stack_name, stack_id, user_token)
     except Exception as e:  # stackResourceGetter에서 None이 반환 된 경우
         print("예외 발생: ", e)
         return JsonResponse({"message" : "오픈스택 서버에 문제가 생겨 생성된 스택의 정보를 불러올 수 없습니다."}, status=404)
