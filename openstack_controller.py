@@ -15,6 +15,8 @@ admins_group_id = "b1a32377994848dc9f3b2395d3dfa368"
 admin_role_id = "7459ab064e7540d080bf946c1b095aff"
 public_network_id = "2d476eb6-f5f8-4632-80a7-b0ffe5337d3f"  # mainnetwork id
 
+# --------------------------------------------------------------- Error Part --------------------------------------------------------------- #
+
 class TokenExpiredError(Exception):
     def __init__(self):
         super().__init__("오픈스택의 토큰이 만료되었습니다.")
@@ -34,6 +36,13 @@ class StackUpdateFailedError(Exception):
 class InstanceImageUploadingError(Exception):
     def __init__(self):
         super().__init__("인스턴스가 현재 image uploading 상태입니다.")
+
+class ImageFullError(Exception):
+    def __init__(self):
+        super().__init__("오픈스택의 image 용량이 가득 찼습니다.")
+
+
+# --------------------------------------------------------------- Function Part --------------------------------------------------------------- #
 
 def admin_token():  # admin user의 token을 발급받는 함수
     admin_token_payload = {   # admin user token 발급 Body
