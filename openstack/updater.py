@@ -118,11 +118,11 @@ def deployCloudstackInstance(user_id, user_apiKey, user_secretKey, instance_pk, 
     user_id_instance = AccountInfo.objects.get(user_id=user_id)
     template_name = instance_name + "Template"
     if os_type == "ubuntu" :     # ubuntu(18.04 LTS)
-        os_type_id = "1679062f-fe92-11ec-ae65-525400c8d027"
+        os_type_id = "b3ce66f1-34ed-11ed-914c-0800270aea06"
     elif os_type == "centos" :   # centos
         os_type_id = "abc"
     else:   # fedora(openstack default)
-        os_type_id = "75fa3d78-b98e-4fe6-96f5-2e6ecf256370"
+        os_type_id = "26e61d3e-246f-4822-8a66-6a8b08806d7e"
     backup_template_id = registerCloudstackTemplate(zoneID, template_name, backup_img_file_name, os_type_id)    # 템플릿 등록 후 템플릿 id 받아옴
     instance_deploy_req_body = {"apiKey" : user_apiKey, "response" : "json", "command" : "deployVirtualMachine",
         "networkids" : cloudstack_user_network_id, "serviceofferingId" : medium_offeringID,

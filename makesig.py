@@ -27,7 +27,7 @@ def requestThroughSig(secretKey, request_body):
         hmac.new(secretKey.encode('utf-8'), sig_str.encode('utf-8'), hashlib.sha1).digest()).strip()
     sig = urllib.parse.quote_plus(base64.encodebytes(
         hmac.new(secretKey.encode('utf-8'), sig_str.encode('utf-8'), hashlib.sha1).digest()).strip())
-    req_url = "http://10.125.70.28:8080/client/api?" + request_str + '&signature=' + sig
+    req_url = "http://211.197.83.186:8080/client/api?" + request_str + '&signature=' + sig
     print("클라우드 스택으로의 리퀘스트:", req_url)
     # res=urllib.request.urlopen(req)
     # response=res.read()
@@ -55,8 +55,8 @@ def main():
     #         "name": "test1", "url": url, "ostypeid": osTypeid, "zoneid": zoneID}
     # requestThroughSig("r6avM2ip3wtjXjbNgOHIoQEK6U0T1X3flclrt55RO4v-Fa6WL0NJAVDs80ZI-AeTpKN8lIUpW2fWF_aCHv3cRA", request_body)
 
-    # request_body = {"apiKey" : admin_apiKey, "response": "json", "command": "listOsTypes", "keyword": "ubuntu"}
-    # sig, req = requestThroughSig(admin_secretKey, request_body)
+    request_body = {"apiKey" : admin_apiKey, "response": "json", "command": "listOsTypes", "keyword": "fedora"}
+    sig, req = requestThroughSig(admin_secretKey, request_body)
 
     # request_body = {"apiKey": admin_apiKey, "response": "json", "command": "destroyVirtualMachine",
     #     "id": "2ad3f87f-52bc-4888-8d3a-58a1c64a5064", "expunge": "true"}
@@ -80,24 +80,24 @@ def main():
     # backup_img_file = open("test.qcow2", "wb")
     # backup_img_file.write(image_download_req.content)
     # backup_img_file.close()
-    baseURL = "http://10.125.70.28:8080/client/console?"
-    user_apiKey = csc.admin_apiKey
-    user_secretKey = csc.admin_secretKey
-    # instance_pk = json.loads(request.body)["instance_pk"]
-    instance_id = "4488848a-4a4b-42b1-9324-c979d53c6f98"
+    # baseURL = "http://10.125.70.28:8080/client/console?"
+    # user_apiKey = csc.admin_apiKey
+    # user_secretKey = csc.admin_secretKey
+    # # instance_pk = json.loads(request.body)["instance_pk"]
+    # instance_id = "4488848a-4a4b-42b1-9324-c979d53c6f98"
 
-    request_body = {"vm": instance_id, "apiKey": user_apiKey, "response": "json", "cmd": "access"}
-    console_URL_req = csc.requestThroughSigWithURL(baseURL, user_secretKey, request_body)
-    htmlData = BeautifulSoup(console_URL_req, features="html.parser")
-    console_url_body = htmlData.html.frameset.frame['src']
-    console_URL = "http:" + console_url_body
-    console_URL_split = console_URL.split("/")
-    port = console_URL_split[5].split("&")
-    port[1] = "port=6060"
-    port_join = "&".join(port)
-    externalIPwithPort=csc.hostIP.split(":")
-    externalIP=externalIPwithPort[0]
-    console_URL = "http://" + externalIP + "/" + console_URL_split[3] + "/" + console_URL_split[4] + "/" + port_join
-    print("Console URL is : " + console_URL)
+    # request_body = {"vm": instance_id, "apiKey": user_apiKey, "response": "json", "cmd": "access"}
+    # console_URL_req = csc.requestThroughSigWithURL(baseURL, user_secretKey, request_body)
+    # htmlData = BeautifulSoup(console_URL_req, features="html.parser")
+    # console_url_body = htmlData.html.frameset.frame['src']
+    # console_URL = "http:" + console_url_body
+    # console_URL_split = console_URL.split("/")
+    # port = console_URL_split[5].split("&")
+    # port[1] = "port=6060"
+    # port_join = "&".join(port)
+    # externalIPwithPort=csc.hostIP.split(":")
+    # externalIP=externalIPwithPort[0]
+    # console_URL = "http://" + externalIP + "/" + console_URL_split[3] + "/" + console_URL_split[4] + "/" + port_join
+    # print("Console URL is : " + console_URL)
 
 main()
