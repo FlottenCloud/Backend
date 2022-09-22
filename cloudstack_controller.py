@@ -14,7 +14,7 @@ import urllib.parse
 import urllib.request
 
 hostIP = "211.197.83.186"
-api_base_url = "http://211.197.83.186/client/api?"
+api_base_url = "http://211.197.83.186:8080/client/api?"
 admin_apiKey = "CPS5vA56-gQ3RPyshKyzf7zc27ECdCS2dfHf-8_b8yU23r8KiqKDmZfLAnZ8bogRdcoqSFkCdmMzXPuzUyscvQ"
 admin_secretKey = "Th122sV_n-GE3gyAT32uT0-ZwK5Pzku3Ti5rM0GF0SLA_9uRF_P6rWO9_85vJzs8aJDCZZtcS7FFgeq0w34i_Q"
 netOfferingID_L2VLAN = "f96cc504-5219-4e88-a779-f74b96caf997"
