@@ -86,7 +86,7 @@ def registerCloudstackTemplate(zoneID, template_name, backup_img_file_name, os_t
 
     request_body = {"apiKey" : admin_apiKey, "response" : "json", "command" : "registerTemplate",
         "displaytext" : template_name, "format" : "qcow2", "hypervisor" : "kvm",
-        "name" : template_name, "url" : "http://10.125.70.26:8000/media/img-files/" + backup_img_file_name, "ostypeid" : os_type_id, "zoneid" : zoneID}
+        "name" : template_name, "url" : "http://119.198.160.6:8000/media/img-files/" + backup_img_file_name, "ostypeid" : os_type_id, "zoneid" : zoneID}
     template_register_req = csc.requestThroughSigForTemplateRegist(admin_secretKey, request_body)
     webbrowser.open(template_register_req)  # url 오픈으로 해결 안돼서 webbrowser로 open함
     
@@ -118,11 +118,11 @@ def deployCloudstackInstance(user_id, user_apiKey, user_secretKey, instance_pk, 
     user_id_instance = AccountInfo.objects.get(user_id=user_id)
     template_name = instance_name + "Template"
     if os_type == "ubuntu" :     # ubuntu(18.04 LTS)
-        os_type_id = "1679062f-fe92-11ec-ae65-525400c8d027"
+        os_type_id = "b3ce66f1-34ed-11ed-914c-0800270aea06"
     elif os_type == "centos" :   # centos
         os_type_id = "abc"
     else:   # fedora(openstack default)
-        os_type_id = "75fa3d78-b98e-4fe6-96f5-2e6ecf256370"
+        os_type_id = "26e61d3e-246f-4822-8a66-6a8b08806d7e"
     backup_template_id = registerCloudstackTemplate(zoneID, template_name, backup_img_file_name, os_type_id)    # 템플릿 등록 후 템플릿 id 받아옴
     instance_deploy_req_body = {"apiKey" : user_apiKey, "response" : "json", "command" : "deployVirtualMachine",
         "networkids" : cloudstack_user_network_id, "serviceofferingId" : medium_offeringID,
@@ -625,7 +625,7 @@ def getTemplateDownURL(cloudstack_user_apiKey,cloudstack_user_secretKey,extract_
 
     url = resJson['queryasyncjobresultresponse']['jobresult']['template']['url']
     url_split = url.split("/")
-    url_split[2] = "10.125.70.28:6050"
+    url_split[2] = "211.197.83.186:6050"
     down_url = "/".join(url_split)
     print("DownloadURL is : \n", down_url)
 
@@ -756,6 +756,7 @@ def openstackStackCreate(instance_name, template_name):  # 오픈스택 상의 �
         del_freezer_restore_image_req = requests.delete("http://" + oc.hostIP + "/image/v2/images/" + del_freezer_restore_image_id,
             headers={'X-Auth-Token': admin_token})
         print("Deleted freezer backuped instance", del_freezer_restored_instance_req.status_code, del_freezer_restore_image_req.status_code)
+        OpenstackInstance.objects.get(instance_id=instance_id_for_del).delete()
     
     # ------------ 스택 재생성 로직 시작 ------------ #
     user_token = oc.user_token({"user_id" : user_id, "password" : user_password})
@@ -949,7 +950,7 @@ def writeTxtFile(mode, instance_id):
     file.write('source admin-openrc.sh')                         #환경에 맞게 설정해야됨 본인 리눅스 환경
     file.write('\nfreezer-agent --action ' + mode + ' --nova-inst-id ')
     file.write(instance_id)
-    file.write(' --storage local --container /home/test/' + instance_id + '_backup' + ' --backup-name ' + instance_id + '_backup' + ' --mode nova --engine nova --no-incremental true --log-file ' + instance_id + '_' + mode+ '.log')
+    file.write(' --storage local --container /home/kojunsung/' + instance_id + '_backup' + ' --backup-name ' + instance_id + '_backup' + ' --mode nova --engine nova --no-incremental true --log-file ' + instance_id + '_' + mode+ '.log')
     file.close()
 
 def readTxtFile(mode):               #mode : backup, restore
@@ -974,10 +975,10 @@ def readTxtFile(mode):               #mode : backup, restore
 def freezerBackup(instance_id):
     cli = paramiko.SSHClient()
     cli.set_missing_host_key_policy(paramiko.AutoAddPolicy)
-    server = "211.197.83.186"
-    user = "test"                                      #리눅스 Host ID
-    pwd = "0000"                                       #리눅스 Host Password
-    cli.connect(server, port=22, username=user, password=pwd)
+    server = "1.255.161.166"
+    user = "kojunsung"                                      #리눅스 Host ID
+    pwd = "kojunsung"                                       #리눅스 Host Password
+    cli.connect(server, port=10022, username=user, password=pwd)
 
     writeTxtFile("backup", instance_id)
     commandLines = readTxtFile("backup") # 메모장 파일에 적어놨던 명령어 텍스트 읽어옴
@@ -994,10 +995,10 @@ def freezerBackup(instance_id):
 def freezerRestore(instance_id):
     cli = paramiko.SSHClient()
     cli.set_missing_host_key_policy(paramiko.AutoAddPolicy)
-    server = "211.197.83.186"
-    user = "test"
-    pwd = "0000"
-    cli.connect(server, port=22, username=user, password=pwd)
+    server = "1.255.161.166"
+    user = "kojunsung"
+    pwd = "kojunsung"
+    cli.connect(server, port=10022, username=user, password=pwd)
 
     writeTxtFile("restore", instance_id)
     commandLines = readTxtFile("restore") # 메모장 파일에 적어놨던 명령어 텍스트 읽어옴
@@ -1081,9 +1082,9 @@ def freezerBackupWithCycle(cycle):
                 try:
                     cli = paramiko.SSHClient()
                     cli.set_missing_host_key_policy(paramiko.AutoAddPolicy)
-                    server = "211.197.83.186"
-                    user = "test"  # 리눅스 Host ID
-                    pwd = "0000"  # 리눅스 Host Password
+                    server = "1.255.161.166"
+                    user = "kojunsung"  # 리눅스 Host ID
+                    pwd = "kojunsung"  # 리눅스 Host Password
                     cli.connect(server, port=22, username=user, password=pwd)
                     stdin, stdout, stderr = cli.exec_command("rm -rf " + instance_id_for_OSremove + "_backup")
                     print("리눅스 명령 수행 결과: ", ''.join(stdout.readlines()))
@@ -1269,13 +1270,13 @@ def backup_all12():
     
 # ---- 야매용 함수들 ---- #
 def deleter():
-    AccountInfo.objects.all().delete()
-    OpenstackInstance.objects.all().delete()
-    OpenstackBackupImage.objects.all().delete()
-    CloudstackInstance.objects.all().delete()
-    ServerStatusFlag.objects.filter(platform_name="openstack").update(status=True)
+    # AccountInfo.objects.all().delete()
+    # OpenstackInstance.objects.all().delete()
+    # OpenstackBackupImage.objects.all().delete()
+    # CloudstackInstance.objects.all().delete()
+    # ServerStatusFlag.objects.filter(platform_name="openstack").update(status=True)
     # ServerStatusFlag.objects.get(id=2).delete()
-    # OpenstackInstance.objects.get(instance_pk=54).delete()
+    OpenstackInstance.objects.get(instance_pk=1).delete()
     print("all-deleted")
     
 def dbModifier():
@@ -1295,12 +1296,12 @@ def dbModifier():
     #     disk_size = 5,
     #     num_cpu = 1
     # )
-    # ServerStatusFlag.objects.create(
-    #     platform_name = "openstack",
-    #     status = True
-    # )
-    ServerStatusFlag.objects.filter(platform_name="openstack").update(status=True)
-    print("updated")
+    ServerStatusFlag.objects.create(
+        platform_name = "openstack",
+        status = True
+    )
+    # ServerStatusFlag.objects.filter(platform_name="openstack").update(status=True)
+    # print("updated")
 
 
 # ------------------------------------------------------------------------ Total Batch Job Part ------------------------------------------------------------------------ #
