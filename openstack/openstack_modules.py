@@ -196,6 +196,9 @@ class Stack(TemplateModifier, Instance):
                     print(stack_status_req.json()["stacks"][0]["stack_status"])
                     if stack_status_req.json()["stacks"][0]["stack_status"] == "UPDATE_COMPLETE":
                         break
+                    elif stack_status_req.json()["stacks"][0]["stack_status"] == "UPDATE_FAILED":
+                        print("Stack update failed!")
+                        raise StackUpdateFailedError
                     time.sleep(2)
 
             stack_resource_req = super().reqChecker("get", "http://" + openstack_hostIP + "/heat-api/v1/" + openstack_tenant_id + "/stacks/" + stack_name + "/" # 스택으로 만든 인스턴스가 생성 완료될 때까지 기다림

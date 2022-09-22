@@ -8,7 +8,7 @@ from .openstack_modules import *
 import json
 import requests
 from sqlite3 import OperationalError
-from .models import OpenstackInstance
+from .models import OpenstackInstance, ServerStatusFlag
 from cloudstack.models import CloudstackInstance
 import account.models
 from django.db.models import Sum
@@ -127,6 +127,8 @@ class Openstack(Stack, APIView):
     @swagger_auto_schema(tags=["Openstack API"], manual_parameters=[openstack_user_token], responses={200:"Success", 401:"Unauthorized", 404:"Not Found"})
     def get(self, request):     # header: user_token
         try:
+            if ServerStatusFlag.objects.get(platform_name="openstack").status == False:
+                return JsonResponse({"message" : "오픈스택 서버에 문제가 생겨 리소스 정보를 받아올 수 없습니다."}, status=404)
             token, user_id = oc.getRequestParams(request)
             if user_id == None:
                 return JsonResponse({"message" : "오픈스택 서버에 문제가 생겨 token으로 오픈스택 유저의 정보를 얻어올 수 없습니다."}, status=404)
@@ -134,12 +136,8 @@ class Openstack(Stack, APIView):
             try:
                 user_instance_info = OpenstackInstance.objects.filter(user_id=user_id)
                 for instance_info in user_instance_info:
-                    # while(True):
-                    #     instance_req = requests.get("http://" + openstack_hostIP + "/compute/v2.1/servers/" + instance_info.instance_id,
-                    #     headers = {'X-Auth-Token' : token})
-                    #     instance_status = instance_req.json()["server"]["status"]
-                    #     if instance_status == OpenstackInstance.objects.filter(instance_id=instance_info.instance_id).status:
-                    #         break
+                    if instance_info.status == "ERROR":
+                        continue
                     instance_req = super().reqChecker("get", "http://" + openstack_hostIP + "/compute/v2.1/servers/" + instance_info.instance_id, token)
                     if instance_req == None:
                         return JsonResponse({"message" : "오픈스택 서버에 문제가 생겨 인스턴스의 상태 정보를 가져올 수 없습니다."}, status=404)
@@ -200,33 +198,48 @@ class Openstack(Stack, APIView):
     @swagger_auto_schema(tags=["Openstack API"], manual_parameters=[openstack_user_token], request_body=InstancePKSerializer, responses={200:"Success", 404:"Not Found"})
     def delete(self, request):      # header: user_token, body: instance_pk
         try:
-            input_data, token, user_id = oc.getRequestParamsWithBody(request)
+            admin_token = oc.admin_token()
+            input_data, user_token, user_id = oc.getRequestParamsWithBody(request)
             if user_id == None:
                 return JsonResponse({"message" : "오픈스택 서버에 문제가 생겨 token으로 오픈스택 유저의 정보를 얻어올 수 없습니다."}, status=404)
             
             #------------Openstack Stack and Image Delete------------#
             openstack_stack_data = OpenstackInstance.objects.get(instance_pk=input_data["instance_pk"])
             del_instance_name = openstack_stack_data.instance_name
+            del_instance_id = openstack_stack_data.instance_id
             del_stack_id = openstack_stack_data.stack_id
             del_stack_name = openstack_stack_data.stack_name
+            del_image_id = openstack_stack_data.image_name
             del_update_image_id = openstack_stack_data.update_image_ID
             print("삭제한 가상머신 이름: " + del_instance_name + "\n삭제한 스택 이름: " + del_stack_name + "\n삭제한 스택 ID: " + del_stack_id)
 
             del_openstack_tenant_id = account.models.AccountInfo.objects.get(user_id=user_id).openstack_user_project_id
-            stack_del_req = super().reqChecker("delete", "http://" + openstack_hostIP + "/heat-api/v1/" + del_openstack_tenant_id + "/stacks/"
-                + del_stack_name + "/" + del_stack_id, token)
-            if stack_del_req == None:
+            try:
+                if del_stack_id != None:
+                    stack_del_req = requests.delete("http://" + openstack_hostIP + "/heat-api/v1/" + del_openstack_tenant_id + "/stacks/" + del_stack_name + "/" + del_stack_id, 
+                        headers={'X-Auth-Token' : admin_token})
+                else:   # In case instance is restored through freezer
+                    del_freezer_restored_instance_req = requests.delete("http://" + oc.hostIP + "/compute/v2.1/servers/" + del_instance_id,
+                        headers={'X-Auth-Token': admin_token})
+                    del_freezer_restore_image_id = requests.get("http://" + oc.hostIP + "/image/v2/images?name=" + del_image_id,
+                        headers={'X-Auth-Token': admin_token}).json()["images"][0]["id"]
+                    del_freezer_restore_image_req = requests.delete("http://" + oc.hostIP + "/image/v2/images/" + del_freezer_restore_image_id,
+                        headers={'X-Auth-Token': admin_token})
+                    print("Deleted freezer backuped instance", del_freezer_restored_instance_req.status_code, del_freezer_restore_image_req.status_code)
+                    
+            except Exception as e:
+                print("Error occurred while deleting stack, error message: ", e, " Stack delete response at openstack: ", stack_del_req.status_code)
                 return JsonResponse({"message" : "오픈스택 서버에 문제가 생겨 인스턴스(스택)을 삭제할 수 없습니다."}, status=404)
             
             if del_update_image_id != None: # 업데이트를 한 번이라도 했을 시 업데이트에 쓰인 이미지도 삭제
-                update_image_del_req = super().reqChecker("delete", "http://" + openstack_hostIP + "/image/v2/images/" + del_update_image_id, token)
+                update_image_del_req = super().reqChecker("delete", "http://" + openstack_hostIP + "/image/v2/images/" + del_update_image_id, user_token)
                 print("업데이트에 쓰인 이미지 삭제 리스폰스: ", update_image_del_req)
                 if update_image_del_req == None:
                     return JsonResponse({"message" : "오픈스택 서버에 문제가 생겨 업데이트 때 사용한 이미지를 삭제할 수 없습니다."}, status=404)
                 
             if openstack_stack_data.instance_backup_img_file.filter(instance_pk=input_data["instance_pk"]).exists():
                 del_backup_image_id = openstack_stack_data.instance_backup_img_file.get(instance_pk=input_data["instance_pk"]).image_id
-                backup_img_del_req = super().reqChecker("delete", "http://" + openstack_hostIP + "/image/v2/images/" + del_backup_image_id, token)
+                backup_img_del_req = super().reqChecker("delete", "http://" + openstack_hostIP + "/image/v2/images/" + del_backup_image_id, user_token)
                 print("인스턴스의 백업 이미지 삭제 리스폰스: ", backup_img_del_req)
                 if backup_img_del_req == None:
                     return JsonResponse({"message" : "오픈스택 서버에 문제가 생겨 백업해놓은 이미지를 삭제할 수 없습니다."}, status=404)
@@ -302,6 +315,8 @@ class DashBoard(RequestChecker, APIView):
     @swagger_auto_schema(tags=["Openstack Dashboard API"], manual_parameters=[openstack_user_token], responses={200:"Success", 404:"Not Found"})
     def get(self, request):     # header: user_token
         try:
+            if ServerStatusFlag.objects.get(platform_name="openstack").status == False:
+                return JsonResponse({"message" : "오픈스택 서버에 문제가 생겨 리소스 정보를 받아올 수 없습니다."}, status=404)
             token, user_id = oc.getRequestParams(request)
             if user_id == None:
                 return JsonResponse({"message" : "오픈스택 서버에 문제가 생겨 token으로 오픈스택 유저의 정보를 얻어올 수 없습니다."}, status=404)
@@ -309,6 +324,8 @@ class DashBoard(RequestChecker, APIView):
             try:
                 user_instance_info = OpenstackInstance.objects.filter(user_id=user_id)
                 for instance_info in user_instance_info:    # 대쉬보드 출력에 status는 굳이 필요없지만, db 정보 최신화를 위해 status 업데이트.
+                    if instance_info.status == "ERROR":
+                        continue
                     instance_status_req = super().reqChecker("get", "http://" + openstack_hostIP + "/compute/v2.1/servers/" + instance_info.instance_id, token)
                     if instance_status_req == None:
                         return JsonResponse({"message" : "오픈스택 서버에 문제가 생겨 리소스 정보를 받아올 수 없습니다."}, status=404)

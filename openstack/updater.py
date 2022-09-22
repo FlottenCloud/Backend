@@ -34,7 +34,11 @@ def errorCheckAndUpdateDBstatus():
 
     error_instance_list_req = req_checker.reqChecker("get", "http://" + openstack_hostIP + "/compute/v2.1/servers?status=ERROR&all_tenants=1", admin_token)
     print(error_instance_list_req)
-    print(error_instance_list_req.json())
+    try:
+        print(error_instance_list_req.json())
+    except Exception as e:
+        print("No instance in ERROR status")
+        pass
     error_instance_list = error_instance_list_req.json()["servers"]
     print("에러 상태인 인스턴스 리스트: ", error_instance_list)
     if len(error_instance_list) == 0:
@@ -114,11 +118,11 @@ def deployCloudstackInstance(user_id, user_apiKey, user_secretKey, instance_pk, 
     user_id_instance = AccountInfo.objects.get(user_id=user_id)
     template_name = instance_name + "Template"
     if os_type == "ubuntu" :     # ubuntu(18.04 LTS)
-        os_type_id = "75fa3d78-b98e-4fe6-96f5-2e6ecf256370"
+        os_type_id = "1679062f-fe92-11ec-ae65-525400c8d027"
     elif os_type == "centos" :   # centos
         os_type_id = "abc"
     else:   # fedora(openstack default)
-        os_type_id = "1679062f-fe92-11ec-ae65-525400c8d027"
+        os_type_id = "75fa3d78-b98e-4fe6-96f5-2e6ecf256370"
     backup_template_id = registerCloudstackTemplate(zoneID, template_name, backup_img_file_name, os_type_id)    # 템플릿 등록 후 템플릿 id 받아옴
     instance_deploy_req_body = {"apiKey" : user_apiKey, "response" : "json", "command" : "deployVirtualMachine",
         "networkids" : cloudstack_user_network_id, "serviceofferingId" : medium_offeringID,
@@ -231,7 +235,7 @@ def backup(cycle):
         for instance in backup_instance_list:
             if instance.status == "ERROR":
                 print("instance " + instance.instance_name + " status is error. Can not backup.")
-                pass
+                continue
             print("인스턴스 오브젝트: ", instance)
             backup_instance_pk = instance.instance_pk   # 에러 터지면 이거 그냥 오브젝트로 바꾸기
             backup_instance_id = instance.instance_id
@@ -252,7 +256,7 @@ def backup(cycle):
             }
             if instance_tool.instance_image_uploading_checker(backup_instance_id) == True:  # instance snapshot create in progress
                 print("Instance is image uploading state!!!")
-                pass
+                continue
             
             backup_req = req_checker.reqCheckerWithData("post", "http://" + openstack_hostIP + "/compute/v2.1/servers/" +
                 backup_instance_id + "/action", admin_token,
@@ -281,14 +285,19 @@ def backup(cycle):
                 if image_status == "active":
                     break
                 time.sleep(5)
-            image_download_req = req_checker.reqChecker("get", "http://" + openstack_hostIP + "/image/v2/images/" + instance_image_ID + "/file", admin_token)
+            image_download_req = requests.get("http://" + openstack_hostIP + "/image/v2/images/" + instance_image_ID + "/file", 
+                headers={'X-Auth-Token' : admin_token})
             if image_download_req == None:
                 raise requests.exceptions.Timeout
             print("오픈스택에서의 이미지 다운로드에 대한 리스폰스: ", image_download_req)
+
             backup_img_file = open(backup_instance_id + ".qcow2", "wb")
             backup_img_file.write(image_download_req.content)
             backup_img_file.close()
 
+            backup_img_del_req = req_checker.reqChecker("delete", "http://" + openstack_hostIP + "/image/v2/images/" + instance_image_ID, admin_token)  # For reason openstack Image container full, have to delete backup images
+            print("Image used for backup delete response status code: ", backup_img_del_req.status_code)
+            
             backup_img_file_name = backup_instance_id + ".qcow2"
             backup_img_file_to_db = open(backup_instance_id + ".qcow2", "rb")
             backup_image_data = {
@@ -320,7 +329,7 @@ def backup(cycle):
                     backup_img_file_to_db.close()
                     os.remove(backup_instance_id + ".qcow2")
                     print("Backup data not updated")
-                    pass
+                    continue
 
                 backup_img_file_to_db.close()
                 print("updated")
@@ -344,7 +353,9 @@ def backup(cycle):
                     backup_img_file_to_db.close()                    
                     os.remove(backup_instance_id + ".qcow2")
                     print("Backup data not saved")
-                    pass
+                    continue
+            
+            OpenstackBackupImage.objects.get(image_id=instance_image_ID).delete()   # Delete Backup Image at DB
         
             print("Backup for " + backup_instance_id + " is completed")    
         
@@ -715,13 +726,16 @@ def openstackStackCreate(instance_name, template_name):  # 오픈스택 상의 �
     req_checker = RequestChecker()
     template_modifier = TemplateModifier()
     stack_controller = Stack()
+    admin_token = oc.admin_token()
 
     stack_object = OpenstackInstance.objects.get(instance_name=instance_name)
     user_id = stack_object.user_id.user_id
     user_password = stack_object.user_id.password
     tenant_id_for_restore = stack_object.user_id.openstack_user_project_id
+    instance_id_for_del = stack_object.instance_id
     stack_id_for_del = stack_object.stack_id
     stack_name_for_del = stack_object.stack_name
+    image_name_for_del = stack_object.image_name
     num_people = stack_object.num_people
     data_size = stack_object.expected_data_size
     flavor = stack_object.flavor_name
@@ -730,9 +744,18 @@ def openstackStackCreate(instance_name, template_name):  # 오픈스택 상의 �
     backup_time = stack_object.backup_time
     instance_update_image_id_for_del = stack_object.update_image_ID
     
-    
-    del_stack_before_restore_res = deleteStackBeforeRestore(tenant_id_for_restore, stack_id_for_del, stack_name_for_del, instance_update_image_id_for_del)     # 이전에 있던 스택 삭제
-    print(del_stack_before_restore_res)
+    if stack_name_for_del != None:
+        del_stack_before_restore_res = deleteStackBeforeRestore(tenant_id_for_restore, stack_id_for_del, stack_name_for_del, instance_update_image_id_for_del)     # 이전에 있던 스택 삭제
+        print(del_stack_before_restore_res)
+        OpenstackInstance.objects.get(instance_id=instance_id_for_del).delete()
+    else:   # In case instance is restored through freezer
+        del_freezer_restored_instance_req = requests.delete("http://" + oc.hostIP + "/compute/v2.1/servers/" + instance_id_for_del,
+            headers={'X-Auth-Token': admin_token})
+        del_freezer_restore_image_id = requests.get("http://" + oc.hostIP + "/image/v2/images?name=" + image_name_for_del,
+            headers={'X-Auth-Token': admin_token}).json()["images"][0]["id"]
+        del_freezer_restore_image_req = requests.delete("http://" + oc.hostIP + "/image/v2/images/" + del_freezer_restore_image_id,
+            headers={'X-Auth-Token': admin_token})
+        print("Deleted freezer backuped instance", del_freezer_restored_instance_req.status_code, del_freezer_restore_image_req.status_code)
     
     # ------------ 스택 재생성 로직 시작 ------------ #
     user_token = oc.user_token({"user_id" : user_id, "password" : user_password})
@@ -876,7 +899,7 @@ def openstackServerRecoveryChecker():
         if oc.admin_token() == None:      # TimeOut 발생시 계속 서버상태 체크
             print("openstack server not recovered")
             time.sleep(10)
-            pass
+            continue
                 
         else:       # 오픈스택 서버가 정상화 되어 토큰 발급의 응답이 있을때는 restore 프로세스 수행 후 함수 종료
             accounts_list = AccountInfo.objects.all()
@@ -926,7 +949,7 @@ def writeTxtFile(mode, instance_id):
     file.write('source admin-openrc.sh')                         #환경에 맞게 설정해야됨 본인 리눅스 환경
     file.write('\nfreezer-agent --action ' + mode + ' --nova-inst-id ')
     file.write(instance_id)
-    file.write(' --storage local --container /home/test/' + instance_id + '_backup' + ' --backup-name ' + instance_id + '_backup' + ' --mode nova --engine nova --no-incremental true')
+    file.write(' --storage local --container /home/test/' + instance_id + '_backup' + ' --backup-name ' + instance_id + '_backup' + ' --mode nova --engine nova --no-incremental true --log-file ' + instance_id + '_' + mode+ '.log')
     file.close()
 
 def readTxtFile(mode):               #mode : backup, restore
@@ -1022,13 +1045,15 @@ def deleteStackBeforeFreezerRestore(tenant_id_for_restore, stack_id_for_del, sta
         print("인스턴스의 백업 이미지 삭제 리스폰스: ", backup_img_del_req)
         if backup_img_del_req == None:
             return JsonResponse({"message" : "오픈스택 서버에 문제가 생겨 백업해놓은 이미지를 삭제할 수 없습니다."}, status=404)
-        del_instance_object.instance_backup_img_file.delete()   # 이 경우는 db의 stack정보를 삭제하는 것이 아니기 때문에 backup이미지 정보만 db에서 delete
+        del_instance_object.instance_backup_img_file.get(instance_id=del_instance_id).delete()   # 이 경우는 db의 stack정보를 삭제하는 것이 아니기 때문에 backup이미지 정보만 db에서 delete
 
     print("에러가 발생해 삭제한 스택 이름: " + stack_name_for_del + "\n에러가 발생해 삭제한 스택 ID: " + stack_id_for_del)
     
     return "에러 발생한 스택 삭제 완료"
 
 def freezerBackupWithCycle(cycle):
+    import openstack_controller as oc
+    
     instance_tool = Instance()
     print("freezerBackup With Cycle function Start!!")
     try:
@@ -1037,17 +1062,17 @@ def freezerBackupWithCycle(cycle):
             return "백업 주기 ", cycle, "시간짜리 instance 없음(freezer_backup_function)"
 
         backup_instance_list = OpenstackInstance.objects.filter(freezer_completed=True).filter(backup_time=cycle)       # 한 번 백업해뒀던 프리저 백업 파일을 오픈스택 VM에서 삭제하기 위한 로직
-        print(cycle, "시간짜리 리스트(freezer_backup_function): ", backup_instance_list)
+        print(cycle, "시간짜리 리스트(freezer_backup_function) that freezer backuped: ", backup_instance_list)
         if not backup_instance_list:
             print("리스트가 비어있음. 프리저 로컬 백업본 삭제 대상 없음.")
         else:
             for instance in backup_instance_list:
                 if instance.status == "ERROR":
                     print("instance " + instance.instance_name + " status is error. Can not backup with freezer.")
-                    pass
+                    continue
                 if instance_tool.instance_image_uploading_checker(instance.instance_id) == True:  # instance snapshot create in progress
                     print("Instance is image uploading state!!!")
-                    pass
+                    continue
                 print("인스턴스 오브젝트: ", instance)
                 instance_id_for_OSremove = instance.instance_id
                 print("인스턴스 id: ", instance_id_for_OSremove)
@@ -1072,22 +1097,27 @@ def freezerBackupWithCycle(cycle):
         for instance in backup_instance_list:
             if instance.status == "ERROR":
                 print("instance " + instance.instance_name + " status is error. Can not backup with freezer.")
-                pass
+                resultData="Instance " + instance.instance_name + " Error"
+                continue
             if instance_tool.instance_image_uploading_checker(instance.instance_id) == True:  # instance snapshot create in progress
                 print("Instance is image uploading state!!!")
-                pass
+                continue
             print("인스턴스 오브젝트: ", instance)
             backup_instance_id = instance.instance_id
             print("인스턴스 id: ", backup_instance_id)
 
             try:
                 resultData = freezerBackup(backup_instance_id)
-                print(resultData)
+                if resultData == "":
+                    snapshot_of_freezer_id = requests.get("http://" + oc.hostIP + "/image/v2/images?name=snapshot_of_" + backup_instance_id, oc.admin_token).json()["images"][0]["id"]
+                    snapshot_of_freezer_del_req = requests.delete("http://" + oc.hostIP + "/image/v2/images/" + snapshot_of_freezer_id, oc.admin_token)
+                    print("Snapshot delete for reason fail of freezer backup, delete response: ", snapshot_of_freezer_del_req)
+                    return resultData
             except:
                 return "Error!! When trying freezer Backup"
 
             OpenstackInstance.objects.filter(instance_id=backup_instance_id).update(freezer_completed=True)
-        return "All freezerBackupWithCycle has completed"
+        return resultData
 
     except OperationalError:
         return "인스턴스가 없습니다."
@@ -1107,7 +1137,6 @@ def freezerRestoreWithCycle():
         return "Error 상태인 instance 중 프리저를 통해 백업 된 인스턴스가 없음"
 
     for restore_instance in restore_instance_list:  # 프리저로 백업됐고 에러가 난 인스턴스에 대해
-        #start_time = time.time()    # 나중에 자료에 넣을 시간 비교용
         print("리스토어할 인스턴스 오브젝트: ", restore_instance)
         restore_instance_id = restore_instance.instance_id
         restore_instance_name = restore_instance.instance_name
@@ -1138,16 +1167,12 @@ def freezerRestoreWithCycle():
                 if instance_info_req == None:
                     return "Error occurred when getting restored instance information!!!"
                 print("인스턴스 정보: ", instance_info_req.json())
-                restored_instance_ip_address = instance_info_req.json()["server"]["addresses"]["public"][1]["addr"]
+                restored_instance_ip_address = instance_info_req.json()["server"]["addresses"]["mainnetwork"][0]["addr"]
                 break
-
             time.sleep(2)
         
         OpenstackInstance.objects.filter(instance_name=restored_instance_name).update(instance_id=restored_instance_id, instance_name=restored_instance_name,
             stack_id=None, stack_name=None, ip_address=restored_instance_ip_address, status="ACTIVE", image_name="RESTORE"+restored_instance_name, update_image_ID=None, freezer_completed=False)
-
-        #end_time = time.time()
-        #print(f"{end_time - start_time:.5f} sec")
 
     return "All ERRORed instances restored!!"
 
@@ -1161,6 +1186,8 @@ def freezerBackup6():
     else:
         if ServerStatusFlag.objects.get(platform_name="openstack").status == True:
             freezer_backup_res = freezerBackupWithCycle(6)
+            if freezer_backup_res == "":
+                return print("Freezer backup Failed")
             print(freezer_backup_res)
         else:
             return print("오픈스택서버가 아직 복구되지 않았습니다.")
@@ -1176,6 +1203,8 @@ def freezerBackup12():
     else:
         if ServerStatusFlag.objects.get(platform_name="openstack").status == True:
             freezer_backup_res = freezerBackupWithCycle(12)
+            if freezer_backup_res == "":
+                return print("Freezer backup Failed")
             print(freezer_backup_res)
         else:
             return  print("오픈스택서버가 아직 복구되지 않았습니다.")
@@ -1191,6 +1220,8 @@ def freezerRestore6():
     else:
         if ServerStatusFlag.objects.get(platform_name="openstack").status == True:
             freezer_restore_res = freezerRestoreWithCycle()
+            if freezer_restore_res != "All ERRORed instances restored!!":
+                return print("Freezer restore failed")
             print(freezer_restore_res)
         else:
             return  print("오픈스택서버가 아직 복구되지 않았습니다.")
@@ -1226,6 +1257,14 @@ def backup12():
             return  print("오픈스택서버가 아직 복구되지 않았습니다.")
 
     return print("All Backup With 12 Hour Cycle Completed!!")
+
+def backup_all6():
+    backup6()
+    freezerBackup6()
+    
+def backup_all12():
+    backup12()
+    freezerBackup12()
     
     
 # ---- 야매용 함수들 ---- #
@@ -1236,6 +1275,7 @@ def deleter():
     CloudstackInstance.objects.all().delete()
     ServerStatusFlag.objects.filter(platform_name="openstack").update(status=True)
     # ServerStatusFlag.objects.get(id=2).delete()
+    # OpenstackInstance.objects.get(instance_pk=54).delete()
     print("all-deleted")
     
 def dbModifier():
@@ -1266,18 +1306,20 @@ def dbModifier():
 # ------------------------------------------------------------------------ Total Batch Job Part ------------------------------------------------------------------------ #
 def start():
     scheduler = BackgroundScheduler() # ({'apscheduler.job_defaults.max_instances': 2}) # max_instance = 한 번에 실행할 수 있는 같은 job의 개수
-    scheduler.add_job(deleter, 'interval', seconds=5)
+    # scheduler.add_job(deleter, 'interval', seconds=5)
     # scheduler.add_job(dbModifier, "interval", seconds=5)
     
-    # scheduler.add_job(backup6, 'interval', seconds=300)
-    # scheduler.add_job(backup12, 'interval', seconds=600)
+    # scheduler.add_job(backup6, 'interval', seconds=600)
+    # scheduler.add_job(backup12, 'interval', seconds=1200)
     
-    # scheduler.add_job(freezerBackup6, 'interval', seconds=400)
-    # scheduler.add_job(freezerBackup12, 'interval', seconds=800)
+    # scheduler.add_job(freezerBackup6, 'interval', seconds=900)
+    # scheduler.add_job(freezerBackup12, 'interval', seconds=1800)
     
-    # scheduler.add_job(freezerRestore6, 'interval', seconds=200)
+    scheduler.add_job(backup_all6, 'interval', seconds=960)
     
-    # scheduler.add_job(errorCheckAndUpdateDBstatus, 'interval', seconds=60)
-    # scheduler.add_job(openstackServerChecker, 'interval', seconds=60)
+    scheduler.add_job(freezerRestore6, 'interval', seconds=300)
+    
+    scheduler.add_job(errorCheckAndUpdateDBstatus, 'interval', seconds=60)
+    scheduler.add_job(openstackServerChecker, 'interval', seconds=60)
 
     scheduler.start()

@@ -76,7 +76,7 @@ class InstanceStart(APIView):
         apiKey = request.headers["apiKey"]
         secretKey = request.headers["secretKey"]
         start_instance_pk = json.loads(request.body)["instance_pk"]
-        start_instance_id = CloudstackInstance.objects().get(instance_pk=start_instance_pk)
+        start_instance_id = CloudstackInstance.objects.get(instance_pk=start_instance_pk).instance_id
         if start_instance_id == None :
             return JsonResponse({"message" : "인스턴스를 찾을 수 없습니다."}, status=404)
 
@@ -93,7 +93,7 @@ class InstanceStop(APIView):
         apiKey = request.headers["apiKey"]
         secretKey = request.headers["secretKey"]
         stop_instance_pk = json.loads(request.body)["instance_pk"]
-        stop_instance_id = CloudstackInstance.objects().get(instance_pk=stop_instance_pk)
+        stop_instance_id = CloudstackInstance.objects.get(instance_pk=stop_instance_pk).instance_id
         if stop_instance_id == None :
             return JsonResponse({"message" : "인스턴스를 찾을 수 없습니다."}, status=404)
 
@@ -110,11 +110,12 @@ class InstanceConsole(APIView):
         baseURL = "http://10.125.70.28:8080/client/console?"
         user_apiKey = request.headers["apiKey"]
         user_secretKey = request.headers["secretKey"]
-        instance_id = json.loads(request.body)["instance_pk"]
+        instance_pk = json.loads(request.body)["instance_pk"]
+        instance_id = CloudstackInstance.objects.get(instance_pk=instance_pk).instance_id
         if instance_id == None :
             return JsonResponse({"message" : "인스턴스를 찾을 수 없습니다."}, status=404)
 
-        request_body = {"vm" : instance_id ,"apiKey": user_apiKey, "response" : "json" , "cmd": "access"}
+        request_body = {"vm": instance_id, "apiKey": user_apiKey, "response": "json", "cmd": "access"}
         console_URL_req = csc.requestThroughSigWithURL(baseURL, user_secretKey, request_body)
         htmlData = BeautifulSoup(console_URL_req, features="html.parser")
         console_url_body = htmlData.html.frameset.frame['src']

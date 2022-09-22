@@ -9,11 +9,11 @@ from django.http import JsonResponse
 
 # from openstack.models import OpenstackInstance
 
-hostIP = "211.197.83.186"    #김영후 집 데스크탑 공인 ip     # 얘네들 학교에 깔린 오픈스택에 맞출 것
-admin_project_id = "16aa441c434e4669a56f4ccde9c7a053" #김영후 데탑에 깔린 오픈스택 서버의 id들
-admins_group_id = "b1a32377994848dc9f3b2395d3dfa368"
-admin_role_id = "7459ab064e7540d080bf946c1b095aff"
-public_network_id = "2d476eb6-f5f8-4632-80a7-b0ffe5337d3f"  # mainnetwork id
+hostIP = "211.197.83.186"
+admin_project_id = "4c4db83c889c495b927b1c1d51cdb352"
+admins_group_id = "a7cd4d02944d45ab90dc015f9ca0dc95"
+admin_role_id = "0ad3ad662fb848189152e1331db6a804"
+public_network_id = "488ac2ef-b979-422c-bd7d-72c2d500aed3"  # mainnetwork id
 
 # --------------------------------------------------------------- Error Part --------------------------------------------------------------- #
 

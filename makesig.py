@@ -5,6 +5,8 @@ import urllib.parse
 import urllib.request
 import requests
 import cloudstack_controller as csc
+import openstack_controller as oc
+from bs4 import BeautifulSoup
 
 admin_apiKey = csc.admin_apiKey
 admin_secretKey = csc.admin_secretKey
@@ -56,9 +58,9 @@ def main():
     # request_body = {"apiKey" : admin_apiKey, "response": "json", "command": "listOsTypes", "keyword": "ubuntu"}
     # sig, req = requestThroughSig(admin_secretKey, request_body)
 
-    request_body = {"apiKey": admin_apiKey, "response": "json", "command": "destroyVirtualMachine",
-        "id": "2ad3f87f-52bc-4888-8d3a-58a1c64a5064", "expunge": "true"}
-    sig, req = requestThroughSig(admin_secretKey, request_body)
+    # request_body = {"apiKey": admin_apiKey, "response": "json", "command": "destroyVirtualMachine",
+    #     "id": "2ad3f87f-52bc-4888-8d3a-58a1c64a5064", "expunge": "true"}
+    # sig, req = requestThroughSig(admin_secretKey, request_body)
     
     # request_body = {"apiKey" : admin_apiKey, "response" : "json", "command" : "registerTemplate",
     # "displaytext" : "gettest", "format" : "qcow2", "hypervisor" : "kvm",
@@ -72,5 +74,30 @@ def main():
     # sig, req = requestThroughSig(admin_secretKey, request_body)
     # print(sig, req)
     
+    # image_download_req = requests.get("http://"+oc.hostIP+"/image/v2/images/0fb22472-8a62-4404-ab47-7514fa2e517d/file", headers={'X-Auth-Token' : oc.admin_token()})
+    # print(image_download_req.status_code)
+    # print("오픈스택에서의 이미지 다운로드에 대한 리스폰스: ", image_download_req)
+    # backup_img_file = open("test.qcow2", "wb")
+    # backup_img_file.write(image_download_req.content)
+    # backup_img_file.close()
+    baseURL = "http://10.125.70.28:8080/client/console?"
+    user_apiKey = csc.admin_apiKey
+    user_secretKey = csc.admin_secretKey
+    # instance_pk = json.loads(request.body)["instance_pk"]
+    instance_id = "4488848a-4a4b-42b1-9324-c979d53c6f98"
+
+    request_body = {"vm": instance_id, "apiKey": user_apiKey, "response": "json", "cmd": "access"}
+    console_URL_req = csc.requestThroughSigWithURL(baseURL, user_secretKey, request_body)
+    htmlData = BeautifulSoup(console_URL_req, features="html.parser")
+    console_url_body = htmlData.html.frameset.frame['src']
+    console_URL = "http:" + console_url_body
+    console_URL_split = console_URL.split("/")
+    port = console_URL_split[5].split("&")
+    port[1] = "port=6060"
+    port_join = "&".join(port)
+    externalIPwithPort=csc.hostIP.split(":")
+    externalIP=externalIPwithPort[0]
+    console_URL = "http://" + externalIP + "/" + console_URL_split[3] + "/" + console_URL_split[4] + "/" + port_join
+    print("Console URL is : " + console_URL)
 
 main()
