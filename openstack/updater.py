@@ -86,7 +86,7 @@ def registerCloudstackTemplate(zoneID, template_name, backup_img_file_name, os_t
 
     request_body = {"apiKey" : admin_apiKey, "response" : "json", "command" : "registerTemplate",
         "displaytext" : template_name, "format" : "qcow2", "hypervisor" : "kvm",
-        "name" : template_name, "url" : "http://119.198.160.6:8000/media/img-files/" + backup_img_file_name, "ostypeid" : os_type_id, "zoneid" : zoneID}
+        "name" : template_name, "url" : "http://10.125.70.26:8000/media/img-files/" + backup_img_file_name, "ostypeid" : os_type_id, "zoneid" : zoneID}
     template_register_req = csc.requestThroughSigForTemplateRegist(admin_secretKey, request_body)
     webbrowser.open(template_register_req)  # url 오픈으로 해결 안돼서 webbrowser로 open함
     
@@ -950,7 +950,7 @@ def writeTxtFile(mode, instance_id):
     file.write('source admin-openrc.sh')                         #환경에 맞게 설정해야됨 본인 리눅스 환경
     file.write('\nfreezer-agent --action ' + mode + ' --nova-inst-id ')
     file.write(instance_id)
-    file.write(' --storage local --container /home/kojunsung/' + instance_id + '_backup' + ' --backup-name ' + instance_id + '_backup' + ' --mode nova --engine nova --no-incremental true --log-file ' + instance_id + '_' + mode+ '.log')
+    file.write(' --storage local --container /home/test/' + instance_id + '_backup' + ' --backup-name ' + instance_id + '_backup' + ' --mode nova --engine nova --no-incremental true --log-file ' + instance_id + '_' + mode+ '.log')
     file.close()
 
 def readTxtFile(mode):               #mode : backup, restore
@@ -1270,11 +1270,11 @@ def backup_all12():
     
 # ---- 야매용 함수들 ---- #
 def deleter():
-    AccountInfo.objects.all().delete()
-    OpenstackInstance.objects.all().delete()
+    # AccountInfo.objects.all().delete()
+    # OpenstackInstance.objects.all().delete()
     OpenstackBackupImage.objects.all().delete()
-    CloudstackInstance.objects.all().delete()
-    ServerStatusFlag.objects.filter(platform_name="openstack").update(status=True)
+    # CloudstackInstance.objects.all().delete()
+    # ServerStatusFlag.objects.filter(platform_name="openstack").update(status=True)
     # ServerStatusFlag.objects.get(id=2).delete()
     # OpenstackInstance.objects.get(instance_pk=1).delete()
     print("all-deleted")

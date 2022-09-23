@@ -253,9 +253,9 @@ class Openstack(Stack, APIView):
                 del_cloudstack_instance_template_id = cloudstack_instance_data.image_id
                 print("클라우드스택에서 삭제할 인스턴스의 id: ", del_cloudstack_instance_id, " 삭제할 인스턴스의 템플릿 id: ", del_cloudstack_instance_template_id)
                 
-                cloudstack_instance_del_req_body = {{"apiKey" : csc.admin_apiKey, "response" : "json", "command" : "expungeVirtualMachine", "id" : del_cloudstack_instance_id}}
+                cloudstack_instance_del_req_body = {"apiKey" : csc.admin_apiKey, "response" : "json", "command" : "destroyVirtualMachine", "id" : del_cloudstack_instance_id, "expunge": "true"}
                 cloudstack_instance_del_req = csc.requestThroughSig(csc.admin_secretKey, cloudstack_instance_del_req_body)
-                cloudstack_template_del_req_body = {{"apiKey" : csc.admin_apiKey, "response" : "json", "command" : "deleteTemplate", "id" : del_cloudstack_instance_template_id}}
+                cloudstack_template_del_req_body = {"apiKey" : csc.admin_apiKey, "response" : "json", "command" : "deleteTemplate", "id" : del_cloudstack_instance_template_id}
                 cloudstack_template_del_req = csc.requestThroughSig(csc.admin_secretKey, cloudstack_template_del_req_body)
                 
                 cloudstack_instance_data.delete()
