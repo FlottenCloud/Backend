@@ -27,7 +27,7 @@ def requestThroughSig(secretKey, request_body):
         hmac.new(secretKey.encode('utf-8'), sig_str.encode('utf-8'), hashlib.sha1).digest()).strip()
     sig = urllib.parse.quote_plus(base64.encodebytes(
         hmac.new(secretKey.encode('utf-8'), sig_str.encode('utf-8'), hashlib.sha1).digest()).strip())
-    req_url = "http://211.197.83.186:8080/client/api?" + request_str + '&signature=' + sig
+    req_url = "http://10.125.70.28:8080/client/api?" + request_str + '&signature=' + sig
     print("클라우드 스택으로의 리퀘스트:", req_url)
     # res=urllib.request.urlopen(req)
     # response=res.read()
@@ -55,7 +55,7 @@ def main():
     #         "name": "test1", "url": url, "ostypeid": osTypeid, "zoneid": zoneID}
     # requestThroughSig("r6avM2ip3wtjXjbNgOHIoQEK6U0T1X3flclrt55RO4v-Fa6WL0NJAVDs80ZI-AeTpKN8lIUpW2fWF_aCHv3cRA", request_body)
 
-    request_body = {"apiKey" : admin_apiKey, "response": "json", "command": "listOsTypes", "keyword": "fedora"}
+    request_body = {"apiKey" : admin_apiKey, "response": "json", "command": "listOsTypes", "keyword": "ubuntu"}
     sig, req = requestThroughSig(admin_secretKey, request_body)
 
     # request_body = {"apiKey": admin_apiKey, "response": "json", "command": "destroyVirtualMachine",

@@ -118,11 +118,11 @@ def deployCloudstackInstance(user_id, user_apiKey, user_secretKey, instance_pk, 
     user_id_instance = AccountInfo.objects.get(user_id=user_id)
     template_name = instance_name + "Template"
     if os_type == "ubuntu" :     # ubuntu(18.04 LTS)
-        os_type_id = "b3ce66f1-34ed-11ed-914c-0800270aea06"
+        os_type_id = "fc2b92b8-3b29-11ed-a749-18c04de07b21"
     elif os_type == "centos" :   # centos
         os_type_id = "abc"
     else:   # fedora(openstack default)
-        os_type_id = "26e61d3e-246f-4822-8a66-6a8b08806d7e"
+        os_type_id = "3326c248-4b64-494f-94a9-edfa81b06ec2"
     backup_template_id = registerCloudstackTemplate(zoneID, template_name, backup_img_file_name, os_type_id)    # 템플릿 등록 후 템플릿 id 받아옴
     instance_deploy_req_body = {"apiKey" : user_apiKey, "response" : "json", "command" : "deployVirtualMachine",
         "networkids" : cloudstack_user_network_id, "serviceofferingId" : medium_offeringID,
@@ -975,10 +975,10 @@ def readTxtFile(mode):               #mode : backup, restore
 def freezerBackup(instance_id):
     cli = paramiko.SSHClient()
     cli.set_missing_host_key_policy(paramiko.AutoAddPolicy)
-    server = "1.255.161.166"
-    user = "kojunsung"                                      #리눅스 Host ID
-    pwd = "kojunsung"                                       #리눅스 Host Password
-    cli.connect(server, port=10022, username=user, password=pwd)
+    server = "192.168.0.148"
+    user = "test"  # 리눅스 Host ID
+    pwd = "0000"  # 리눅스 Host Password
+    cli.connect(server, port=22, username=user, password=pwd)
 
     writeTxtFile("backup", instance_id)
     commandLines = readTxtFile("backup") # 메모장 파일에 적어놨던 명령어 텍스트 읽어옴
@@ -995,10 +995,10 @@ def freezerBackup(instance_id):
 def freezerRestore(instance_id):
     cli = paramiko.SSHClient()
     cli.set_missing_host_key_policy(paramiko.AutoAddPolicy)
-    server = "1.255.161.166"
-    user = "kojunsung"
-    pwd = "kojunsung"
-    cli.connect(server, port=10022, username=user, password=pwd)
+    server = "192.168.0.148"
+    user = "test"  # 리눅스 Host ID
+    pwd = "0000"  # 리눅스 Host Password
+    cli.connect(server, port=22, username=user, password=pwd)
 
     writeTxtFile("restore", instance_id)
     commandLines = readTxtFile("restore") # 메모장 파일에 적어놨던 명령어 텍스트 읽어옴
@@ -1082,9 +1082,9 @@ def freezerBackupWithCycle(cycle):
                 try:
                     cli = paramiko.SSHClient()
                     cli.set_missing_host_key_policy(paramiko.AutoAddPolicy)
-                    server = "1.255.161.166"
-                    user = "kojunsung"  # 리눅스 Host ID
-                    pwd = "kojunsung"  # 리눅스 Host Password
+                    server = "192.168.0.148"
+                    user = "test"  # 리눅스 Host ID
+                    pwd = "0000"  # 리눅스 Host Password
                     cli.connect(server, port=22, username=user, password=pwd)
                     stdin, stdout, stderr = cli.exec_command("rm -rf " + instance_id_for_OSremove + "_backup")
                     print("리눅스 명령 수행 결과: ", ''.join(stdout.readlines()))
@@ -1270,13 +1270,13 @@ def backup_all12():
     
 # ---- 야매용 함수들 ---- #
 def deleter():
-    # AccountInfo.objects.all().delete()
-    # OpenstackInstance.objects.all().delete()
-    # OpenstackBackupImage.objects.all().delete()
-    # CloudstackInstance.objects.all().delete()
-    # ServerStatusFlag.objects.filter(platform_name="openstack").update(status=True)
+    AccountInfo.objects.all().delete()
+    OpenstackInstance.objects.all().delete()
+    OpenstackBackupImage.objects.all().delete()
+    CloudstackInstance.objects.all().delete()
+    ServerStatusFlag.objects.filter(platform_name="openstack").update(status=True)
     # ServerStatusFlag.objects.get(id=2).delete()
-    OpenstackInstance.objects.get(instance_pk=1).delete()
+    # OpenstackInstance.objects.get(instance_pk=1).delete()
     print("all-deleted")
     
 def dbModifier():
