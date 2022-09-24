@@ -161,7 +161,7 @@ def deployCloudstackInstance(user_id, user_apiKey, user_secretKey, instance_pk, 
             break
         
         time.sleep(1)
-    
+
     # db에 user_id, instance_id, image_id(template_id), ip_address, instance_name, status, flavor_name(medium 고정일 듯), ram_size(1G고정일 듯), disk_size, num_cpu 저장
     CloudstackInstance.objects.create(
         user_id = user_id_instance,
@@ -239,6 +239,7 @@ def backup(cycle):
         print(cycle, "시간짜리 리스트: ", backup_instance_list)
 
         for instance in backup_instance_list:
+            start_time = time.time()
             if instance.status == "ERROR":
                 print("instance " + instance.instance_name + " status is error. Can not backup.")
                 continue
@@ -360,6 +361,9 @@ def backup(cycle):
                     os.remove(backup_instance_id + ".qcow2")
                     print("Backup data not saved")
                     continue
+            end_time = time.time()
+            print("Backup to cloudstack time: ", f"{end_time - start_time:.5f} sec")
+
         
             print("Backup for " + backup_instance_id + " is completed")    
         
@@ -1100,6 +1104,7 @@ def freezerBackupWithCycle(cycle):
 
         backup_instance_list = OpenstackInstance.objects.filter(freezer_completed=False).filter(backup_time=cycle)
         for instance in backup_instance_list:
+            start_time = time.time()    # 시간 측정용
             if instance.status == "ERROR":
                 print("instance " + instance.instance_name + " status is error. Can not backup with freezer.")
                 resultData="Instance " + instance.instance_name + " Error"
@@ -1122,6 +1127,9 @@ def freezerBackupWithCycle(cycle):
                 return "Error!! When trying freezer Backup"
 
             OpenstackInstance.objects.filter(instance_id=backup_instance_id).update(freezer_completed=True)
+            end_time = time.time()
+            print("Freezer backup time: ", f"{end_time - start_time:.5f} sec")
+
         return resultData
 
     except OperationalError:
@@ -1142,6 +1150,7 @@ def freezerRestoreWithCycle():
         return "Error 상태인 instance 중 프리저를 통해 백업 된 인스턴스가 없음"
 
     for restore_instance in restore_instance_list:  # 프리저로 백업됐고 에러가 난 인스턴스에 대해
+        start_time = time.time()
         print("리스토어할 인스턴스 오브젝트: ", restore_instance)
         restore_instance_id = restore_instance.instance_id
         restore_instance_name = restore_instance.instance_name
@@ -1179,6 +1188,9 @@ def freezerRestoreWithCycle():
         OpenstackInstance.objects.filter(instance_name=restored_instance_name).update(instance_id=restored_instance_id, instance_name=restored_instance_name,
             stack_id=None, stack_name=None, ip_address=restored_instance_ip_address, status="ACTIVE", image_name="RESTORE"+restored_instance_name, update_image_ID=None, freezer_completed=False)
 
+        end_time = time.time()
+        print("Freezer restore time: ", f"{end_time - start_time:.5f} sec")
+
     return "All ERRORed instances restored!!"
 
 
@@ -1212,7 +1224,7 @@ def freezerBackup12():
                 return print("Freezer backup Failed")
             print(freezer_backup_res)
         else:
-            return  print("오픈스택서버가 아직 복구되지 않았습니다.")
+            return print("오픈스택서버가 아직 복구되지 않았습니다.")
     
     return print("All Freezer Backup With 12 Hour Cycle Completed!!")
 
@@ -1226,10 +1238,10 @@ def freezerRestore6():
         if ServerStatusFlag.objects.get(platform_name="openstack").status == True:
             freezer_restore_res = freezerRestoreWithCycle()
             if freezer_restore_res != "All ERRORed instances restored!!":
-                return print("Freezer restore failed")
+                return print(freezer_restore_res)
             print(freezer_restore_res)
         else:
-            return  print("오픈스택서버가 아직 복구되지 않았습니다.")
+            return print("오픈스택서버가 아직 복구되지 않았습니다.")
 
     return print("All Freezer Restore Completed!!")
 
@@ -1244,7 +1256,7 @@ def backup6():
             backup_res = backup(6)
             print(backup_res)
         else:
-            return  print("오픈스택서버가 아직 복구되지 않았습니다.")
+            return print("오픈스택서버가 아직 복구되지 않았습니다.")
     
     return print("All Backup With 6 Hour Cycle Completed!!")
 
@@ -1259,7 +1271,7 @@ def backup12():
             backup_res = backup(12)
             print(backup_res)
         else:
-            return  print("오픈스택서버가 아직 복구되지 않았습니다.")
+            return print("오픈스택서버가 아직 복구되지 않았습니다.")
 
     return print("All Backup With 12 Hour Cycle Completed!!")
 

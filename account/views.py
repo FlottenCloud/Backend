@@ -195,20 +195,18 @@ class AccountView(APIView):
         # print(del_user_id_openstack)
         del_account_id_cloudstack = account_data_object.cloudstack_account_id
         # print(del_user_id_cloudstack)
-        user_resource = account_data_object.user_resource_info.all()   #해당 유저의 stack 정보(from 외래키 related name)
+        user_openstack_resources = account_data_object.user_resource_info.all()   #해당 유저의 stack 정보(from 외래키 related name)
+        user_cloudstack_resources = account_data_object.user_cloudstack_resource_info.all()
 
-        for resource in user_resource:  # 오픈스택에서 user의 stack 모두 삭제
+        for openstack_resource in user_openstack_resources:  # 오픈스택에서 user의 stack 모두 삭제
             stack_del_req = requests.delete("http://" + openstack_hostIP + "/heat-api/v1/" + del_project_id_openstack + "/stacks/"
-                + resource.stack_name + "/" + resource.stack_id,
+                + openstack_resource.stack_name + "/" + openstack_resource.stack_id,
                 headers = {'X-Auth-Token' : admin_token})
             print("스택 삭제 리스폰스: ", stack_del_req)
-            if resource.update_image_ID != None:
-                image_del_req = requests.delete("http://" + openstack_hostIP + "/image/v2/images/" + resource.update_image_ID,
+            if openstack_resource.update_image_ID != None:
+                image_del_req = requests.delete("http://" + openstack_hostIP + "/image/v2/images/" + openstack_resource.update_image_ID,
                     headers = {'X-Auth-Token' : admin_token})
                 print("업데이트에 쓰인 이미지 삭제 리스폰스: ", image_del_req)
-
-        # openstack_project_del_req = requests.delete("http://" + openstack_hostIP + "/identity/v3/projects/" + del_project_id_openstack,
-        #     headers={'X-Auth-Token': admin_token})     #오픈스택에 해당 프로젝트 삭제 request
         openstack_user_del_req = requests.delete("http://" + openstack_hostIP + "/identity/v3/users/" + del_user_id_openstack,
             headers={'X-Auth-Token': admin_token})     #오픈스택에 해당 유저 삭제 request
         print("오픈스택 유저 삭제 리스폰스: ", openstack_user_del_req)
@@ -223,6 +221,13 @@ class AccountView(APIView):
         cloudstack_account_del_req = csc.requestThroughSig(cloudstack_admin_secretKey, cloudstack_account_del_body)
         cloudstack_account_del_res = json.loads(cloudstack_account_del_req)
         print("클라우드스택 유저 삭제 리스폰스: ", cloudstack_account_del_res)
+
+        for cloudstack_resource in user_cloudstack_resources:
+            del_cloudstack_template_id = cloudstack_resource.image_id
+            cloudstack_template_del_req_body = {"apiKey" : csc.admin_apiKey, "response" : "json", "command" : "deleteTemplate", "id" : del_cloudstack_template_id}
+            cloudstack_template_del_req = csc.requestThroughSig(csc.admin_secretKey, cloudstack_template_del_req_body)
+            cloudstack_template_del_res = json.loads(cloudstack_template_del_req)
+            print("유저가 클라우드스택에서 가지고 있던 template 삭제 결과: ", cloudstack_template_del_res)
 
         account_data_object.delete()   # DB에서 사용자 정보 삭제
 
