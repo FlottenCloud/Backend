@@ -32,19 +32,19 @@ openstack_user_token = openapi.Parameter(   # for django swagger
 
 # request django url = /openstack/      인스턴스 CRUD 로직
 class Openstack(Stack, APIView):
-    @swagger_auto_schema(tags=["Openstack API"], manual_parameters=[openstack_user_token], request_body=CreateStackSerializer, responses={200:"Success", 401:"Unauthorized", 404:"Not Found", 405:"Method Not Allowed", 409:"Confilct"})
+    @swagger_auto_schema(tags=["Openstack API"], manual_parameters=[openstack_user_token], request_body=CreateStackSerializer, responses={200:"Success", 400:"Bad Request", 401:"Unauthorized", 404:"Not Found", 409:"Conflict", 500:"Internal Server Error"})
     def post(self, request):   # header: user_token, body: 요구사항({os, package[], num_people, data_size, instance_name, backup_time})
         stack_template_root = "templates/"
         try:
             input_data, token, user_id = oc.getRequestParamsWithBody(request)
             if user_id == None:
-                return JsonResponse({"message" : "오픈스택 서버에 문제가 생겼습니다."}, status=404)
+                return JsonResponse({"message" : "오픈스택 서버에 문제가 생겼습니다."}, status=500)
 
             user_os, user_package, num_people, data_size, flavor, user_instance_name, backup_time = super().getUserRequirement(input_data)
             if user_instance_name == "Duplicated":
                 return JsonResponse({"message": "이미 존재하는 가상머신 이름입니다."}, status=409)
             if flavor == "EXCEEDED":
-                return JsonResponse({"message" : "인원 수 X 인원 당 예상 용량 값은 10G를 넘지 못합니다."}, status=405)
+                return JsonResponse({"message" : "인원 수 X 인원 당 예상 용량 값은 10G를 넘지 못합니다."}, status=400)
 
             openstack_tenant_id = account.models.AccountInfo.objects.get(user_id=user_id).openstack_user_project_id
             print("유저 프로젝트 id: ", openstack_tenant_id)
@@ -66,14 +66,14 @@ class Openstack(Stack, APIView):
             stack_req = super().reqCheckerWithData("post", "http://" + openstack_hostIP + "/heat-api/v1/" + openstack_tenant_id + "/stacks",
                 token, json_template)
             if stack_req == None:
-                return JsonResponse({"message" : "오픈스택 서버에 문제가 생겨 스택 정보를 가져올 수 없습니다."}, status=404)
+                return JsonResponse({"message" : "오픈스택 서버에 문제가 생겨 스택 정보를 가져올 수 없습니다."}, status=500)
             print("stack생성", stack_req.json())
             stack_id = stack_req.json()["stack"]["id"]
 
             stack_name_req = super().reqChecker("get", "http://" + openstack_hostIP + "/heat-api/v1/" + openstack_tenant_id + "/stacks?id=" + stack_id,
                 token)
             if stack_name_req == None:
-                return JsonResponse({"message" : "오픈스택 서버에 문제가 생겨 스택 이름을 가져올 수 없습니다."}, status=404)
+                return JsonResponse({"message" : "오픈스택 서버에 문제가 생겨 스택 이름을 가져올 수 없습니다."}, status=500)
             print("스택 이름 정보: ", stack_name_req.json())
             stack_name = stack_name_req.json()["stacks"][0]["stack_name"]
 
@@ -81,7 +81,7 @@ class Openstack(Stack, APIView):
                 instance_id, instance_name, instance_ip_address, instance_status, instance_image_name, instance_flavor_name, instance_ram_size, instance_disk_size, instance_num_cpu = super().stackResourceGetter("create", openstack_hostIP, openstack_tenant_id, stack_name, stack_id, token)
             except Exception as e:  # stackResourceGetter에서 None이 반환 된 경우
                 print("예외 발생: ", e)
-                return JsonResponse({"message" : "오픈스택 서버에 문제가 생겨 생성된 스택의 정보를 불러올 수 없습니다."}, status=404)
+                return JsonResponse({"message" : "오픈스택 서버에 문제가 생겨 생성된 스택의 정보를 불러올 수 없습니다."}, status=500)
             
             package_for_db = (",").join(user_package)   # db에 패키지 목록 문자화해서 저장하는 로직
             # package_for_db = ""
@@ -121,17 +121,26 @@ class Openstack(Stack, APIView):
         except oc.TokenExpiredError as e:
             print("Token Expired: ", e)
             return JsonResponse({"message" : str(e)}, status=401)
+        except oc.InstanceNameNoneError:
+            print("인스턴스 이름이 입력되지 않았습니다.")
+            return JsonResponse({"message" : "생성할 인스턴스의 이름을 입력해주세요."}, status=400)
+        except oc.NumPeopleNegativeError:
+            print("사람 수가 음수입니다.")
+            return JsonResponse({"message" : "예상 인원은 양수를 입력해주세요."}, status=400)
+        except oc.ExpectedDataSizeNegativeError:
+            print("예상 데이터 사이즈가 음수입니다.")
+            return JsonResponse({"message" : "예상 데이터 사이즈는 양수를 입력해주세요."}, status=400)
 
         return JsonResponse({"message" : "가상머신 생성 완료"}, status=201)
 
-    @swagger_auto_schema(tags=["Openstack API"], manual_parameters=[openstack_user_token], responses={200:"Success", 401:"Unauthorized", 404:"Not Found"})
+    @swagger_auto_schema(tags=["Openstack API"], manual_parameters=[openstack_user_token], responses={200:"Success", 401:"Unauthorized", 404:"Not Found", 500:"Internal Server Error"})
     def get(self, request):     # header: user_token
         try:
             if ServerStatusFlag.objects.get(platform_name="openstack").status == False:
-                return JsonResponse({"message" : "오픈스택 서버에 문제가 생겨 리소스 정보를 받아올 수 없습니다."}, status=404)
+                return JsonResponse({"message" : "오픈스택 서버에 문제가 생겨 리소스 정보를 받아올 수 없습니다."}, status=500)
             token, user_id = oc.getRequestParams(request)
             if user_id == None:
-                return JsonResponse({"message" : "오픈스택 서버에 문제가 생겨 token으로 오픈스택 유저의 정보를 얻어올 수 없습니다."}, status=404)
+                return JsonResponse({"message" : "오픈스택 서버에 문제가 생겨 token으로 오픈스택 유저의 정보를 얻어올 수 없습니다."}, status=500)
 
             try:
                 user_instance_info = OpenstackInstance.objects.filter(user_id=user_id)
@@ -140,7 +149,7 @@ class Openstack(Stack, APIView):
                         continue
                     instance_req = super().reqChecker("get", "http://" + openstack_hostIP + "/compute/v2.1/servers/" + instance_info.instance_id, token)
                     if instance_req == None:
-                        return JsonResponse({"message" : "오픈스택 서버에 문제가 생겨 인스턴스의 상태 정보를 가져올 수 없습니다."}, status=404)
+                        return JsonResponse({"message" : "오픈스택 서버에 문제가 생겨 인스턴스의 상태 정보를 가져올 수 없습니다."}, status=500)
                     instance_status = instance_req.json()["server"]["status"]
                     OpenstackInstance.objects.filter(instance_id=instance_info.instance_id).update(status=instance_status)
 
@@ -155,7 +164,7 @@ class Openstack(Stack, APIView):
 
         return JsonResponse({"instances" : user_stack_data}, status=200)
     
-    @swagger_auto_schema(tags=["Openstack API"], manual_parameters=[openstack_user_token], request_body=UpdateStackSerializer, responses={200:"Success", 401:"Unauthorized", 404:"Not Found", 405:"Method Not Allowed", 500:"Internal Server Error"})
+    @swagger_auto_schema(tags=["Openstack API"], manual_parameters=[openstack_user_token], request_body=UpdateStackSerializer, responses={200:"Success", 400:"Bad Request", 401:"Unauthorized", 404:"Not Found", 500:"Internal Server Error"})
     def patch(self, request):       # header: user_token, body: instance_id->instance_pk, 요구사항({package[], num_people, data_size, backup_time})
         try:
             input_data, token, user_id = oc.getRequestParamsWithBody(request)
@@ -179,10 +188,16 @@ class Openstack(Stack, APIView):
             return JsonResponse({"message" : str(e)}, status=401)
         except oc.OpenstackServerError as e:
             print("스택 업데이트 중 예외 발생: ", e)
-            return JsonResponse({"message" : "오픈스택 서버에 문제가 발생했습니다."}, status=404)
+            return JsonResponse({"message" : "오픈스택 서버에 문제가 발생했습니다."}, status=500)
+        except oc.NumPeopleNegativeError:
+            print("사람 수가 음수입니다.")
+            return JsonResponse({"message" : "예상 인원은 양수를 입력해주세요."}, status=400)
+        except oc.ExpectedDataSizeNegativeError:
+            print("예상 데이터 사이즈가 음수입니다.")
+            return JsonResponse({"message" : "예상 데이터 사이즈는 양수를 입력해주세요."}, status=400)
         except oc.OverSizeError as e:
             print("스택 업데이트 중 예외 발생: ", e)
-            return JsonResponse({"message" : "인원 수 X 인원 당 예상 용량 값은 10G를 넘지 못합니다."}, status=405)
+            return JsonResponse({"message" : "인원 수 X 인원 당 예상 용량 값은 10G를 넘지 못합니다."}, status=400)
         except oc.StackUpdateFailedError as e:
             print("스택 업데이트 중 예외 발생: ", e)
             return JsonResponse({"message" : "스택 업데이트에 실패했습니다."}, status=500)
@@ -195,13 +210,13 @@ class Openstack(Stack, APIView):
 
         return JsonResponse({"message" : "업데이트 완료"}, status=201)
 
-    @swagger_auto_schema(tags=["Openstack API"], manual_parameters=[openstack_user_token], request_body=InstancePKSerializer, responses={200:"Success", 404:"Not Found"})
+    @swagger_auto_schema(tags=["Openstack API"], manual_parameters=[openstack_user_token], request_body=InstancePKSerializer, responses={200:"Success", 404:"Not Found", 500:"Internal Server Error"})
     def delete(self, request):      # header: user_token, body: instance_pk
         try:
             admin_token = oc.admin_token()
             input_data, user_token, user_id = oc.getRequestParamsWithBody(request)
             if user_id == None:
-                return JsonResponse({"message" : "오픈스택 서버에 문제가 생겨 token으로 오픈스택 유저의 정보를 얻어올 수 없습니다."}, status=404)
+                return JsonResponse({"message" : "오픈스택 서버에 문제가 생겨 token으로 오픈스택 유저의 정보를 얻어올 수 없습니다."}, status=500)
             
             #------------Openstack Stack and Image Delete------------#
             openstack_stack_data = OpenstackInstance.objects.get(instance_pk=input_data["instance_pk"])
@@ -229,13 +244,13 @@ class Openstack(Stack, APIView):
                     
             except Exception as e:
                 print("Error occurred while deleting stack, error message: ", e, " Stack delete response at openstack: ", stack_del_req.status_code)
-                return JsonResponse({"message" : "오픈스택 서버에 문제가 생겨 인스턴스(스택)을 삭제할 수 없습니다."}, status=404)
+                return JsonResponse({"message" : "오픈스택 서버에 문제가 생겨 인스턴스(스택)을 삭제할 수 없습니다."}, status=500)
             
             if del_update_image_id != None: # 업데이트를 한 번이라도 했을 시 업데이트에 쓰인 이미지도 삭제
                 update_image_del_req = super().reqChecker("delete", "http://" + openstack_hostIP + "/image/v2/images/" + del_update_image_id, user_token)
                 print("업데이트에 쓰인 이미지 삭제 리스폰스: ", update_image_del_req)
                 if update_image_del_req == None:
-                    return JsonResponse({"message" : "오픈스택 서버에 문제가 생겨 업데이트 때 사용한 이미지를 삭제할 수 없습니다."}, status=404)
+                    return JsonResponse({"message" : "오픈스택 서버에 문제가 생겨 업데이트 때 사용한 이미지를 삭제할 수 없습니다."}, status=500)
                 
             # if openstack_stack_data.instance_backup_img_file.filter(instance_pk=input_data["instance_pk"]).exists():
             #     del_backup_image_id = openstack_stack_data.instance_backup_img_file.get(instance_pk=input_data["instance_pk"]).image_id
@@ -270,16 +285,16 @@ class Openstack(Stack, APIView):
 class InstanceInfo(APIView):
     instance_pk = openapi.Parameter('instance_pk', openapi.IN_PATH, description='Instance ID to get info', required=True, type=openapi.TYPE_INTEGER)
     
-    @swagger_auto_schema(ta0gs=["Openstack API"], manual_parameters=[openstack_user_token, instance_pk], responses={200:"Success", 404:"Not Found"})
+    @swagger_auto_schema(ta0gs=["Openstack API"], manual_parameters=[openstack_user_token, instance_pk], responses={200:"Success", 404:"Not Found", 500:"Internal Server Error"})
     def get(self, request, instance_pk):
         token, user_id = oc.getRequestParams(request)
         if user_id == None:
-            return JsonResponse({"message" : "오픈스택 서버에 문제가 생겨 인스턴스 정보를 불러올 수 없습니다."}, status=404)
+            return JsonResponse({"message" : "오픈스택 서버에 문제가 생겨 인스턴스 정보를 불러올 수 없습니다."}, status=500)
         try:
             instance_object = OpenstackInstance.objects.get(instance_pk=instance_pk)
         except Exception as e:
             print("인스턴스 정보 조회 중 예외 발생: ", e)
-            return JsonResponse({"message" : "해당 가상머신이 존재하지 않습니다."}, status=404)  
+            return JsonResponse({"message" : "해당 가상머신이 존재하지 않습니다."}, status=500)  
         
         object_own_user_id = user_id
         object_instance_pk = instance_object.instance_pk
@@ -312,14 +327,14 @@ class InstanceInfo(APIView):
 
 # request django url = /openstack/dashboard/            대쉬보드에 리소스 사용량 보여주기 용
 class DashBoard(RequestChecker, APIView):
-    @swagger_auto_schema(tags=["Openstack Dashboard API"], manual_parameters=[openstack_user_token], responses={200:"Success", 404:"Not Found"})
+    @swagger_auto_schema(tags=["Openstack Dashboard API"], manual_parameters=[openstack_user_token], responses={200:"Success", 404:"Not Found", 500:"Internal Server Error"})
     def get(self, request):     # header: user_token
         try:
             if ServerStatusFlag.objects.get(platform_name="openstack").status == False:
-                return JsonResponse({"message" : "오픈스택 서버에 문제가 생겨 리소스 정보를 받아올 수 없습니다."}, status=404)
+                return JsonResponse({"message" : "오픈스택 서버에 문제가 생겨 리소스 정보를 받아올 수 없습니다."}, status=500)
             token, user_id = oc.getRequestParams(request)
             if user_id == None:
-                return JsonResponse({"message" : "오픈스택 서버에 문제가 생겨 token으로 오픈스택 유저의 정보를 얻어올 수 없습니다."}, status=404)
+                return JsonResponse({"message" : "오픈스택 서버에 문제가 생겨 token으로 오픈스택 유저의 정보를 얻어올 수 없습니다."}, status=500)
 
             try:
                 user_instance_info = OpenstackInstance.objects.filter(user_id=user_id)
@@ -328,7 +343,7 @@ class DashBoard(RequestChecker, APIView):
                         continue
                     instance_status_req = super().reqChecker("get", "http://" + openstack_hostIP + "/compute/v2.1/servers/" + instance_info.instance_id, token)
                     if instance_status_req == None:
-                        return JsonResponse({"message" : "오픈스택 서버에 문제가 생겨 리소스 정보를 받아올 수 없습니다."}, status=404)
+                        return JsonResponse({"message" : "오픈스택 서버에 문제가 생겨 리소스 정보를 받아올 수 없습니다."}, status=500)
 
                     instance_status = instance_status_req.json()["server"]["status"]
                     OpenstackInstance.objects.filter(instance_id=instance_info.instance_id).update(status=instance_status)
@@ -357,12 +372,12 @@ class DashBoard(RequestChecker, APIView):
 
 
 class InstanceStart(Instance, APIView):
-    @swagger_auto_schema(tags=["Openstack Instance API"], manual_parameters=[openstack_user_token], request_body=InstancePKSerializer, responses={202:"Accepted", 404:"Not Found"})
+    @swagger_auto_schema(tags=["Openstack Instance API"], manual_parameters=[openstack_user_token], request_body=InstancePKSerializer, responses={202:"Accepted", 404:"Not Found", 500:"Internal Server Error"})
     def post(self, request):    # header: user_token, body: instance_pk
         try:
             input_data, token, user_id = oc.getRequestParamsWithBody(request)   # 요청에는 user_id를 안쓰지만, exception 처리를 위해 user_id None인지 체크용으로 받아옴.
             if user_id == None:
-                return JsonResponse({"message" : "오픈스택 서버에 문제가 생겨 token으로 오픈스택 유저의 정보를 얻어올 수 없습니다."}, status=404)
+                return JsonResponse({"message" : "오픈스택 서버에 문제가 생겨 token으로 오픈스택 유저의 정보를 얻어올 수 없습니다."}, status=500)
             
             start_instance_pk = super().checkDataBaseInstanceID(input_data)
             start_instance_id = OpenstackInstance.objects.get(instance_pk=start_instance_pk).instance_id
@@ -377,7 +392,7 @@ class InstanceStart(Instance, APIView):
             instance_start_req = super().reqCheckerWithData("post", "http://"+openstack_hostIP + "/compute/v2.1/servers/" + start_instance_id
                 + "/action", token, json.dumps(server_start_payload))
             if instance_start_req == None:    # "오픈스택과 통신이 안됐을 시(timeout 시)"
-                return JsonResponse({"message" : "오픈스택 서버에 문제가 생겨 해당 동작을 수행할 수 없습니다."})
+                return JsonResponse({"message" : "오픈스택 서버에 문제가 생겨 해당 동작을 수행할 수 없습니다."}, status=500)
 
         except oc.TokenExpiredError as e:
             print("에러 내용: ", e)
@@ -387,12 +402,12 @@ class InstanceStart(Instance, APIView):
 
 
 class InstanceStop(Instance, APIView):
-    @swagger_auto_schema(tags=["Openstack Instance API"], manual_parameters=[openstack_user_token], request_body=InstancePKSerializer, responses={202:"Accepted", 404:"Not Found"})
+    @swagger_auto_schema(tags=["Openstack Instance API"], manual_parameters=[openstack_user_token], request_body=InstancePKSerializer, responses={202:"Accepted", 404:"Not Found", 500:"Internal Server Error"})
     def post(self, request):    # header: user_token, body: instance_pk
         try:
             input_data, token, user_id = oc.getRequestParamsWithBody(request)   # 요청에는 user_id를 안쓰지만, exception 처리를 위해 user_id None인지 체크용으로 받아옴.
             if user_id == None:
-                return JsonResponse({"message" : "오픈스택 서버에 문제가 생겨 token으로 오픈스택 유저의 정보를 얻어올 수 없습니다."}, status=404)
+                return JsonResponse({"message" : "오픈스택 서버에 문제가 생겨 token으로 오픈스택 유저의 정보를 얻어올 수 없습니다."}, status=500)
 
             stop_instance_pk = super().checkDataBaseInstanceID(input_data)
             stop_instance_id = OpenstackInstance.objects.get(instance_pk=stop_instance_pk).instance_id
@@ -405,7 +420,7 @@ class InstanceStop(Instance, APIView):
             instance_stop_req = super().reqCheckerWithData("post", "http://"+openstack_hostIP + "/compute/v2.1/servers/" + stop_instance_id
                 + "/action", token, json.dumps(server_stop_payload))
             if instance_stop_req == None:    # "오픈스택과 통신이 안됐을 시(timeout 시)"
-                return JsonResponse({"message" : "오픈스택 서버에 문제가 생겨 해당 동작을 수행할 수 없습니다."})
+                return JsonResponse({"message" : "오픈스택 서버에 문제가 생겨 해당 동작을 수행할 수 없습니다."}, status=500)
         
 
         except oc.TokenExpiredError as e:
@@ -416,12 +431,12 @@ class InstanceStop(Instance, APIView):
 
 
 class InstanceConsole(Instance, APIView):
-    @swagger_auto_schema(tags=["Openstack Instance API"], manual_parameters=[openstack_user_token], request_body=InstancePKSerializer, responses={200:"Success", 404:"Not Found"})
+    @swagger_auto_schema(tags=["Openstack Instance API"], manual_parameters=[openstack_user_token], request_body=InstancePKSerializer, responses={200:"Success", 404:"Not Found", 500:"Internal Server Error"})
     def post(self, request):    # header: user_token, body: instance_pk
         try:
             input_data, token, user_id = oc.getRequestParamsWithBody(request)   # 요청에는 user_id를 안쓰지만, exception 처리를 위해 user_id None인지 체크용으로 받아옴.
             if user_id == None:
-                return JsonResponse({"message" : "오픈스택 서버에 문제가 생겨 token으로 오픈스택 유저의 정보를 얻어올 수 없습니다."}, status=404)
+                return JsonResponse({"message" : "오픈스택 서버에 문제가 생겨 token으로 오픈스택 유저의 정보를 얻어올 수 없습니다."}, status=500)
 
             console_for_instance_pk = super().checkDataBaseInstanceID(input_data)
             console_for_instance_id = OpenstackInstance.objects.get(instance_pk=console_for_instance_pk).instance_id
@@ -436,7 +451,7 @@ class InstanceConsole(Instance, APIView):
             instance_console_req = super().reqCheckerWithData("post", "http://" + openstack_hostIP + "/compute/v2.1/servers/" + console_for_instance_id
                 + "/action", token, json.dumps(instance_console_payload))
             if instance_console_req == None:    # "오픈스택과 통신이 안됐을 시(timeout 시)"
-                return JsonResponse({"message" : "오픈스택 서버에 문제가 생겨 해당 동작을 수행할 수 없습니다."})
+                return JsonResponse({"message" : "오픈스택 서버에 문제가 생겨 해당 동작을 수행할 수 없습니다."}, status=500)
         
             splitted_url = instance_console_req.json()["console"]["url"].split("/") # 인스턴스 콘솔 접속 IP를 가상머신 내부 네트워크 IP가 아닌 포트포워딩 해놨던 PC의 공인 IP로 바꾸기 위한 로직
             splitted_url[2] = oc.hostIP+":6080"

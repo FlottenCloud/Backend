@@ -25,6 +25,18 @@ class OpenstackServerError(Exception):
     def __init__(self):
         super().__init__("오픈스택 서버에 문제가 생겼습니다.")
 
+class InstanceNameNoneError(Exception):
+    def __init__(self):
+        super().__init__("생성할 인스턴스의 이름을 입력해주세요.")
+
+class NumPeopleNegativeError(Exception):
+    def __init__(self):
+        super().__init__("예상 인원은 양수를 입력해주세요.")
+
+class ExpectedDataSizeNegativeError(Exception):
+    def __init__(self):
+        super().__init__("예상 데이터 사이즈는 양수를 입력해주세요.")
+
 class OverSizeError(Exception):
     def __init__(self):
         super().__init__("인원 수 X 인원 당 예상 용량 값은 10G를 넘지 못합니다.")
