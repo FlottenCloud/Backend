@@ -348,7 +348,8 @@ def backup(cycle):
                     update_image_name = update_image_id_info_req.json()["name"] # 이미지의 id를 통해 name을 가져옴.("backup_for_update_업데이트 전 인스턴스 id" 의 형식)
                     before_update_instance_id = update_image_name[18:]    # 업데이트 전 instance의 id
                     if OpenstackBackupImage.objects.filter(instance_id=before_update_instance_id).exists():     # 업데이트 전 백업 이미지가 존재하는 경우 해당 백업본(백업 이미지, 클라우드스택 resources) 삭제 후 생성으로.
-                        OpenstackBackupImage.objects.filter(instance_id=backup_instance_id).delete()    # 해당 이미지 로컬에서 삭제
+                        print("업데이트 전 백업되어있던 이미지를 삭제합니다. 이미지 ID: ", OpenstackBackupImage.objects.filter(instance_id=before_update_instance_id).image_id)
+                        OpenstackBackupImage.objects.filter(instance_id=before_update_instance_id).delete()    # 해당 이미지 로컬에서 삭제
                         serializer = OpenstackBackupImageSerializer(data=backup_image_data)
                         if serializer.is_valid():
                             serializer.save()
@@ -413,10 +414,9 @@ def backup(cycle):
                         os.remove(backup_instance_id + ".qcow2")
                         print("Backup data not saved")
                         continue
+
             end_time = time.time()
             print("Backup to cloudstack time: ", f"{end_time - start_time:.5f} sec")
-
-        
             print("Backup for " + backup_instance_id + " is completed")    
         
         return "All backup has completed."

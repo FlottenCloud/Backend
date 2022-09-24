@@ -3,7 +3,7 @@ import sys
 sys.path.append(os.path.dirname(os.path.abspath(os.path.dirname(__file__))))    #여기까지는 상위 디렉토리 모듈 import 하기 위한 코드
 
 import openstack_controller as oc
-from openstack_controller import OpenstackServerError, OverSizeError, StackUpdateFailedError, InstanceImageUploadingError, ImageFullError
+from openstack_controller import OpenstackServerError, InstanceNameNoneError, NumPeopleNegativeError, ExpectedDataSizeNegativeError, OverSizeError, StackUpdateFailedError, InstanceImageUploadingError, ImageFullError
 import json
 import requests
 import time
@@ -94,6 +94,10 @@ class TemplateModifier:
     def getUserRequirement(self, input_data):
         user_os = input_data["os"]
         user_package = input_data["package"]
+        if input_data["num_people"] < 0:
+            raise NumPeopleNegativeError
+        if input_data["data_size"] < 0:
+            raise ExpectedDataSizeNegativeError
         disk_size = round(input_data["num_people"] * input_data["data_size"])   # flavor select에 쓰일 값
 
         if disk_size < 5:   # flavor select 로직
@@ -104,6 +108,8 @@ class TemplateModifier:
             flavor = "EXCEEDED"
 
         user_instance_name = input_data["instance_name"]
+        if user_instance_name == "":
+            raise InstanceNameNoneError
         if OpenstackInstance.objects.filter(instance_name=user_instance_name).exists():
             user_instance_name = "Duplicated"
             
@@ -114,6 +120,10 @@ class TemplateModifier:
     def getUserUpdateRequirement(self, input_data):
         # user_os = input_data["os"]
         user_package = input_data["package"]
+        if input_data["num_people"] < 0:
+            raise NumPeopleNegativeError
+        if input_data["data_size"] < 0:
+            raise ExpectedDataSizeNegativeError
         disk_size = round(input_data["num_people"] * input_data["data_size"])   # flavor select에 쓰일 값
         
         if disk_size < 5:   # flavor select 로직
