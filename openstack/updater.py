@@ -341,26 +341,78 @@ def backup(cycle):
                 backup_img_file_to_db.close()
                 print("updated")
 
-            else:   # 백업을 해놓지 않은 경우
-                serializer = OpenstackBackupImageSerializer(data=backup_image_data)
-                if serializer.is_valid():
-                    serializer.save()
-                    print("Saved Backup data info")
-                    print(serializer.data)
-                    backup_img_file_to_db.close()
-                    os.remove(backup_instance_id + ".qcow2")
-                    
-                    #------cloudstack template register & instance deploy------#
-                    instance_backup_to_cloudstack_response = deployCloudstackInstance(user_id, cloudstack_user_apiKey, cloudstack_user_secretKey, backup_instance_pk, backup_instance_name, cloudstack_user_network_id, backup_img_file_name, backup_instance_os_type)
-                    print("클라우드 스택으로의 백업 결과: ", instance_backup_to_cloudstack_response)
-                    
+            else:   # 백업을 해놓지 않은 경우(생성 후 한 번이라도 백업하고 업데이트 진행한 인스턴스 포함)
+                if instance.update_image_ID != None:    # 생성 후 한 번이라도 백업하고 업데이트를 진행했을 경우, 업데이트 된 인스턴스 id에 매칭되는 백업 이미지가 존재하지 않아 백업이 안된 걸로 간주됨. 그에 따른 처리
+                    update_image_id = instance.update_image_ID  # 업데이트 때 쓰인 이미지의 id
+                    update_image_id_info_req = req_checker.reqChecker("get", "http://" + openstack_hostIP + "/image/v2/images/" + update_image_id, admin_token)
+                    update_image_name = update_image_id_info_req.json()["name"] # 이미지의 id를 통해 name을 가져옴.("backup_for_update_업데이트 전 인스턴스 id" 의 형식)
+                    before_update_instance_id = update_image_name[18:]    # 업데이트 전 instance의 id
+                    if OpenstackBackupImage.objects.filter(instance_id=before_update_instance_id).exists():     # 업데이트 전 백업 이미지가 존재하는 경우 해당 백업본(백업 이미지, 클라우드스택 resources) 삭제 후 생성으로.
+                        OpenstackBackupImage.objects.filter(instance_id=backup_instance_id).delete()    # 해당 이미지 로컬에서 삭제
+                        serializer = OpenstackBackupImageSerializer(data=backup_image_data)
+                        if serializer.is_valid():
+                            serializer.save()
+                            print("Updated backup data info")
+                            print(serializer.data)
+                            backup_img_file_to_db.close()
+                            os.remove(backup_instance_id + ".qcow2")
+
+                            #------cloudstack instance expunge, template delete & template register, instance deploy------#
+                            instance_backup_to_cloudstack_response = cloudstackInstanceDeleteAndCreate(user_id, cloudstack_user_apiKey, cloudstack_user_secretKey, backup_instance_pk, backup_instance_name, cloudstack_user_network_id, backup_img_file_name, backup_instance_os_type)
+                            print("클라우드 스택으로의 백업 결과: ", instance_backup_to_cloudstack_response)
+                            
+                        else:
+                            print("Backup data not updated")
+                            print(serializer.errors)
+                            backup_img_file_to_db.close()
+                            os.remove(backup_instance_id + ".qcow2")
+                            print("Backup data not updated")
+                            continue
+
+                        backup_img_file_to_db.close()
+                        print("updated")
+
+                    else:   # 업데이트 전 백업 이미지가 없는 경우, 그냥 생성으로.
+                        serializer = OpenstackBackupImageSerializer(data=backup_image_data)
+                        if serializer.is_valid():
+                            serializer.save()
+                            print("Saved Backup data info")
+                            print(serializer.data)
+                            backup_img_file_to_db.close()
+                            os.remove(backup_instance_id + ".qcow2")
+                            
+                            #------cloudstack template register & instance deploy------#
+                            instance_backup_to_cloudstack_response = deployCloudstackInstance(user_id, cloudstack_user_apiKey, cloudstack_user_secretKey, backup_instance_pk, backup_instance_name, cloudstack_user_network_id, backup_img_file_name, backup_instance_os_type)
+                            print("클라우드 스택으로의 백업 결과: ", instance_backup_to_cloudstack_response)
+                            
+                        else:
+                            print("Backup data not saved")
+                            print(serializer.errors)
+                            backup_img_file_to_db.close()                    
+                            os.remove(backup_instance_id + ".qcow2")
+                            print("Backup data not saved")
+                            continue
+
                 else:
-                    print("Backup data not saved")
-                    print(serializer.errors)
-                    backup_img_file_to_db.close()                    
-                    os.remove(backup_instance_id + ".qcow2")
-                    print("Backup data not saved")
-                    continue
+                    serializer = OpenstackBackupImageSerializer(data=backup_image_data)
+                    if serializer.is_valid():
+                        serializer.save()
+                        print("Saved Backup data info")
+                        print(serializer.data)
+                        backup_img_file_to_db.close()
+                        os.remove(backup_instance_id + ".qcow2")
+                        
+                        #------cloudstack template register & instance deploy------#
+                        instance_backup_to_cloudstack_response = deployCloudstackInstance(user_id, cloudstack_user_apiKey, cloudstack_user_secretKey, backup_instance_pk, backup_instance_name, cloudstack_user_network_id, backup_img_file_name, backup_instance_os_type)
+                        print("클라우드 스택으로의 백업 결과: ", instance_backup_to_cloudstack_response)
+                        
+                    else:
+                        print("Backup data not saved")
+                        print(serializer.errors)
+                        backup_img_file_to_db.close()                    
+                        os.remove(backup_instance_id + ".qcow2")
+                        print("Backup data not saved")
+                        continue
             end_time = time.time()
             print("Backup to cloudstack time: ", f"{end_time - start_time:.5f} sec")
 
