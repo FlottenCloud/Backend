@@ -21,11 +21,11 @@ from cloudstack.models import CloudstackInstance
 from openstack.serializers import OpenstackInstanceSerializer,OpenstackBackupImageSerializer
 from openstack.openstack_modules import RequestChecker, Stack, TemplateModifier, Instance
 
-ssh_ip_addr = "192.168.0.148"
+ssh_ip_addr = "1.255.161.166"
 ssh_user_name = "test"  # 리눅스 Host ID
 ssh_password = "0000"  # 리눅스 Host Password
-ssh_port = 22
-django_server_ip = "10.125.70.26"
+ssh_port = 10022
+django_server_ip = "119.198.160.6"
 
 
 # ------------------------------------------------------------ Instance Error Check Part ------------------------------------------------------------ #
