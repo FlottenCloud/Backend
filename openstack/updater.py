@@ -354,8 +354,6 @@ def backup(cycle):
                     os.remove(backup_instance_id + ".qcow2")
                     print("Backup data not saved")
                     continue
-            
-            OpenstackBackupImage.objects.get(image_id=instance_image_ID).delete()   # Delete Backup Image at DB
         
             print("Backup for " + backup_instance_id + " is completed")    
         
@@ -1270,10 +1268,10 @@ def backup_all12():
     
 # ---- 야매용 함수들 ---- #
 def deleter():
-    # AccountInfo.objects.all().delete()
-    # OpenstackInstance.objects.all().delete()
+    AccountInfo.objects.all().delete()
+    OpenstackInstance.objects.all().delete()
     OpenstackBackupImage.objects.all().delete()
-    # CloudstackInstance.objects.all().delete()
+    CloudstackInstance.objects.all().delete()
     # ServerStatusFlag.objects.filter(platform_name="openstack").update(status=True)
     # ServerStatusFlag.objects.get(id=2).delete()
     # OpenstackInstance.objects.get(instance_pk=1).delete()
