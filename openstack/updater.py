@@ -1100,13 +1100,13 @@ def deleteStackBeforeFreezerRestore(tenant_id_for_restore, stack_id_for_del, sta
         print("스택 삭제 중")
         time.sleep(2)
 
-    if del_instance_object.instance_backup_img_file.filter(instance_id=del_instance_id).exists():   # 에러가 발생한 스택이 한 번이라도 백업 프로세스가 진행된 스택이라면
-        del_backup_image_id = del_instance_object.instance_backup_img_file.get(instance_id=del_instance_id).image_id    # 그 백업 이미지 삭제
-        backup_img_del_req = req_checker.reqChecker("delete", "http://" + oc.hostIP + "/image/v2/images/" + del_backup_image_id, token)
-        print("인스턴스의 백업 이미지 삭제 리스폰스: ", backup_img_del_req)
-        if backup_img_del_req == None:
-            return JsonResponse({"message" : "오픈스택 서버에 문제가 생겨 백업해놓은 이미지를 삭제할 수 없습니다."}, status=404)
-        del_instance_object.instance_backup_img_file.get(instance_id=del_instance_id).delete()   # 이 경우는 db의 stack정보를 삭제하는 것이 아니기 때문에 backup이미지 정보만 db에서 delete
+    # if del_instance_object.instance_backup_img_file.filter(instance_id=del_instance_id).exists():   # 에러가 발생한 스택이 한 번이라도 백업 프로세스가 진행된 스택이라면
+    #     del_backup_image_id = del_instance_object.instance_backup_img_file.get(instance_id=del_instance_id).image_id    # 그 백업 이미지 삭제
+    #     backup_img_del_req = req_checker.reqChecker("delete", "http://" + oc.hostIP + "/image/v2/images/" + del_backup_image_id, token)
+    #     print("인스턴스의 백업 이미지 삭제 리스폰스: ", backup_img_del_req)
+    #     if backup_img_del_req == None:
+    #         return JsonResponse({"message" : "오픈스택 서버에 문제가 생겨 백업해놓은 이미지를 삭제할 수 없습니다."}, status=404)
+    #     del_instance_object.instance_backup_img_file.get(instance_id=del_instance_id).delete()   # 이 경우는 db의 stack정보를 삭제하는 것이 아니기 때문에 backup이미지 정보만 db에서 delete
 
     print("에러가 발생해 삭제한 스택 이름: " + stack_name_for_del + "\n에러가 발생해 삭제한 스택 ID: " + stack_id_for_del)
     
