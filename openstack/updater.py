@@ -21,6 +21,12 @@ from cloudstack.models import CloudstackInstance
 from openstack.serializers import OpenstackInstanceSerializer,OpenstackBackupImageSerializer
 from openstack.openstack_modules import RequestChecker, Stack, TemplateModifier, Instance
 
+ssh_ip_addr = "192.168.0.148"
+ssh_user_name = "test"  # 리눅스 Host ID
+ssh_password = "0000"  # 리눅스 Host Password
+ssh_port = 22
+django_server_ip = "10.125.70.26"
+
 
 # ------------------------------------------------------------ Instance Error Check Part ------------------------------------------------------------ #
 
@@ -86,8 +92,8 @@ def registerCloudstackTemplate(zoneID, template_name, backup_img_file_name, os_t
 
     request_body = {"apiKey" : admin_apiKey, "response" : "json", "command" : "registerTemplate",
         "displaytext" : template_name, "format" : "qcow2", "hypervisor" : "kvm",
-        "name" : template_name, "url" : "http://10.125.70.26:8000/media/img-files/" + backup_img_file_name, "ostypeid" : os_type_id, "zoneid" : zoneID}
-    template_register_req = csc.requestThroughSigForTemplateRegist(admin_secretKey, request_body)
+        "name" : template_name, "url" : "http://" + django_server_ip + ":8000/media/img-files/" + backup_img_file_name, "ostypeid" : os_type_id, "zoneid" : zoneID}
+    template_register_req = csc.requestThroughSigForTemplateRegister(admin_secretKey, request_body)
     webbrowser.open(template_register_req)  # url 오픈으로 해결 안돼서 webbrowser로 open함
     
     while True :    # 템플릿 등록이 다 됐는지 체크
@@ -623,7 +629,7 @@ def getTemplateDownURL(cloudstack_user_apiKey,cloudstack_user_secretKey,extract_
 
     url = resJson['queryasyncjobresultresponse']['jobresult']['template']['url']
     url_split = url.split("/")
-    url_split[2] = "211.197.83.186:6050"
+    url_split[2] = csc.hostIP + ":6050"
     down_url = "/".join(url_split)
     print("DownloadURL is : \n", down_url)
 
@@ -948,7 +954,7 @@ def writeTxtFile(mode, instance_id):
     file.write('source admin-openrc.sh')                         #환경에 맞게 설정해야됨 본인 리눅스 환경
     file.write('\nfreezer-agent --action ' + mode + ' --nova-inst-id ')
     file.write(instance_id)
-    file.write(' --storage local --container /home/test/' + instance_id + '_backup' + ' --backup-name ' + instance_id + '_backup' + ' --mode nova --engine nova --no-incremental true --log-file ' + instance_id + '_' + mode+ '.log')
+    file.write(' --storage local --container /home/' + ssh_user_name + '/' + instance_id + '_backup' + ' --backup-name ' + instance_id + '_backup' + ' --mode nova --engine nova --no-incremental true --log-file ' + instance_id + '_' + mode+ '.log')
     file.close()
 
 def readTxtFile(mode):               #mode : backup, restore
@@ -973,10 +979,10 @@ def readTxtFile(mode):               #mode : backup, restore
 def freezerBackup(instance_id):
     cli = paramiko.SSHClient()
     cli.set_missing_host_key_policy(paramiko.AutoAddPolicy)
-    server = "192.168.0.148"
-    user = "test"  # 리눅스 Host ID
-    pwd = "0000"  # 리눅스 Host Password
-    cli.connect(server, port=22, username=user, password=pwd)
+    server = ssh_ip_addr
+    user = ssh_user_name
+    pwd = ssh_password
+    cli.connect(server, port=ssh_port, username=user, password=pwd)
 
     writeTxtFile("backup", instance_id)
     commandLines = readTxtFile("backup") # 메모장 파일에 적어놨던 명령어 텍스트 읽어옴
@@ -993,10 +999,10 @@ def freezerBackup(instance_id):
 def freezerRestore(instance_id):
     cli = paramiko.SSHClient()
     cli.set_missing_host_key_policy(paramiko.AutoAddPolicy)
-    server = "192.168.0.148"
-    user = "test"  # 리눅스 Host ID
-    pwd = "0000"  # 리눅스 Host Password
-    cli.connect(server, port=22, username=user, password=pwd)
+    server = ssh_ip_addr
+    user = ssh_user_name
+    pwd = ssh_password
+    cli.connect(server, port=ssh_port, username=user, password=pwd)
 
     writeTxtFile("restore", instance_id)
     commandLines = readTxtFile("restore") # 메모장 파일에 적어놨던 명령어 텍스트 읽어옴
@@ -1080,10 +1086,10 @@ def freezerBackupWithCycle(cycle):
                 try:
                     cli = paramiko.SSHClient()
                     cli.set_missing_host_key_policy(paramiko.AutoAddPolicy)
-                    server = "192.168.0.148"
-                    user = "test"  # 리눅스 Host ID
-                    pwd = "0000"  # 리눅스 Host Password
-                    cli.connect(server, port=22, username=user, password=pwd)
+                    server = ssh_ip_addr
+                    user = ssh_user_name
+                    pwd = ssh_password
+                    cli.connect(server, port=ssh_port, username=user, password=pwd)
                     stdin, stdout, stderr = cli.exec_command("rm -rf " + instance_id_for_OSremove + "_backup")
                     print("리눅스 명령 수행 결과: ", ''.join(stdout.readlines()))
                     cli.close()
