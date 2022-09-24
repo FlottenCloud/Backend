@@ -13,16 +13,16 @@ import hmac
 import urllib.parse
 import urllib.request
 
-hostIP = "10.125.70.28"
-api_base_url = "http://10.125.70.28:8080/client/api?"
-admin_apiKey = "jon6jxtePb0AnJQpod8eLyHxSt4JxPw5GaYMOJZNLSDaTxBpmzF-eJO7zSfuRftPO7u3s8aeY_rXSZ6uQ31utg"
-admin_secretKey = "V0cWfyamMvosZBHgFECE1A9xUHavmzKa3jR2xbKaw2wHYph6mwQFbINRL_6CjHQHugISb5ldipUjb7XCyZPJjg"
-netOfferingID_L2VLAN = "7695b85e-0d08-4509-85fd-0e13c85baaa6"
-zoneID = "62d0f942-959e-4e83-a376-363ffb8c1953"
-domainID = "cb390e5f-3b29-11ed-a749-18c04de07b21"
-hostID = "3378fb58-6bb9-4f76-ac3e-c19005d29885"
-small_offeringID = "70f4e0d4-d3b3-4f5e-b8e0-620276ba439f"
-medium_offeringID = "f2565ee9-8b63-4c0f-a7b2-0864361bebf7"
+hostIP = "119.198.160.6"
+api_base_url = "http://119.198.160.6:8080/client/api?"
+admin_apiKey = "TYuuU0lIvG1ukWwQ1E9qPBGr4PU3knXvJGlMK5yIWz_zhXtXhfAi2682f_a34y2MuDfOIuEb_CkE_leODskCpg"
+admin_secretKey = "r6avM2ip3wtjXjbNgOHIoQEK6U0T1X3flclrt55RO4v-Fa6WL0NJAVDs80ZI-AeTpKN8lIUpW2fWF_aCHv3cRA"
+netOfferingID_L2VLAN = "531f8f15-82c1-4f8e-a6ae-f4c3a3ddf1bf"
+zoneID = "d4459ac7-c548-401e-a526-8ed1aad2ed54"
+domainID = "93e67a39-fdca-11ec-a9c1-08002765d220"
+hostID = "43428506-a50d-4ffe-a7c8-997ff548b464"
+small_offeringID = "63fe8390-1f96-4a51-97a2-ffc55161fcad"
+medium_offeringID = "979e5e2c-1de0-4655-b3aa-5ec1bf3907d6"
 
 def requestThroughSig(secretKey, request_body):
     request_str = '&'.join(['='.join([k, urllib.parse.quote_plus(request_body[k])]) for k in request_body.keys()])

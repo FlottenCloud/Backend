@@ -124,11 +124,11 @@ def deployCloudstackInstance(user_id, user_apiKey, user_secretKey, instance_pk, 
     user_id_instance = AccountInfo.objects.get(user_id=user_id)
     template_name = instance_name + "Template"
     if os_type == "ubuntu" :     # ubuntu(18.04 LTS)
-        os_type_id = "fc2b92b8-3b29-11ed-a749-18c04de07b21"
+        os_type_id = "12bc219b-fdcb-11ec-a9c1-08002765d220"
     elif os_type == "centos" :   # centos
         os_type_id = "abc"
     else:   # fedora(openstack default)
-        os_type_id = "3326c248-4b64-494f-94a9-edfa81b06ec2"
+        os_type_id = "8682cef8-a3f3-47a0-886d-87b9398469b3"
     backup_template_id = registerCloudstackTemplate(zoneID, template_name, backup_img_file_name, os_type_id)    # 템플릿 등록 후 템플릿 id 받아옴
     instance_deploy_req_body = {"apiKey" : user_apiKey, "response" : "json", "command" : "deployVirtualMachine",
         "networkids" : cloudstack_user_network_id, "serviceofferingId" : medium_offeringID,
@@ -1389,14 +1389,14 @@ def dbModifier():
     #     freezer_completed = False
     # )
     # CloudstackInstance.objects.all().delete()
-    # ServerStatusFlag.objects.create(
-    #     platform_name = "openstack",
-    #     status = True
-    # )
-    # DjangoServerTime.objects.create(
-    #     start_time = time.strftime("%Y-%m-%d %H-%M-%S", time.localtime(time.time())),
-    #     backup_ran = False
-    # )
+    ServerStatusFlag.objects.create(
+        platform_name = "openstack",
+        status = True
+    )
+    DjangoServerTime.objects.create(
+        start_time = time.strftime("%Y-%m-%d %H-%M-%S", time.localtime(time.time())),
+        backup_ran = False
+    )
     # ServerStatusFlag.objects.filter(platform_name="openstack").update(status=True)
     print("updated")
 
@@ -1405,10 +1405,10 @@ def dbModifier():
 def start():
     scheduler = BackgroundScheduler() # ({'apscheduler.job_defaults.max_instances': 2}) # max_instance = 한 번에 실행할 수 있는 같은 job의 개수
     # scheduler.add_job(deleter, 'interval', seconds=5)
-    # scheduler.add_job(dbModifier, "interval", seconds=5)
+    scheduler.add_job(dbModifier, "interval", seconds=5)
     
-    DjangoServerTime.objects.filter(id=1).update(start_time=time.strftime("%Y-%m-%d %H-%M-%S", time.localtime(time.time())))
-    DjangoServerTime.objects.filter(id=1).update(backup_ran=False)
+    # DjangoServerTime.objects.filter(id=1).update(start_time=time.strftime("%Y-%m-%d %H-%M-%S", time.localtime(time.time())))
+    # DjangoServerTime.objects.filter(id=1).update(backup_ran=False)
     # scheduler.add_job(backup_all6, 'interval', seconds=960)
     # scheduler.add_job(freezerRestore6, 'interval', seconds=300)
     
