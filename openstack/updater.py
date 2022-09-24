@@ -16,7 +16,7 @@ from django.http import JsonResponse
 from account.models import AccountInfo
 from openstack import serializers
 
-from openstack.models import OpenstackBackupImage, OpenstackInstance, ServerStatusFlag
+from openstack.models import OpenstackBackupImage, OpenstackInstance, ServerStatusFlag, DjangoServerTime
 from cloudstack.models import CloudstackInstance
 from openstack.serializers import OpenstackInstanceSerializer,OpenstackBackupImageSerializer
 from openstack.openstack_modules import RequestChecker, Stack, TemplateModifier, Instance
@@ -1330,11 +1330,12 @@ def backup12():
 def backup_all6():
     backup6()
     freezerBackup6()
+    DjangoServerTime.objects.filter(backup_ran=True)
     
 def backup_all12():
     backup12()
     freezerBackup12()
-    
+
     
 # ---- 야매용 함수들 ---- #
 def deleter():
@@ -1351,25 +1352,53 @@ def dbModifier():
     # OpenstackInstance.objects.filter(instance_name="test1").update(instance_id="96063d0f-d3c7-4339-b124-494f9112b555", instance_name="test1",
     #         stack_id=None, stack_name=None, ip_address="172.24.4.104", status="ACTIVE", image_name="RESTOREtest1", update_image_ID=None, package="pwgen,apache2", freezer_completed=False)
     # user1 = AccountInfo.objects.get(user_id="user1")
-    # CloudstackInstance.objects.create(
-    #     user_id = user1,
-    #     instance_id = "0dbe2515-178d-41fa-baad-685a30953284",
-    #     instance_pk = 2,
-    #     instance_name = "test2",
-    #     ip_address = "10.0.0.1",
-    #     status = "Stopped",
-    #     image_id = "e6829267-0ee6-4a53-8b37-15849bcee05b",
-    #     flavor_name = "MEDIUM",
-    #     ram_size = 1,
-    #     disk_size = 5,
-    #     num_cpu = 1
+    # AccountInfo.objects.create(
+    #     user_id = "user1",
+    #     email = "123@naver.com",
+    #     password = "0000",
+    #     first_name = "hoo",
+    #     last_name = "kim",
+    #     openstack_user_id = "abc",
+    #     openstack_user_project_id = "abc",
+    #     cloudstack_account_id = "abc",
+    #     cloudstack_apiKey = "abc",
+    #     cloudstack_secretKey = "abc",
+    #     cloudstack_network_id = "abc",
+    #     cloudstack_network_vlan = 100
     # )
-    ServerStatusFlag.objects.create(
-        platform_name = "openstack",
-        status = True
-    )
+    # OpenstackInstance.objects.create(
+    #     user_id = AccountInfo.objects.get(user_id="user1"),
+    #     instance_pk = 3,
+    #     instance_id = "0dbe2515-178d-41fa-baad-685a30953284",
+    #     instance_name = "test3",
+    #     stack_id = "0dbe2515-178d-41fa-baad-685a30953284",
+    #     stack_name = "test2",
+    #     ip_address = "10.0.0.1",
+    #     status = "active",
+    #     image_name = "abc",
+    #     os = "abc",
+    #     flavor_name = "abc",
+    #     ram_size = 3,
+    #     num_people = 3,
+    #     expected_data_size = 4,
+    #     disk_size = 3,
+    #     num_cpu = 3,
+    #     package = "abc",
+    #     backup_time = 6,
+    #     update_image_ID = "aaa",
+    #     freezer_completed = False
+    # )
+    # CloudstackInstance.objects.all().delete()
+    # ServerStatusFlag.objects.create(
+    #     platform_name = "openstack",
+    #     status = True
+    # )
+    # DjangoServerTime.objects.create(
+    #     start_time = time.strftime("%Y-%m-%d %H-%M-%S", time.localtime(time.time())),
+    #     backup_ran = False
+    # )
     # ServerStatusFlag.objects.filter(platform_name="openstack").update(status=True)
-    # print("updated")
+    print("updated")
 
 
 # ------------------------------------------------------------------------ Total Batch Job Part ------------------------------------------------------------------------ #
@@ -1378,17 +1407,12 @@ def start():
     # scheduler.add_job(deleter, 'interval', seconds=5)
     # scheduler.add_job(dbModifier, "interval", seconds=5)
     
-    # scheduler.add_job(backup6, 'interval', seconds=600)
-    # scheduler.add_job(backup12, 'interval', seconds=1200)
+    DjangoServerTime.objects.filter(id=1).update(start_time=time.strftime("%Y-%m-%d %H-%M-%S", time.localtime(time.time())))
+    DjangoServerTime.objects.filter(id=1).update(backup_ran=False)
+    # scheduler.add_job(backup_all6, 'interval', seconds=960)
+    # scheduler.add_job(freezerRestore6, 'interval', seconds=300)
     
-    # scheduler.add_job(freezerBackup6, 'interval', seconds=900)
-    # scheduler.add_job(freezerBackup12, 'interval', seconds=1800)
-    
-    scheduler.add_job(backup_all6, 'interval', seconds=960)
-    
-    scheduler.add_job(freezerRestore6, 'interval', seconds=300)
-    
-    scheduler.add_job(errorCheckAndUpdateDBstatus, 'interval', seconds=60)
-    scheduler.add_job(openstackServerChecker, 'interval', seconds=60)
+    # scheduler.add_job(errorCheckAndUpdateDBstatus, 'interval', seconds=60)
+    # scheduler.add_job(openstackServerChecker, 'interval', seconds=60)
 
     scheduler.start()

@@ -10,10 +10,11 @@ from django.http import JsonResponse
 # from openstack.models import OpenstackInstance
 
 hostIP = "192.168.0.148"
-admin_project_id = "dc2df96e997149a5a7b611392360483f"
-admins_group_id = "68edb089f2434b43b47a26202e65e6d6"
-admin_role_id = "d7b76260ebbd4828b9e5aa8d67883740"
-public_network_id = "ce081e13-57d4-4c38-9a16-3c4fdd845e7c"  # mainnetwork id
+admin_project_id = "1ae560c056da4cf78abbbc95d303af96"
+admins_group_id = "3c8cb88572b2480386d13cb4f739a7fa"
+admin_role_id = "4ad9e73e0e2c496c93e0efb8614b8279"
+public_network_id = "ee4ac518-7ca0-4eb8-bf49-8e1e132805c0"  # mainnetwork id
+backup_interval = 12
 
 # --------------------------------------------------------------- Error Part --------------------------------------------------------------- #
 

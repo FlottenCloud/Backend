@@ -7,7 +7,7 @@ from openstack_controller import OpenstackServerError, InstanceNameNoneError, Nu
 import json
 import requests
 import time
-from .models import OpenstackInstance
+from .models import OpenstackInstance, OpenstackBackupImage, DjangoServerTime
 from account.models import AccountInfo
 
 openstack_hostIP = oc.hostIP
@@ -192,6 +192,30 @@ class Instance(RequestChecker):    # 인스턴스 요청에 대한 공통 요소
             return False
         else:
             return True
+
+    def instance_backup_time_show(self, stack_data, instance_id):
+        if OpenstackBackupImage.objects.filter(instance_id=instance_id).exists():
+            stack_data["backup_completed_time"] = str(OpenstackBackupImage.objects.get(instance_id=instance_id).updated_at)[:16]
+            if DjangoServerTime.objects.get(id=1).backup_ran == False:
+                django_server_started_time = DjangoServerTime.objects.get(id=1).start_time
+                next_backup_time = django_server_started_time[:-5] + str(int(django_server_started_time[-5:-3]) + oc.backup_interval) + django_server_started_time[-3:]
+                stack_data["next_backup_time"] = next_backup_time
+            else:
+                backup_ran_time = str(OpenstackBackupImage.objects.get(instance_id=instance_id).updated_at)[:16]
+                next_backup_time = backup_ran_time[:-5] + str(int(backup_ran_time[-5:-3]) + oc.backup_interval) + django_server_started_time[-3:]
+                stack_data["next_backup_time"] = str(OpenstackBackupImage.objects.get(instance_id=instance_id).updated_at)[:16]
+        else:
+            stack_data["backup_completed_time"] = ""
+            if DjangoServerTime.objects.get(id=1).backup_ran == False:
+                django_server_started_time = DjangoServerTime.objects.get(id=1).start_time
+                next_backup_time = django_server_started_time[:-5] + str(int(django_server_started_time[-5:-3]) + oc.backup_interval) + django_server_started_time[-3:]
+                stack_data["next_backup_time"] = next_backup_time
+            else:
+                backup_ran_time = str(OpenstackBackupImage.objects.get(instance_id=instance_id).updated_at)[:16]
+                next_backup_time = backup_ran_time[:-5] + str(int(backup_ran_time[-5:-3]) + oc.backup_interval) + django_server_started_time[-3:]
+                stack_data["next_backup_time"] = str(OpenstackBackupImage.objects.get(instance_id=instance_id).updated_at)[:16]
+
+        return stack_data
 
 class Stack(TemplateModifier, Instance):
     def stackResourceGetter(self, usage, openstack_hostIP, openstack_tenant_id, stack_name, stack_id, token):

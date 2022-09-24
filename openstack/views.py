@@ -8,7 +8,7 @@ from .openstack_modules import *
 import json
 import requests
 from sqlite3 import OperationalError
-from .models import OpenstackInstance, ServerStatusFlag
+from .models import OpenstackBackupImage, OpenstackInstance, ServerStatusFlag, DjangoServerTime
 from cloudstack.models import CloudstackInstance
 import account.models
 from django.db.models import Sum
@@ -154,6 +154,12 @@ class Openstack(Stack, APIView):
                     OpenstackInstance.objects.filter(instance_id=instance_info.instance_id).update(status=instance_status)
 
                 user_stack_data = list(OpenstackInstance.objects.filter(user_id=user_id).values())
+                for stack_data in user_stack_data:
+                    instance_id = stack_data["instance_id"]
+                    stack_data = super().instance_backup_time_show(stack_data, instance_id)
+
+                print(user_stack_data)
+
             except OperationalError:
                 return JsonResponse({[]}, status=200)
         
@@ -282,7 +288,7 @@ class Openstack(Stack, APIView):
         return JsonResponse({"message" : "가상머신 " + del_instance_name + " 삭제 완료"}, status=200)
 
 # request django url = /openstack/<int:instance_pk>/
-class InstanceInfo(APIView):
+class InstanceInfo(Instance, APIView):
     instance_pk = openapi.Parameter('instance_pk', openapi.IN_PATH, description='Instance ID to get info', required=True, type=openapi.TYPE_INTEGER)
     
     @swagger_auto_schema(ta0gs=["Openstack API"], manual_parameters=[openstack_user_token, instance_pk], responses={200:"Success", 404:"Not Found", 500:"Internal Server Error"})
@@ -315,11 +321,13 @@ class InstanceInfo(APIView):
         object_package = instance_object.package
         object_backup_time = instance_object.backup_time
         object_update_image_id = instance_object.update_image_ID
-        
-        response = JsonResponse({"user_id" : object_own_user_id, "instance_pk" : object_instance_pk, "instance_id" : object_instance_id, "instance_name" : object_instance_name, "stack_id" : object_stack_id, "stack_name" : object_stack_name, 
+        instance_info = {"user_id" : object_own_user_id, "instance_pk" : object_instance_pk, "instance_id" : object_instance_id, "instance_name" : object_instance_name, "stack_id" : object_stack_id, "stack_name" : object_stack_name, 
             "ip_address" : object_ip_address, "status" : object_status, "image_name" : object_image_name, "os" : object_os, "flavor_name" : object_flavor_name, "ram_size" : object_ram_size,
             "num_people" : object_num_people, "expected_data_size" : object_data_size, "disk_size" : object_disk_size, "num_cpu" : object_num_cpu, "backup_time" : object_backup_time, "package" : object_package,
-            "update_image" : object_update_image_id}, status=200)
+            "update_image" : object_update_image_id}
+        instance_info = super().instance_backup_time_show(instance_info, object_instance_id)
+        
+        response = JsonResponse(instance_info, status=200)
         
         return response
 
