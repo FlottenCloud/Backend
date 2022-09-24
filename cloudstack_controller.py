@@ -45,7 +45,7 @@ def requestThroughSig(secretKey, request_body):
     print("클라우드 스택에서의 리스폰스:", response)
     return response
 
-def requestThroughSigForTemplateRegist(secretKey, request_body):
+def requestThroughSigForTemplateRegister(secretKey, request_body):
     request_str = '&'.join(['='.join([k, urllib.parse.quote_plus(request_body[k])]) for k in request_body.keys()])
     sig_str = '&'.join(
         ['='.join([k.lower(), urllib.parse.quote_plus(request_body[k].lower().replace('+', '%20'))]) for k in
