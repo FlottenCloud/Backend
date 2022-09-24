@@ -167,7 +167,7 @@ class Openstack(Stack, APIView):
         except oc.TokenExpiredError as e:
             print("에러 내용: ", e)
             return JsonResponse({"message" : str(e)}, status=401)
-
+        
         return JsonResponse({"instances" : user_stack_data}, status=200)
     
     @swagger_auto_schema(tags=["Openstack API"], manual_parameters=[openstack_user_token], request_body=UpdateStackSerializer, responses={200:"Success", 400:"Bad Request", 401:"Unauthorized", 404:"Not Found", 500:"Internal Server Error"})
@@ -326,6 +326,7 @@ class InstanceInfo(Instance, APIView):
             "num_people" : object_num_people, "expected_data_size" : object_data_size, "disk_size" : object_disk_size, "num_cpu" : object_num_cpu, "backup_time" : object_backup_time, "package" : object_package,
             "update_image" : object_update_image_id}
         instance_info = super().instance_backup_time_show(instance_info, object_instance_id)
+        print(instance_info)
         
         response = JsonResponse(instance_info, status=200)
         

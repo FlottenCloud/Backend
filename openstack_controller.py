@@ -9,12 +9,12 @@ from django.http import JsonResponse
 
 # from openstack.models import OpenstackInstance
 
-hostIP = "192.168.0.148"
+hostIP = "1.255.161.166"
 admin_project_id = "1ae560c056da4cf78abbbc95d303af96"
 admins_group_id = "3c8cb88572b2480386d13cb4f739a7fa"
 admin_role_id = "4ad9e73e0e2c496c93e0efb8614b8279"
 public_network_id = "ee4ac518-7ca0-4eb8-bf49-8e1e132805c0"  # mainnetwork id
-backup_interval = 12
+backup_interval = 16
 
 # --------------------------------------------------------------- Error Part --------------------------------------------------------------- #
 

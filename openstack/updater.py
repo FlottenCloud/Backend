@@ -1328,9 +1328,9 @@ def backup12():
     return print("All Backup With 12 Hour Cycle Completed!!")
 
 def backup_all6():
+    DjangoServerTime.objects.filter(backup_ran=True)
     backup6()
     freezerBackup6()
-    DjangoServerTime.objects.filter(backup_ran=True)
     
 def backup_all12():
     backup12()
@@ -1389,13 +1389,26 @@ def dbModifier():
     #     freezer_completed = False
     # )
     # CloudstackInstance.objects.all().delete()
-    ServerStatusFlag.objects.create(
-        platform_name = "openstack",
-        status = True
-    )
-    DjangoServerTime.objects.create(
-        start_time = time.strftime("%Y-%m-%d %H-%M-%S", time.localtime(time.time())),
-        backup_ran = False
+    # ServerStatusFlag.objects.create(
+    #     platform_name = "openstack",
+    #     status = True
+    # )
+    # DjangoServerTime.objects.create(
+    #     start_time = time.strftime("%Y-%m-%d %H-%M-%S", time.localtime(time.time())),
+    #     backup_ran = False
+    # )
+    CloudstackInstance.objects.create(
+        user_id = AccountInfo.objects.get(user_id="testuser"),
+        instance_id = "abc",
+        instance_pk = 1,
+        instance_name = "test",
+        ip_address = "10.0.0.1",
+        status = "Stopped",
+        image_id = "abc",
+        flavor_name = "small",
+        ram_size = 5,
+        disk_size = 10,
+        num_cpu = 1
     )
     # ServerStatusFlag.objects.filter(platform_name="openstack").update(status=True)
     print("updated")
@@ -1405,7 +1418,7 @@ def dbModifier():
 def start():
     scheduler = BackgroundScheduler() # ({'apscheduler.job_defaults.max_instances': 2}) # max_instance = 한 번에 실행할 수 있는 같은 job의 개수
     # scheduler.add_job(deleter, 'interval', seconds=5)
-    scheduler.add_job(dbModifier, "interval", seconds=5)
+    # scheduler.add_job(dbModifier, "interval", seconds=5)
     
     # DjangoServerTime.objects.filter(id=1).update(start_time=time.strftime("%Y-%m-%d %H-%M-%S", time.localtime(time.time())))
     # DjangoServerTime.objects.filter(id=1).update(backup_ran=False)
