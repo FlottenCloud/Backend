@@ -7,7 +7,7 @@ from openstack_controller import OpenstackServerError, InstanceNameNoneError, Nu
 import json
 import requests
 import time
-from .models import OpenstackInstance
+from .models import OpenstackInstance, OpenstackBackupImage, DjangoServerTime
 from account.models import AccountInfo
 
 openstack_hostIP = oc.hostIP
@@ -87,6 +87,7 @@ class RequestChecker:
             
         except requests.exceptions.Timeout:
             return None
+
 
 
 class TemplateModifier:
@@ -175,6 +176,8 @@ class TemplateModifier:
 
         return(json.dumps(template_data))
 
+
+
 class Instance(RequestChecker):    # 인스턴스 요청에 대한 공통 요소 클래스
     def checkDataBaseInstanceID(self, input_data):  # DB에서 Instance의 ID를 가져 오는 함수(request를 통해 받은 instance_id가 DB에 존재하는지 유효성 검증을 위해 존재)
         instance_pk = input_data["instance_pk"]
@@ -185,6 +188,7 @@ class Instance(RequestChecker):    # 인스턴스 요청에 대한 공통 요소
 
         return instance_pk
     
+    
     def instance_image_uploading_checker(self, instance_id):
         image_uploading_check = super().reqChecker("get", "http://" + openstack_hostIP + "/compute/v2.1/servers/" + instance_id, oc.admin_token())
         is_image_uploading = image_uploading_check.json()["server"]["OS-EXT-STS:task_state"]
@@ -192,6 +196,51 @@ class Instance(RequestChecker):    # 인스턴스 요청에 대한 공통 요소
             return False
         else:
             return True
+
+
+    def exceedTimeCalculator(self, next_time, next_minute):
+        if next_minute >= 60:
+            next_time += (next_minute//60)
+            next_minute -= (60*(next_minute//60))
+            if next_minute < 10:
+                next_minute = "0" + str(next_minute)
+        return next_time, next_minute
+    
+    def timeFormatSetter(self, stack_data, instance_id):
+        if DjangoServerTime.objects.get(id=1).backup_ran == False:
+            django_server_started_time = DjangoServerTime.objects.get(id=1).start_time[:16]
+            next_time = int(django_server_started_time[11:13])
+            next_minute = int(django_server_started_time[14:16]) + oc.backup_interval
+            next_time, next_minute = self.exceedTimeCalculator(next_time, next_minute)
+            next_backup_time = django_server_started_time[:11] + str(next_time) + ":" + str(next_minute)
+            stack_data["next_backup_time"] = next_backup_time
+        else:
+            if OpenstackBackupImage.objects.filter(instance_id=instance_id).exists():
+                backup_ran_time = str(OpenstackBackupImage.objects.get(instance_id=instance_id).updated_at)[:16]
+                next_time = int(backup_ran_time[11:13])
+                next_minute = int(backup_ran_time[14:16]) + oc.backup_interval
+            else:
+                backup_ran_time = DjangoServerTime.objects.get(id=1).start_time[:16]
+                next_time = int(backup_ran_time[11:13])
+                next_minute = int(backup_ran_time[14:16]) + oc.backup_interval*2
+                
+            next_time, next_minute = self.exceedTimeCalculator(next_time, next_minute)
+            print(next_time, next_minute)
+            next_backup_time = backup_ran_time[:11] + str(next_time) + ":" + str(next_minute)
+            stack_data["next_backup_time"] = next_backup_time
+        
+        return stack_data
+
+    def instance_backup_time_show(self, stack_data, instance_id):
+        if OpenstackBackupImage.objects.filter(instance_id=instance_id).exists():
+            stack_data["backup_completed_time"] = str(OpenstackBackupImage.objects.get(instance_id=instance_id).updated_at)[:16]
+            stack_data = self.timeFormatSetter(stack_data, instance_id)
+        else:
+            stack_data["backup_completed_time"] = ""
+            stack_data = self.timeFormatSetter(stack_data, instance_id)
+        return stack_data
+
+
 
 class Stack(TemplateModifier, Instance):
     def stackResourceGetter(self, usage, openstack_hostIP, openstack_tenant_id, stack_name, stack_id, token):
@@ -222,7 +271,7 @@ class Stack(TemplateModifier, Instance):
                     print("리소스 정보: ", resource)
                     resource_instance = resource
                     break
-            if resource_instance["resource_status"] == "CREATE_COMPLETE":
+            if resource_instance["resource_status"] == "CREATE_COMPLETE" or resource_instance["resource_status"] == "UPDATE_COMPLETE":
                 instance_id = resource_instance["physical_resource_id"]
                 print("인스턴스 CREATE 완료")
                 break
@@ -290,14 +339,6 @@ class Stack(TemplateModifier, Instance):
                 user_req_flavor = "NOTUPDATE"
         package_for_update = list(set(user_req_package) - set(before_update_template_package))
         print("요청 정보: ", package_for_update, user_req_flavor, user_req_backup_time)
-
-        # stack_environment_req = super().reqChecker("get", "http://" + openstack_hostIP + "/heat-api/v1/" + update_openstack_tenant_id + "/stacks/" 
-        #     + update_stack_name + "/" + update_stack_id + "/environment", token)
-        # if stack_environment_req == None:
-        #     raise OpenstackServerError
-        # print("기존 스택의 템플릿: ", stack_environment_req.json())
-        # before_update_template_package = stack_environment_req.json()["parameters"]["packages"]
-        # print("기존 스택의 템플릿 패키지: ", before_update_template_package)  # 원래 db에 저장 안돼있어서 요청해서 가져왔었는데, db에 저장해서 그럴 필요 없어짐. 일단은 놔둠.
         
         if before_update_template_package[0] != "":
             package_origin_plus_user_req = before_update_template_package + package_for_update    # 기존 패키지 + 유저의 요청 패키지
@@ -433,7 +474,7 @@ class Stack(TemplateModifier, Instance):
         
         before_update_instance__del_req = super().reqChecker("delete", "http://" + openstack_hostIP + "/compute/v2.1/servers/" + instance_id, user_token)
         print("프리저로 복원된 인스턴스 삭제 리스폰스: ", before_update_instance__del_req)
-        before_update_image_id_req = super().reqChecker("get", "http://" + openstack_hostIP + "/image/v2/images/?name=" + "RESTORE" + instance_name, user_token)
+        before_update_image_id_req = super().reqChecker("get", "http://" + openstack_hostIP + "/image/v2/images?name=" + "RESTORE" + instance_name, user_token)
         before_update_image_id = before_update_image_id_req.json()["images"][0]["id"]
         before_update_image_del_req = super().reqChecker("delete", "http://" + openstack_hostIP + "/image/v2/images/" + before_update_image_id, user_token)
         print("프리저로 복원된 인스턴스의 이미지 삭제 리스폰스: ", before_update_image_del_req)

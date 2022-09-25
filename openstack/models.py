@@ -50,3 +50,7 @@ class OpenstackBackupImage(models.Model):
 class ServerStatusFlag(models.Model):
     platform_name = models.CharField(max_length=50)
     status = models.BooleanField()
+
+class DjangoServerTime(models.Model):
+    start_time = models.TextField()
+    backup_ran = models.BooleanField()

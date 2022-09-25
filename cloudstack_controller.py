@@ -15,14 +15,14 @@ import urllib.request
 
 hostIP = "10.125.70.28"
 api_base_url = "http://10.125.70.28:8080/client/api?"
-admin_apiKey = "jon6jxtePb0AnJQpod8eLyHxSt4JxPw5GaYMOJZNLSDaTxBpmzF-eJO7zSfuRftPO7u3s8aeY_rXSZ6uQ31utg"
-admin_secretKey = "V0cWfyamMvosZBHgFECE1A9xUHavmzKa3jR2xbKaw2wHYph6mwQFbINRL_6CjHQHugISb5ldipUjb7XCyZPJjg"
-netOfferingID_L2VLAN = "7695b85e-0d08-4509-85fd-0e13c85baaa6"
-zoneID = "62d0f942-959e-4e83-a376-363ffb8c1953"
-domainID = "cb390e5f-3b29-11ed-a749-18c04de07b21"
-hostID = "3378fb58-6bb9-4f76-ac3e-c19005d29885"
-small_offeringID = "70f4e0d4-d3b3-4f5e-b8e0-620276ba439f"
-medium_offeringID = "f2565ee9-8b63-4c0f-a7b2-0864361bebf7"
+admin_apiKey = "PI0311btQwGz3ulqBBQC46IAH_AtLImwWwvsbBmkCwuyHIOLtL7UxFL_NXco6xlPJDxI9F9XmZkAxiUq39NutQ"
+admin_secretKey = "h3GuIiVgETsDtFRITxDaXitvxBoLduKILaM1GU1rAm-PSLpAnHdjtHnAeONnGzBRmkXlJ2Jjddodr0Qgl9P4tg"
+zoneID = "d72dbd9a-99a6-449a-97f2-ac9472c782e8"
+domainID = "1925ef52-3c9c-11ed-8341-525400956326"
+hostID = "eaec4dfe-2aa1-4e29-bc6d-2f4d34f436dd"
+small_offeringID = "ebfae4cb-e40f-43a2-abf2-b0723571a209"
+medium_offeringID = "6b5cbc70-8125-44db-b237-b0bafe04192d"
+netOfferingID_L2VLAN = "33ecd693-cdd3-4dc1-9c36-b86f07255625"
 
 def requestThroughSig(secretKey, request_body):
     request_str = '&'.join(['='.join([k, urllib.parse.quote_plus(request_body[k])]) for k in request_body.keys()])

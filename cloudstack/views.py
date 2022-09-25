@@ -43,6 +43,38 @@ class Cloudstack(APIView):
 
         return JsonResponse({"instances": user_instance_info_list}, status=200)
 
+# request django url = /openstack/<int:instance_pk>/
+class CloudstackInstanceInfo(APIView):
+    instance_pk = openapi.Parameter('instance_pk', openapi.IN_PATH, description='Instance ID to get info', required=True, type=openapi.TYPE_INTEGER)
+    @swagger_auto_schema(ta0gs=["Openstack API"], manual_parameters=[instance_pk], responses={200:"Success", 404:"Not Found", 500:"Internal Server Error"})
+    def get(self, request, instance_pk):
+        apiKey = request.headers["apiKey"]
+        user_id = AccountInfo.objects.filter(cloudstack_apiKey=apiKey)[0].user_id
+        try:
+            instance_object = CloudstackInstance.objects.get(instance_pk=instance_pk)
+        except Exception as e:
+            print("인스턴스 정보 조회 중 예외 발생: ", e)
+            return JsonResponse({"message" : "해당 가상머신이 존재하지 않습니다."}, status=500)  
+        
+        object_own_user_id = user_id
+        object_instance_pk = instance_object.instance_pk
+        object_instance_id = instance_object.instance_id
+        object_instance_name = instance_object.instance_name
+        object_ip_address = instance_object.ip_address
+        object_status = instance_object.status
+        object_flavor_name= instance_object.flavor_name
+        object_ram_size = instance_object.ram_size
+        object_disk_size = instance_object.disk_size
+        object_num_cpu = instance_object.num_cpu
+        instance_info = {"user_id" : object_own_user_id, "instance_pk" : object_instance_pk, "instance_id" : object_instance_id, "instance_name" : object_instance_name,
+            "ip_address" : object_ip_address, "status" : object_status, "flavor_name" : object_flavor_name, "ram_size" : object_ram_size,
+            "disk_size" : object_disk_size, "num_cpu" : object_num_cpu}
+        print(instance_info)
+        
+        response = JsonResponse(instance_info, status=200)
+        
+        return response
+
 # request django url = /openstack/dashboard/            대쉬보드에 리소스 사용량 보여주기 용
 class DashBoard(APIView):
     @swagger_auto_schema(tags=["Cloudstack Dashboard API"], manual_parameters=[cloudstack_user_apiKey, cloudstack_user_secretKey], responses={200:"Success"})

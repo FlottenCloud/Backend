@@ -16,7 +16,7 @@ from django.http import JsonResponse
 from account.models import AccountInfo
 from openstack import serializers
 
-from openstack.models import OpenstackBackupImage, OpenstackInstance, ServerStatusFlag
+from openstack.models import OpenstackBackupImage, OpenstackInstance, ServerStatusFlag, DjangoServerTime
 from cloudstack.models import CloudstackInstance
 from openstack.serializers import OpenstackInstanceSerializer,OpenstackBackupImageSerializer
 from openstack.openstack_modules import RequestChecker, Stack, TemplateModifier, Instance
@@ -124,11 +124,11 @@ def deployCloudstackInstance(user_id, user_apiKey, user_secretKey, instance_pk, 
     user_id_instance = AccountInfo.objects.get(user_id=user_id)
     template_name = instance_name + "Template"
     if os_type == "ubuntu" :     # ubuntu(18.04 LTS)
-        os_type_id = "fc2b92b8-3b29-11ed-a749-18c04de07b21"
+        os_type_id = "4bfd5052-3c9c-11ed-8341-525400956326"
     elif os_type == "centos" :   # centos
         os_type_id = "abc"
     else:   # fedora(openstack default)
-        os_type_id = "3326c248-4b64-494f-94a9-edfa81b06ec2"
+        os_type_id = "92a99cc2-5b57-48b9-9b2e-818c1e94d754"
     backup_template_id = registerCloudstackTemplate(zoneID, template_name, backup_img_file_name, os_type_id)    # 템플릿 등록 후 템플릿 id 받아옴
     instance_deploy_req_body = {"apiKey" : user_apiKey, "response" : "json", "command" : "deployVirtualMachine",
         "networkids" : cloudstack_user_network_id, "serviceofferingId" : medium_offeringID,
@@ -152,7 +152,7 @@ def deployCloudstackInstance(user_id, user_apiKey, user_secretKey, instance_pk, 
             created_instance_id = instance_info_res["listvirtualmachinesresponse"]["virtualmachine"][0]["id"]
             created_instance_name = instance_info_res["listvirtualmachinesresponse"]["virtualmachine"][0]["name"]
             created_instance_status = instance_info_res["listvirtualmachinesresponse"]["virtualmachine"][0]["state"]
-            created_instance_ip_address = "10.0.0.1"
+            created_instance_ip_address = "10.0.0." + str(CloudstackInstance.objects.filter(user_id=user_id_instance.user_id).count() + 1)
             created_instance_image_id = instance_info_res["listvirtualmachinesresponse"]["virtualmachine"][0]["templateid"]
             created_instance_flavor_name = "MEDIUM"
             created_instance_ram_size = round(instance_info_res["listvirtualmachinesresponse"]["virtualmachine"][0]["memory"]/1024, 2)
@@ -807,7 +807,6 @@ def openstackStackCreate(instance_name, template_name):  # 오픈스택 상의 �
     if stack_name_for_del != None:
         del_stack_before_restore_res = deleteStackBeforeRestore(tenant_id_for_restore, stack_id_for_del, stack_name_for_del, instance_update_image_id_for_del)     # 이전에 있던 스택 삭제
         print(del_stack_before_restore_res)
-        OpenstackInstance.objects.get(instance_id=instance_id_for_del).delete()
     else:   # In case instance is restored through freezer
         del_freezer_restored_instance_req = requests.delete("http://" + oc.hostIP + "/compute/v2.1/servers/" + instance_id_for_del,
             headers={'X-Auth-Token': admin_token})
@@ -1288,6 +1287,7 @@ def freezerRestore6():
         return print("오픈스택 서버 문제 발생, Freezer Restore 불가")
     else:
         if ServerStatusFlag.objects.get(platform_name="openstack").status == True:
+            errorCheckAndUpdateDBstatus()
             freezer_restore_res = freezerRestoreWithCycle()
             if freezer_restore_res != "All ERRORed instances restored!!":
                 return print(freezer_restore_res)
@@ -1328,21 +1328,22 @@ def backup12():
     return print("All Backup With 12 Hour Cycle Completed!!")
 
 def backup_all6():
-    backup6()
+    DjangoServerTime.objects.filter(id=1).update(backup_ran=True)
     freezerBackup6()
+    backup6()
     
 def backup_all12():
-    backup12()
+    DjangoServerTime.objects.filter(id=1).update(backup_ran=True)
     freezerBackup12()
-    
+    backup12()
     
 # ---- 야매용 함수들 ---- #
 def deleter():
-    AccountInfo.objects.all().delete()
-    OpenstackInstance.objects.all().delete()
-    OpenstackBackupImage.objects.all().delete()
-    CloudstackInstance.objects.all().delete()
-    # ServerStatusFlag.objects.filter(platform_name="openstack").update(status=True)
+    # AccountInfo.objects.all().delete()
+    # OpenstackInstance.objects.all().delete()
+    # OpenstackBackupImage.objects.all().delete()
+    # CloudstackInstance.objects.all().delete()
+    ServerStatusFlag.objects.filter(platform_name="openstack").update(status=True)
     # ServerStatusFlag.objects.get(id=2).delete()
     # OpenstackInstance.objects.get(instance_pk=1).delete()
     print("all-deleted")
@@ -1351,25 +1352,66 @@ def dbModifier():
     # OpenstackInstance.objects.filter(instance_name="test1").update(instance_id="96063d0f-d3c7-4339-b124-494f9112b555", instance_name="test1",
     #         stack_id=None, stack_name=None, ip_address="172.24.4.104", status="ACTIVE", image_name="RESTOREtest1", update_image_ID=None, package="pwgen,apache2", freezer_completed=False)
     # user1 = AccountInfo.objects.get(user_id="user1")
-    # CloudstackInstance.objects.create(
-    #     user_id = user1,
+    # AccountInfo.objects.create(
+    #     user_id = "user1",
+    #     email = "123@naver.com",
+    #     password = "0000",
+    #     first_name = "hoo",
+    #     last_name = "kim",
+    #     openstack_user_id = "abc",
+    #     openstack_user_project_id = "abc",
+    #     cloudstack_account_id = "abc",
+    #     cloudstack_apiKey = "abc",
+    #     cloudstack_secretKey = "abc",
+    #     cloudstack_network_id = "abc",
+    #     cloudstack_network_vlan = 100
+    # )
+    # OpenstackInstance.objects.create(
+    #     user_id = AccountInfo.objects.get(user_id="user1"),
+    #     instance_pk = 3,
     #     instance_id = "0dbe2515-178d-41fa-baad-685a30953284",
-    #     instance_pk = 2,
-    #     instance_name = "test2",
+    #     instance_name = "test3",
+    #     stack_id = "0dbe2515-178d-41fa-baad-685a30953284",
+    #     stack_name = "test2",
+    #     ip_address = "10.0.0.1",
+    #     status = "active",
+    #     image_name = "abc",
+    #     os = "abc",
+    #     flavor_name = "abc",
+    #     ram_size = 3,
+    #     num_people = 3,
+    #     expected_data_size = 4,
+    #     disk_size = 3,
+    #     num_cpu = 3,
+    #     package = "abc",
+    #     backup_time = 6,
+    #     update_image_ID = "aaa",
+    #     freezer_completed = False
+    # )
+    # CloudstackInstance.objects.all().delete()
+    # ServerStatusFlag.objects.create(
+    #     platform_name = "openstack",
+    #     status = True
+    # )
+    # DjangoServerTime.objects.create(
+    #     start_time = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(time.time())),
+    #     backup_ran = False
+    # )
+    # CloudstackInstance.objects.create(
+    #     user_id = AccountInfo.objects.get(user_id="testuser"),
+    #     instance_id = "abc",
+    #     instance_pk = 1,
+    #     instance_name = "test",
     #     ip_address = "10.0.0.1",
     #     status = "Stopped",
-    #     image_id = "e6829267-0ee6-4a53-8b37-15849bcee05b",
-    #     flavor_name = "MEDIUM",
-    #     ram_size = 1,
-    #     disk_size = 5,
+    #     image_id = "abc",
+    #     flavor_name = "small",
+    #     ram_size = 5,
+    #     disk_size = 10,
     #     num_cpu = 1
     # )
-    ServerStatusFlag.objects.create(
-        platform_name = "openstack",
-        status = True
-    )
     # ServerStatusFlag.objects.filter(platform_name="openstack").update(status=True)
-    # print("updated")
+    print("updated")
 
 
 # ------------------------------------------------------------------------ Total Batch Job Part ------------------------------------------------------------------------ #
@@ -1378,17 +1420,10 @@ def start():
     # scheduler.add_job(deleter, 'interval', seconds=5)
     # scheduler.add_job(dbModifier, "interval", seconds=5)
     
-    # scheduler.add_job(backup6, 'interval', seconds=600)
-    # scheduler.add_job(backup12, 'interval', seconds=1200)
-    
-    # scheduler.add_job(freezerBackup6, 'interval', seconds=900)
-    # scheduler.add_job(freezerBackup12, 'interval', seconds=1800)
-    
-    scheduler.add_job(backup_all6, 'interval', seconds=960)
-    
-    scheduler.add_job(freezerRestore6, 'interval', seconds=300)
-    
-    scheduler.add_job(errorCheckAndUpdateDBstatus, 'interval', seconds=60)
+    DjangoServerTime.objects.filter(id=1).update(start_time=time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(time.time())))
+    DjangoServerTime.objects.filter(id=1).update(backup_ran=False)
+    scheduler.add_job(backup_all6, 'interval', seconds=660)
+    scheduler.add_job(freezerRestore6, 'interval', seconds=30)
     scheduler.add_job(openstackServerChecker, 'interval', seconds=60)
 
     scheduler.start()
