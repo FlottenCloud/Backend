@@ -1328,11 +1328,12 @@ def backup12():
     return print("All Backup With 12 Hour Cycle Completed!!")
 
 def backup_all6():
-    DjangoServerTime.objects.filter(backup_ran=True)
+    DjangoServerTime.objects.filter(id=1).update(backup_ran=True)
     backup6()
     freezerBackup6()
     
 def backup_all12():
+    DjangoServerTime.objects.filter(id=1).update(backup_ran=True)
     backup12()
     freezerBackup12()
 
@@ -1422,10 +1423,10 @@ def start():
     
     DjangoServerTime.objects.filter(id=1).update(start_time=time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(time.time())))
     DjangoServerTime.objects.filter(id=1).update(backup_ran=False)
-    # scheduler.add_job(backup_all6, 'interval', seconds=960)
-    # scheduler.add_job(freezerRestore6, 'interval', seconds=300)
+    scheduler.add_job(backup_all6, 'interval', seconds=960)
+    scheduler.add_job(freezerRestore6, 'interval', seconds=300)
     
-    # scheduler.add_job(errorCheckAndUpdateDBstatus, 'interval', seconds=60)
-    # scheduler.add_job(openstackServerChecker, 'interval', seconds=60)
+    scheduler.add_job(errorCheckAndUpdateDBstatus, 'interval', seconds=60)
+    scheduler.add_job(openstackServerChecker, 'interval', seconds=60)
 
     scheduler.start()
