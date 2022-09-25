@@ -1328,15 +1328,14 @@ def backup12():
     return print("All Backup With 12 Hour Cycle Completed!!")
 
 def backup_all6():
+    DjangoServerTime.objects.filter(id=1).update(backup_ran=True)
     backup6()
     freezerBackup6()
-    DjangoServerTime.objects.filter(id=1).update(backup_ran=True)
     
 def backup_all12():
+    DjangoServerTime.objects.filter(id=1).update(backup_ran=True)
     backup12()
     freezerBackup12()
-    DjangoServerTime.objects.filter(id=1).update(backup_ran=True)
-
     
 # ---- 야매용 함수들 ---- #
 def deleter():
