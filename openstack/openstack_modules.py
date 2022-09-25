@@ -89,6 +89,7 @@ class RequestChecker:
             return None
 
 
+
 class TemplateModifier:
     # 램, 디스크, 이미지, 네트워크 이름, 키페어 네임,
     def getUserRequirement(self, input_data):
@@ -175,6 +176,8 @@ class TemplateModifier:
 
         return(json.dumps(template_data))
 
+
+
 class Instance(RequestChecker):    # 인스턴스 요청에 대한 공통 요소 클래스
     def checkDataBaseInstanceID(self, input_data):  # DB에서 Instance의 ID를 가져 오는 함수(request를 통해 받은 instance_id가 DB에 존재하는지 유효성 검증을 위해 존재)
         instance_pk = input_data["instance_pk"]
@@ -185,6 +188,7 @@ class Instance(RequestChecker):    # 인스턴스 요청에 대한 공통 요소
 
         return instance_pk
     
+    
     def instance_image_uploading_checker(self, instance_id):
         image_uploading_check = super().reqChecker("get", "http://" + openstack_hostIP + "/compute/v2.1/servers/" + instance_id, oc.admin_token())
         is_image_uploading = image_uploading_check.json()["server"]["OS-EXT-STS:task_state"]
@@ -193,29 +197,43 @@ class Instance(RequestChecker):    # 인스턴스 요청에 대한 공통 요소
         else:
             return True
 
+
+    def exceedTimeCalculator(self, next_time, next_minute):
+        if next_minute >= 60:
+            next_time += (next_minute//60)
+            next_minute -= (60*(next_minute//60))
+            if next_minute < 10:
+                next_minute = "0" + str(next_minute)
+        return next_time, next_minute
+    
+    def timeFormatSetter(self, stack_data, instance_id):
+        if DjangoServerTime.objects.get(id=1).backup_ran == False:
+            django_server_started_time = DjangoServerTime.objects.get(id=1).start_time
+            next_time = int(django_server_started_time[-8:-6])
+            next_minute = int(django_server_started_time[-5:-3]) + oc.backup_interval
+            next_time, next_minute = self.exceedTimeCalculator(next_time, next_minute)
+            next_backup_time = django_server_started_time[:-8] + str(next_time) + ":" + str(next_minute) + django_server_started_time[-3:]
+            stack_data["next_backup_time"] = next_backup_time
+        else:
+            backup_ran_time = str(OpenstackBackupImage.objects.get(instance_id=instance_id).updated_at)[:16]
+            next_time = int(backup_ran_time[-8:-6])
+            next_minute = int(backup_ran_time[-5:-3]) + oc.backup_interval
+            next_time, next_minute = self.exceedTimeCalculator(next_time, next_minute)
+            next_backup_time = backup_ran_time[:-8] + str(next_time) + ":" + str(next_minute) + backup_ran_time[-3:]
+            stack_data["next_backup_time"] = str(OpenstackBackupImage.objects.get(instance_id=instance_id).updated_at)[:16]
+        
+        return stack_data
+
     def instance_backup_time_show(self, stack_data, instance_id):
         if OpenstackBackupImage.objects.filter(instance_id=instance_id).exists():
             stack_data["backup_completed_time"] = str(OpenstackBackupImage.objects.get(instance_id=instance_id).updated_at)[:16]
-            if DjangoServerTime.objects.get(id=1).backup_ran == False:
-                django_server_started_time = DjangoServerTime.objects.get(id=1).start_time
-                next_backup_time = django_server_started_time[:-5] + str(int(django_server_started_time[-5:-3]) + oc.backup_interval) + django_server_started_time[-3:]
-                stack_data["next_backup_time"] = next_backup_time
-            else:
-                backup_ran_time = str(OpenstackBackupImage.objects.get(instance_id=instance_id).updated_at)[:16]
-                next_backup_time = backup_ran_time[:-5] + str(int(backup_ran_time[-5:-3]) + oc.backup_interval) + django_server_started_time[-3:]
-                stack_data["next_backup_time"] = str(OpenstackBackupImage.objects.get(instance_id=instance_id).updated_at)[:16]
+            stack_data = self.timeFormatSetter(stack_data, instance_id)
         else:
             stack_data["backup_completed_time"] = ""
-            if DjangoServerTime.objects.get(id=1).backup_ran == False:
-                django_server_started_time = DjangoServerTime.objects.get(id=1).start_time
-                next_backup_time = django_server_started_time[:-5] + str(int(django_server_started_time[-5:-3]) + oc.backup_interval) + django_server_started_time[-3:]
-                stack_data["next_backup_time"] = next_backup_time
-            else:
-                backup_ran_time = str(OpenstackBackupImage.objects.get(instance_id=instance_id).updated_at)[:16]
-                next_backup_time = backup_ran_time[:-5] + str(int(backup_ran_time[-5:-3]) + oc.backup_interval) + django_server_started_time[-3:]
-                stack_data["next_backup_time"] = str(OpenstackBackupImage.objects.get(instance_id=instance_id).updated_at)[:16]
-
+            stack_data = self.timeFormatSetter(stack_data, instance_id)
         return stack_data
+
+
 
 class Stack(TemplateModifier, Instance):
     def stackResourceGetter(self, usage, openstack_hostIP, openstack_tenant_id, stack_name, stack_id, token):
@@ -314,14 +332,6 @@ class Stack(TemplateModifier, Instance):
                 user_req_flavor = "NOTUPDATE"
         package_for_update = list(set(user_req_package) - set(before_update_template_package))
         print("요청 정보: ", package_for_update, user_req_flavor, user_req_backup_time)
-
-        # stack_environment_req = super().reqChecker("get", "http://" + openstack_hostIP + "/heat-api/v1/" + update_openstack_tenant_id + "/stacks/" 
-        #     + update_stack_name + "/" + update_stack_id + "/environment", token)
-        # if stack_environment_req == None:
-        #     raise OpenstackServerError
-        # print("기존 스택의 템플릿: ", stack_environment_req.json())
-        # before_update_template_package = stack_environment_req.json()["parameters"]["packages"]
-        # print("기존 스택의 템플릿 패키지: ", before_update_template_package)  # 원래 db에 저장 안돼있어서 요청해서 가져왔었는데, db에 저장해서 그럴 필요 없어짐. 일단은 놔둠.
         
         if before_update_template_package[0] != "":
             package_origin_plus_user_req = before_update_template_package + package_for_update    # 기존 패키지 + 유저의 요청 패키지
