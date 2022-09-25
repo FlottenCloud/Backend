@@ -212,7 +212,7 @@ class Instance(RequestChecker):    # 인스턴스 요청에 대한 공통 요소
             next_time = int(django_server_started_time[-8:-6])
             next_minute = int(django_server_started_time[-5:-3]) + oc.backup_interval
             next_time, next_minute = self.exceedTimeCalculator(next_time, next_minute)
-            next_backup_time = django_server_started_time[:-8] + str(next_time) + ":" + str(next_minute) + django_server_started_time[-3:]
+            next_backup_time = django_server_started_time[:-8] + str(next_time) + ":" + str(next_minute)
             stack_data["next_backup_time"] = next_backup_time
         else:
             if OpenstackBackupImage.objects.filter(instance_id=instance_id).exists():
@@ -224,7 +224,7 @@ class Instance(RequestChecker):    # 인스턴스 요청에 대한 공통 요소
                 next_time = int(backup_ran_time[-8:-6])
                 next_minute = int(backup_ran_time[-5:-3]) + oc.backup_interval*2
             next_time, next_minute = self.exceedTimeCalculator(next_time, next_minute)
-            next_backup_time = backup_ran_time[:-8] + str(next_time) + ":" + str(next_minute) + backup_ran_time[-3:]
+            next_backup_time = backup_ran_time[:-8] + str(next_time) + ":" + str(next_minute)
             stack_data["next_backup_time"] = str(OpenstackBackupImage.objects.get(instance_id=instance_id).updated_at)[:16]
         
         return stack_data
