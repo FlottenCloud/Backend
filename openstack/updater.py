@@ -21,11 +21,11 @@ from cloudstack.models import CloudstackInstance
 from openstack.serializers import OpenstackInstanceSerializer,OpenstackBackupImageSerializer
 from openstack.openstack_modules import RequestChecker, Stack, TemplateModifier, Instance
 
-ssh_ip_addr = "1.255.161.166"
+ssh_ip_addr = "192.168.0.148"
 ssh_user_name = "test"  # 리눅스 Host ID
 ssh_password = "0000"  # 리눅스 Host Password
-ssh_port = 10022
-django_server_ip = "119.198.160.6"
+ssh_port = 22
+django_server_ip = "10.125.70.26"
 
 
 # ------------------------------------------------------------ Instance Error Check Part ------------------------------------------------------------ #
@@ -124,11 +124,11 @@ def deployCloudstackInstance(user_id, user_apiKey, user_secretKey, instance_pk, 
     user_id_instance = AccountInfo.objects.get(user_id=user_id)
     template_name = instance_name + "Template"
     if os_type == "ubuntu" :     # ubuntu(18.04 LTS)
-        os_type_id = "12bc219b-fdcb-11ec-a9c1-08002765d220"
+        os_type_id = "4bfd5052-3c9c-11ed-8341-525400956326"
     elif os_type == "centos" :   # centos
         os_type_id = "abc"
     else:   # fedora(openstack default)
-        os_type_id = "8682cef8-a3f3-47a0-886d-87b9398469b3"
+        os_type_id = "92a99cc2-5b57-48b9-9b2e-818c1e94d754"
     backup_template_id = registerCloudstackTemplate(zoneID, template_name, backup_img_file_name, os_type_id)    # 템플릿 등록 후 템플릿 id 받아옴
     instance_deploy_req_body = {"apiKey" : user_apiKey, "response" : "json", "command" : "deployVirtualMachine",
         "networkids" : cloudstack_user_network_id, "serviceofferingId" : medium_offeringID,
@@ -807,7 +807,6 @@ def openstackStackCreate(instance_name, template_name):  # 오픈스택 상의 �
     if stack_name_for_del != None:
         del_stack_before_restore_res = deleteStackBeforeRestore(tenant_id_for_restore, stack_id_for_del, stack_name_for_del, instance_update_image_id_for_del)     # 이전에 있던 스택 삭제
         print(del_stack_before_restore_res)
-        OpenstackInstance.objects.get(instance_id=instance_id_for_del).delete()
     else:   # In case instance is restored through freezer
         del_freezer_restored_instance_req = requests.delete("http://" + oc.hostIP + "/compute/v2.1/servers/" + instance_id_for_del,
             headers={'X-Auth-Token': admin_token})
@@ -1341,9 +1340,9 @@ def backup_all12():
 def deleter():
     # AccountInfo.objects.all().delete()
     # OpenstackInstance.objects.all().delete()
-    OpenstackBackupImage.objects.all().delete()
+    # OpenstackBackupImage.objects.all().delete()
     # CloudstackInstance.objects.all().delete()
-    # ServerStatusFlag.objects.filter(platform_name="openstack").update(status=True)
+    ServerStatusFlag.objects.filter(platform_name="openstack").update(status=True)
     # ServerStatusFlag.objects.get(id=2).delete()
     # OpenstackInstance.objects.get(instance_pk=1).delete()
     print("all-deleted")
@@ -1420,12 +1419,12 @@ def start():
     # scheduler.add_job(deleter, 'interval', seconds=5)
     # scheduler.add_job(dbModifier, "interval", seconds=5)
     
-    DjangoServerTime.objects.filter(id=1).update(start_time=time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(time.time())))
-    DjangoServerTime.objects.filter(id=1).update(backup_ran=False)
-    scheduler.add_job(backup_all6, 'interval', seconds=960)
-    scheduler.add_job(freezerRestore6, 'interval', seconds=300)
+    # DjangoServerTime.objects.filter(id=1).update(start_time=time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(time.time())))
+    # DjangoServerTime.objects.filter(id=1).update(backup_ran=False)
+    # scheduler.add_job(backup_all6, 'interval', seconds=480)
+    # scheduler.add_job(freezerRestore6, 'interval', seconds=300)
     
-    scheduler.add_job(errorCheckAndUpdateDBstatus, 'interval', seconds=60)
-    scheduler.add_job(openstackServerChecker, 'interval', seconds=60)
+    # scheduler.add_job(errorCheckAndUpdateDBstatus, 'interval', seconds=60)
+    # scheduler.add_job(openstackServerChecker, 'interval', seconds=60)
 
     scheduler.start()
