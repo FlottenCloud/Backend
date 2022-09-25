@@ -1287,6 +1287,7 @@ def freezerRestore6():
         return print("오픈스택 서버 문제 발생, Freezer Restore 불가")
     else:
         if ServerStatusFlag.objects.get(platform_name="openstack").status == True:
+            errorCheckAndUpdateDBstatus()
             freezer_restore_res = freezerRestoreWithCycle()
             if freezer_restore_res != "All ERRORed instances restored!!":
                 return print(freezer_restore_res)
@@ -1328,13 +1329,13 @@ def backup12():
 
 def backup_all6():
     DjangoServerTime.objects.filter(id=1).update(backup_ran=True)
-    backup6()
     freezerBackup6()
+    backup6()
     
 def backup_all12():
     DjangoServerTime.objects.filter(id=1).update(backup_ran=True)
-    backup12()
     freezerBackup12()
+    backup12()
     
 # ---- 야매용 함수들 ---- #
 def deleter():
@@ -1419,12 +1420,10 @@ def start():
     # scheduler.add_job(deleter, 'interval', seconds=5)
     # scheduler.add_job(dbModifier, "interval", seconds=5)
     
-    # DjangoServerTime.objects.filter(id=1).update(start_time=time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(time.time())))
-    # DjangoServerTime.objects.filter(id=1).update(backup_ran=False)
-    # scheduler.add_job(backup_all6, 'interval', seconds=480)
-    # scheduler.add_job(freezerRestore6, 'interval', seconds=300)
-    
-    # scheduler.add_job(errorCheckAndUpdateDBstatus, 'interval', seconds=60)
-    # scheduler.add_job(openstackServerChecker, 'interval', seconds=60)
+    DjangoServerTime.objects.filter(id=1).update(start_time=time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(time.time())))
+    DjangoServerTime.objects.filter(id=1).update(backup_ran=False)
+    scheduler.add_job(backup_all6, 'interval', seconds=660)
+    scheduler.add_job(freezerRestore6, 'interval', seconds=30)
+    scheduler.add_job(openstackServerChecker, 'interval', seconds=60)
 
     scheduler.start()

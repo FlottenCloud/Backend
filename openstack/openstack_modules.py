@@ -474,7 +474,7 @@ class Stack(TemplateModifier, Instance):
         
         before_update_instance__del_req = super().reqChecker("delete", "http://" + openstack_hostIP + "/compute/v2.1/servers/" + instance_id, user_token)
         print("프리저로 복원된 인스턴스 삭제 리스폰스: ", before_update_instance__del_req)
-        before_update_image_id_req = super().reqChecker("get", "http://" + openstack_hostIP + "/image/v2/images/?name=" + "RESTORE" + instance_name, user_token)
+        before_update_image_id_req = super().reqChecker("get", "http://" + openstack_hostIP + "/image/v2/images?name=" + "RESTORE" + instance_name, user_token)
         before_update_image_id = before_update_image_id_req.json()["images"][0]["id"]
         before_update_image_del_req = super().reqChecker("delete", "http://" + openstack_hostIP + "/image/v2/images/" + before_update_image_id, user_token)
         print("프리저로 복원된 인스턴스의 이미지 삭제 리스폰스: ", before_update_image_del_req)

@@ -199,10 +199,22 @@ class AccountView(APIView):
         user_cloudstack_resources = account_data_object.user_cloudstack_resource_info.all()
 
         for openstack_resource in user_openstack_resources:  # 오픈스택에서 user의 stack 모두 삭제
-            stack_del_req = requests.delete("http://" + openstack_hostIP + "/heat-api/v1/" + del_project_id_openstack + "/stacks/"
-                + openstack_resource.stack_name + "/" + openstack_resource.stack_id,
-                headers = {'X-Auth-Token' : admin_token})
-            print("스택 삭제 리스폰스: ", stack_del_req)
+            if openstack_resource.stack_id != None:
+                stack_del_req = requests.delete("http://" + openstack_hostIP + "/heat-api/v1/" + del_project_id_openstack + "/stacks/"
+                    + openstack_resource.stack_name + "/" + openstack_resource.stack_id,
+                    headers = {'X-Auth-Token' : admin_token})
+                print("스택 삭제 리스폰스: ", stack_del_req)
+            else:
+                del_instance_id = openstack_resource.instance_id
+                del_image_name = openstack_resource.image_name
+                del_freezer_restored_instance_req = requests.delete("http://" + oc.hostIP + "/compute/v2.1/servers/" + del_instance_id,
+                        headers={'X-Auth-Token': admin_token})
+                print("프리저로 복원된 인스턴스 삭제 리스폰스: ", del_freezer_restored_instance_req)
+                del_freezer_restore_image_id = requests.get("http://" + oc.hostIP + "/image/v2/images?name=" + del_image_name,
+                    headers={'X-Auth-Token': admin_token}).json()["images"][0]["id"]
+                del_freezer_restore_image_req = requests.delete("http://" + oc.hostIP + "/image/v2/images/" + del_freezer_restore_image_id,
+                    headers={'X-Auth-Token': admin_token})
+                print("프리저로 복원된 인스턴스의 이미지 삭제 리스폰스: ", del_freezer_restore_image_req)
             if openstack_resource.update_image_ID != None:
                 image_del_req = requests.delete("http://" + openstack_hostIP + "/image/v2/images/" + openstack_resource.update_image_ID,
                     headers = {'X-Auth-Token' : admin_token})

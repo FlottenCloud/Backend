@@ -230,7 +230,7 @@ class Openstack(Stack, APIView):
             del_instance_id = openstack_stack_data.instance_id
             del_stack_id = openstack_stack_data.stack_id
             del_stack_name = openstack_stack_data.stack_name
-            del_image_id = openstack_stack_data.image_name
+            del_image_name = openstack_stack_data.image_name
             del_update_image_id = openstack_stack_data.update_image_ID
             print("삭제한 가상머신 이름: " + del_instance_name + "\n삭제한 스택 이름: " + del_stack_name + "\n삭제한 스택 ID: " + del_stack_id)
 
@@ -242,7 +242,7 @@ class Openstack(Stack, APIView):
                 else:   # In case instance is restored through freezer
                     del_freezer_restored_instance_req = requests.delete("http://" + oc.hostIP + "/compute/v2.1/servers/" + del_instance_id,
                         headers={'X-Auth-Token': admin_token})
-                    del_freezer_restore_image_id = requests.get("http://" + oc.hostIP + "/image/v2/images?name=" + del_image_id,
+                    del_freezer_restore_image_id = requests.get("http://" + oc.hostIP + "/image/v2/images?name=" + del_image_name,
                         headers={'X-Auth-Token': admin_token}).json()["images"][0]["id"]
                     del_freezer_restore_image_req = requests.delete("http://" + oc.hostIP + "/image/v2/images/" + del_freezer_restore_image_id,
                         headers={'X-Auth-Token': admin_token})
