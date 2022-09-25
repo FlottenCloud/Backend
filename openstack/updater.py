@@ -152,7 +152,7 @@ def deployCloudstackInstance(user_id, user_apiKey, user_secretKey, instance_pk, 
             created_instance_id = instance_info_res["listvirtualmachinesresponse"]["virtualmachine"][0]["id"]
             created_instance_name = instance_info_res["listvirtualmachinesresponse"]["virtualmachine"][0]["name"]
             created_instance_status = instance_info_res["listvirtualmachinesresponse"]["virtualmachine"][0]["state"]
-            created_instance_ip_address = "10.0.0.1"
+            created_instance_ip_address = "10.0.0." + str(CloudstackInstance.objects.filter(user_id=user_id_instance.user_id).count() + 1)
             created_instance_image_id = instance_info_res["listvirtualmachinesresponse"]["virtualmachine"][0]["templateid"]
             created_instance_flavor_name = "MEDIUM"
             created_instance_ram_size = round(instance_info_res["listvirtualmachinesresponse"]["virtualmachine"][0]["memory"]/1024, 2)
@@ -1394,22 +1394,22 @@ def dbModifier():
     #     status = True
     # )
     # DjangoServerTime.objects.create(
-    #     start_time = time.strftime("%Y-%m-%d %H-%M-%S", time.localtime(time.time())),
+    #     start_time = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(time.time())),
     #     backup_ran = False
     # )
-    CloudstackInstance.objects.create(
-        user_id = AccountInfo.objects.get(user_id="testuser"),
-        instance_id = "abc",
-        instance_pk = 1,
-        instance_name = "test",
-        ip_address = "10.0.0.1",
-        status = "Stopped",
-        image_id = "abc",
-        flavor_name = "small",
-        ram_size = 5,
-        disk_size = 10,
-        num_cpu = 1
-    )
+    # CloudstackInstance.objects.create(
+    #     user_id = AccountInfo.objects.get(user_id="testuser"),
+    #     instance_id = "abc",
+    #     instance_pk = 1,
+    #     instance_name = "test",
+    #     ip_address = "10.0.0.1",
+    #     status = "Stopped",
+    #     image_id = "abc",
+    #     flavor_name = "small",
+    #     ram_size = 5,
+    #     disk_size = 10,
+    #     num_cpu = 1
+    # )
     # ServerStatusFlag.objects.filter(platform_name="openstack").update(status=True)
     print("updated")
 
@@ -1420,8 +1420,8 @@ def start():
     # scheduler.add_job(deleter, 'interval', seconds=5)
     # scheduler.add_job(dbModifier, "interval", seconds=5)
     
-    # DjangoServerTime.objects.filter(id=1).update(start_time=time.strftime("%Y-%m-%d %H-%M-%S", time.localtime(time.time())))
-    # DjangoServerTime.objects.filter(id=1).update(backup_ran=False)
+    DjangoServerTime.objects.filter(id=1).update(start_time=time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(time.time())))
+    DjangoServerTime.objects.filter(id=1).update(backup_ran=False)
     # scheduler.add_job(backup_all6, 'interval', seconds=960)
     # scheduler.add_job(freezerRestore6, 'interval', seconds=300)
     
