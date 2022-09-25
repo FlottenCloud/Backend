@@ -115,7 +115,7 @@ class InstanceStart(APIView):
         instance_start_req_body = {"apiKey" : apiKey, "response" : "json", "command" : "startVirtualMachine", "hostid" : cloudstack_hostID, "id" : start_instance_id}
         instance_start_req = csc.requestThroughSig(secretKey, instance_start_req_body)
         
-        CloudstackInstance.objects.filter(instance_id=start_instance_id).update(status="Running")
+        CloudstackInstance.objects.filter(instance_id=start_instance_id).update(status="ACTIVE")
         
         return JsonResponse({"message" : "가상머신 시작"}, status=202)
 
@@ -132,7 +132,7 @@ class InstanceStop(APIView):
         instance_stop_req_body = {"apiKey": apiKey, "response": "json", "command": "stopVirtualMachine", "id": stop_instance_id}
         instance_stop_req = csc.requestThroughSig(secretKey, instance_stop_req_body)
         
-        CloudstackInstance.objects.filter(instance_id=stop_instance_id).update(status="Stopped")
+        CloudstackInstance.objects.filter(instance_id=stop_instance_id).update(status="SHUTOFF")
         
         return JsonResponse({"message" : "가상머신 정지"}, status=202)
 

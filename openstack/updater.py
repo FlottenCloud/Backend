@@ -169,7 +169,7 @@ def deployCloudstackInstance(user_id, user_apiKey, user_secretKey, instance_pk, 
         instance_pk = instance_pk,
         instance_name = created_instance_name,
         ip_address = created_instance_ip_address,
-        status = created_instance_status,
+        status = "SHUTOFF",
         image_id = created_instance_image_id,
         flavor_name = created_instance_flavor_name,
         ram_size = created_instance_ram_size,
@@ -240,7 +240,7 @@ def backup(cycle):
 
         for instance in backup_instance_list:
             start_time = time.time()
-            if instance.status == "ERROR":
+            if instance.status == "ERROR" or instance.status == "RESTORING":
                 print("instance " + instance.instance_name + " status is error. Can not backup.")
                 continue
             print("인스턴스 오브젝트: ", instance)
@@ -1127,7 +1127,7 @@ def freezerBackupWithCycle(cycle):
             print("리스트가 비어있음. 프리저 로컬 백업본 삭제 대상 없음.")
         else:
             for instance in backup_instance_list:
-                if instance.status == "ERROR":
+                if instance.status == "ERROR" or instance.status == "RESTORING":
                     print("instance " + instance.instance_name + " status is error. Can not backup with freezer.")
                     continue
                 if instance_tool.instance_image_uploading_checker(instance.instance_id) == True:  # instance snapshot create in progress
@@ -1156,9 +1156,9 @@ def freezerBackupWithCycle(cycle):
         backup_instance_list = OpenstackInstance.objects.filter(freezer_completed=False).filter(backup_time=cycle)
         for instance in backup_instance_list:
             start_time = time.time()    # 시간 측정용
-            if instance.status == "ERROR":
+            if instance.status == "ERROR" or  instance.status == "RESTORING":
                 print("instance " + instance.instance_name + " status is error. Can not backup with freezer.")
-                resultData="Instance " + instance.instance_name + " Error"
+                resultData = "Instance " + instance.instance_name + " Error"
                 continue
             if instance_tool.instance_image_uploading_checker(instance.instance_id) == True:  # instance snapshot create in progress
                 print("Instance is image uploading state!!!")
@@ -1181,7 +1181,7 @@ def freezerBackupWithCycle(cycle):
             end_time = time.time()
             print("Freezer backup time: ", f"{end_time - start_time:.5f} sec")
 
-        return resultData
+        return "Freezer backup with cycle function ends."
 
     except OperationalError:
         return "인스턴스가 없습니다."
@@ -1205,6 +1205,7 @@ def freezerRestoreWithCycle():
         print("리스토어할 인스턴스 오브젝트: ", restore_instance)
         restore_instance_id = restore_instance.instance_id
         restore_instance_name = restore_instance.instance_name
+        OpenstackInstance.objects.filter(instance_id=restore_instance_id).update(status="RESTORING")
         print("리스토어할 인스턴스 ID: ", restore_instance_id)
 
         # --------- error 터진 stack 삭제 --------- #
@@ -1242,7 +1243,7 @@ def freezerRestoreWithCycle():
         end_time = time.time()
         print("Freezer restore time: ", f"{end_time - start_time:.5f} sec")
 
-    return "All ERRORed instances restored!!"
+    return "Freezer restore functions ends."
 
 
 def freezerBackup6():
@@ -1329,11 +1330,13 @@ def backup12():
 
 def backup_all6():
     DjangoServerTime.objects.filter(id=1).update(backup_ran=True)
+    DjangoServerTime.objects.filter(id=1).update(backup_ran_time=time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(time.time())))
     freezerBackup6()
     backup6()
     
 def backup_all12():
     DjangoServerTime.objects.filter(id=1).update(backup_ran=True)
+    DjangoServerTime.objects.filter(id=1).update(backup_ran_time=time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(time.time())))
     freezerBackup12()
     backup12()
     

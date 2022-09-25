@@ -143,15 +143,15 @@ class Openstack(Stack, APIView):
                 return JsonResponse({"message" : "오픈스택 서버에 문제가 생겨 token으로 오픈스택 유저의 정보를 얻어올 수 없습니다."}, status=500)
 
             try:
-                user_instance_info = OpenstackInstance.objects.filter(user_id=user_id)
-                for instance_info in user_instance_info:
-                    if instance_info.status == "ERROR":
-                        continue
-                    instance_req = super().reqChecker("get", "http://" + openstack_hostIP + "/compute/v2.1/servers/" + instance_info.instance_id, token)
-                    if instance_req == None:
-                        return JsonResponse({"message" : "오픈스택 서버에 문제가 생겨 인스턴스의 상태 정보를 가져올 수 없습니다."}, status=500)
-                    instance_status = instance_req.json()["server"]["status"]
-                    OpenstackInstance.objects.filter(instance_id=instance_info.instance_id).update(status=instance_status)
+                # user_instance_info = OpenstackInstance.objects.filter(user_id=user_id)
+                # for instance_info in user_instance_info:
+                #     if instance_info.status == "ERROR":
+                #         continue
+                #     instance_req = super().reqChecker("get", "http://" + openstack_hostIP + "/compute/v2.1/servers/" + instance_info.instance_id, token)
+                #     if instance_req == None:
+                #         return JsonResponse({"message" : "오픈스택 서버에 문제가 생겨 인스턴스의 상태 정보를 가져올 수 없습니다."}, status=500)
+                #     instance_status = instance_req.json()["server"]["status"]
+                #     OpenstackInstance.objects.filter(instance_id=instance_info.instance_id).update(status=instance_status)
 
                 user_stack_data = list(OpenstackInstance.objects.filter(user_id=user_id).values())
                 for stack_data in user_stack_data:
@@ -346,16 +346,16 @@ class DashBoard(RequestChecker, APIView):
                 return JsonResponse({"message" : "오픈스택 서버에 문제가 생겨 token으로 오픈스택 유저의 정보를 얻어올 수 없습니다."}, status=500)
 
             try:
-                user_instance_info = OpenstackInstance.objects.filter(user_id=user_id)
-                for instance_info in user_instance_info:    # 대쉬보드 출력에 status는 굳이 필요없지만, db 정보 최신화를 위해 status 업데이트.
-                    if instance_info.status == "ERROR":
-                        continue
-                    instance_status_req = super().reqChecker("get", "http://" + openstack_hostIP + "/compute/v2.1/servers/" + instance_info.instance_id, token)
-                    if instance_status_req == None:
-                        return JsonResponse({"message" : "오픈스택 서버에 문제가 생겨 리소스 정보를 받아올 수 없습니다."}, status=500)
+                # user_instance_info = OpenstackInstance.objects.filter(user_id=user_id)
+                # for instance_info in user_instance_info:    # 대쉬보드 출력에 status는 굳이 필요없지만, db 정보 최신화를 위해 status 업데이트.
+                #     if instance_info.status == "ERROR":
+                #         continue
+                #     instance_status_req = super().reqChecker("get", "http://" + openstack_hostIP + "/compute/v2.1/servers/" + instance_info.instance_id, token)
+                #     if instance_status_req == None:
+                #         return JsonResponse({"message" : "오픈스택 서버에 문제가 생겨 리소스 정보를 받아올 수 없습니다."}, status=500)
 
-                    instance_status = instance_status_req.json()["server"]["status"]
-                    OpenstackInstance.objects.filter(instance_id=instance_info.instance_id).update(status=instance_status)
+                #     instance_status = instance_status_req.json()["server"]["status"]
+                #     OpenstackInstance.objects.filter(instance_id=instance_info.instance_id).update(status=instance_status)
 
                 num_instances = OpenstackInstance.objects.filter(user_id=user_id).count()
                 total_ram_size = OpenstackInstance.objects.filter(user_id=user_id).aggregate(Sum("ram_size"))   # 여기서부터
@@ -402,6 +402,7 @@ class InstanceStart(Instance, APIView):
                 + "/action", token, json.dumps(server_start_payload))
             if instance_start_req == None:    # "오픈스택과 통신이 안됐을 시(timeout 시)"
                 return JsonResponse({"message" : "오픈스택 서버에 문제가 생겨 해당 동작을 수행할 수 없습니다."}, status=500)
+            OpenstackInstance.objects.filter(instance_id=start_instance_id).update(status="ACTIVE")
 
         except oc.TokenExpiredError as e:
             print("에러 내용: ", e)
@@ -430,6 +431,7 @@ class InstanceStop(Instance, APIView):
                 + "/action", token, json.dumps(server_stop_payload))
             if instance_stop_req == None:    # "오픈스택과 통신이 안됐을 시(timeout 시)"
                 return JsonResponse({"message" : "오픈스택 서버에 문제가 생겨 해당 동작을 수행할 수 없습니다."}, status=500)
+            OpenstackInstance.objects.filter(instance_id=stop_instance_id).update(status="SHUTOFF")
         
 
         except oc.TokenExpiredError as e:
