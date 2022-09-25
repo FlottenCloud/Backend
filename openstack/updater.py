@@ -1328,22 +1328,22 @@ def backup12():
     return print("All Backup With 12 Hour Cycle Completed!!")
 
 def backup_all6():
-    DjangoServerTime.objects.filter(id=1).update(backup_ran=True)
     backup6()
     freezerBackup6()
+    DjangoServerTime.objects.filter(id=1).update(backup_ran=True)
     
 def backup_all12():
-    DjangoServerTime.objects.filter(id=1).update(backup_ran=True)
     backup12()
     freezerBackup12()
+    DjangoServerTime.objects.filter(id=1).update(backup_ran=True)
 
     
 # ---- 야매용 함수들 ---- #
 def deleter():
-    AccountInfo.objects.all().delete()
-    OpenstackInstance.objects.all().delete()
+    # AccountInfo.objects.all().delete()
+    # OpenstackInstance.objects.all().delete()
     OpenstackBackupImage.objects.all().delete()
-    CloudstackInstance.objects.all().delete()
+    # CloudstackInstance.objects.all().delete()
     # ServerStatusFlag.objects.filter(platform_name="openstack").update(status=True)
     # ServerStatusFlag.objects.get(id=2).delete()
     # OpenstackInstance.objects.get(instance_pk=1).delete()
