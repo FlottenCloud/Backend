@@ -149,7 +149,7 @@ class AccountView(APIView):
             cloudstack_network_id = cloudstack_user_network_id,
             cloudstack_network_vlan = cloudstack_user_network_vlan
         )
-        log_manager.logAdder(input_data["user_id"], input_data["user_id"], "signup")
+        log_manager.userLogAdder(input_data["user_id"], "signup")
 
         user_network_create_req = JsonResponse(input_data, status=200)
         user_network_create_req['Access-Control-Allow-Origin'] = '*'
@@ -260,9 +260,10 @@ class SignView(APIView):
                 if user.password == input_data['password']:
                     openstack_user_token = oc.user_token(input_data)
                     if openstack_user_token == None:
+                        log_manager.userLogAdder(input_data["user_id"], "signin")
                         return JsonResponse({"apiKey" : apiKey, "secretKey" : secretKey}, status=206)
                     #hash token 해줄 것
-                    log_manager.logAdder(input_data["user_id"], input_data["user_id"], "signin")
+                    log_manager.userLogAdder(input_data["user_id"], "signin")
                     response = JsonResponse({"openstack_user_token" : openstack_user_token, "apiKey" : apiKey, "secretKey" : secretKey}, status=200)
                     response['Access-Control-Allow-Origin'] = '*'
                     return response

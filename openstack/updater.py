@@ -221,6 +221,7 @@ def cloudstackInstanceDeleteAndCreate(user_id, cloudstack_user_apiKey, cloudstac
     # ------------------------------ Total Backup ------------------------------ #
 def backup(cycle):
     import openstack_controller as oc                            # import는 여기 고정 -> 컴파일 시간에 circular import 때문에 걸려서
+    import log_manager
     openstack_hostIP = oc.hostIP
 
     print("this function runs every", cycle, "seconds")
@@ -326,6 +327,7 @@ def backup(cycle):
                     print(serializer.data)
                     backup_img_file_to_db.close()
                     os.remove(backup_instance_id + ".qcow2")
+                    log_manager.instanceLogAdder(user_id, backup_instance_id, "Backuped")
 
                     #------cloudstack instance expunge, template delete & template register, instance deploy------#
                     instance_backup_to_cloudstack_response = cloudstackInstanceDeleteAndCreate(user_id, cloudstack_user_apiKey, cloudstack_user_secretKey, backup_instance_pk, backup_instance_name, cloudstack_user_network_id, backup_img_file_name, backup_instance_os_type)
@@ -358,6 +360,7 @@ def backup(cycle):
                             print(serializer.data)
                             backup_img_file_to_db.close()
                             os.remove(backup_instance_id + ".qcow2")
+                            log_manager.instanceLogAdder(user_id, backup_instance_id, "Backuped")
 
                             #------cloudstack instance expunge, template delete & template register, instance deploy------#
                             instance_backup_to_cloudstack_response = cloudstackInstanceDeleteAndCreate(user_id, cloudstack_user_apiKey, cloudstack_user_secretKey, backup_instance_pk, backup_instance_name, cloudstack_user_network_id, backup_img_file_name, backup_instance_os_type)
@@ -382,6 +385,7 @@ def backup(cycle):
                             print(serializer.data)
                             backup_img_file_to_db.close()
                             os.remove(backup_instance_id + ".qcow2")
+                            log_manager.instanceLogAdder(user_id, backup_instance_id, "Backuped")
                             
                             #------cloudstack template register & instance deploy------#
                             instance_backup_to_cloudstack_response = deployCloudstackInstance(user_id, cloudstack_user_apiKey, cloudstack_user_secretKey, backup_instance_pk, backup_instance_name, cloudstack_user_network_id, backup_img_file_name, backup_instance_os_type)
@@ -403,6 +407,7 @@ def backup(cycle):
                         print(serializer.data)
                         backup_img_file_to_db.close()
                         os.remove(backup_instance_id + ".qcow2")
+                        log_manager.instanceLogAdder(user_id, backup_instance_id, "Backuped")
                         
                         #------cloudstack template register & instance deploy------#
                         instance_backup_to_cloudstack_response = deployCloudstackInstance(user_id, cloudstack_user_apiKey, cloudstack_user_secretKey, backup_instance_pk, backup_instance_name, cloudstack_user_network_id, backup_img_file_name, backup_instance_os_type)
@@ -1178,8 +1183,8 @@ def freezerBackupWithCycle(cycle):
                     return resultData
             except:
                 return "Error!! When trying freezer Backup"
-
             OpenstackInstance.objects.filter(instance_id=backup_instance_id).update(freezer_completed=True)
+
             end_time = time.time()
             print("Freezer backup time: ", f"{end_time - start_time:.5f} sec")
 
@@ -1191,6 +1196,7 @@ def freezerBackupWithCycle(cycle):
 def freezerRestoreWithCycle():
     import time
     import openstack_controller as oc
+    import log_manager
     admin_token = oc.admin_token()
     req_checker = RequestChecker()
 
@@ -1251,6 +1257,7 @@ def freezerRestoreWithCycle():
         
         OpenstackInstance.objects.filter(instance_name=restored_instance_name).update(instance_id=restored_instance_id, instance_name=restored_instance_name,
             stack_id=None, stack_name=None, ip_address=restored_instance_ip_address, status="ACTIVE", image_name="RESTORE"+restored_instance_name, update_image_ID=None, freezer_completed=False)
+        log_manager.instanceLogAdder(restore_instance.user_id, restored_instance_name, "Restored")
 
         end_time = time.time()
         print("Freezer restore time: ", f"{end_time - start_time:.5f} sec")
