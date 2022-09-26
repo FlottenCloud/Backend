@@ -4,10 +4,11 @@ sys.path.append(os.path.dirname(os.path.abspath(os.path.dirname(__file__))))    
 
 import openstack_controller as oc    #백엔드 루트 디렉토리에 openstack.py 생성했고, 그 안에 공통으로 사용될 함수, 변수들 넣을 것임. 아직은 클래스화 안 했음.
 import cloudstack_controller as csc
+import log_manager
 import time
 import json
 import requests
-from .models import AccountInfo
+from .models import AccountInfo, AccountLog
 from django.db.models import Max
 from django.shortcuts import render
 from django.views import View
@@ -148,6 +149,7 @@ class AccountView(APIView):
             cloudstack_network_id = cloudstack_user_network_id,
             cloudstack_network_vlan = cloudstack_user_network_vlan
         )
+        log_manager.logAdder(input_data["user_id"], input_data["user_id"], "signup")
 
         user_network_create_req = JsonResponse(input_data, status=200)
         user_network_create_req['Access-Control-Allow-Origin'] = '*'
@@ -260,6 +262,7 @@ class SignView(APIView):
                     if openstack_user_token == None:
                         return JsonResponse({"apiKey" : apiKey, "secretKey" : secretKey}, status=206)
                     #hash token 해줄 것
+                    log_manager.logAdder(input_data["user_id"], input_data["user_id"], "signin")
                     response = JsonResponse({"openstack_user_token" : openstack_user_token, "apiKey" : apiKey, "secretKey" : secretKey}, status=200)
                     response['Access-Control-Allow-Origin'] = '*'
                     return response

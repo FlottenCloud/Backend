@@ -20,3 +20,13 @@ class AccountInfo(models.Model):
 
     class Meta:
         db_table = 'accounts_info'
+
+class AccountLog(models.Model):
+    # Foreign Key
+    user_id = models.ForeignKey("AccountInfo", related_name="user_log", on_delete=models.CASCADE, db_column="user_id")
+    # log
+    log = models.TextField()
+    log_time = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'user_log'
