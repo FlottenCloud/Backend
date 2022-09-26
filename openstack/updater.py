@@ -202,14 +202,15 @@ def cloudstackInstanceDeleteAndCreate(user_id, cloudstack_user_apiKey, cloudstac
     admin_apiKey = csc.admin_apiKey
     admin_secretKey = csc.admin_secretKey
 
-    del_cloudstack_instance_info = CloudstackInstance.objects.get(instance_name=backup_instance_name)
-    del_instance_id = del_cloudstack_instance_info.instance_id
-    del_template_id = del_cloudstack_instance_info.image_id
-    
-    # 그 전에 생성됐던 백업본 삭제
-    instance_del_req, template_del_req = deleteCloudstackInstanceAndTemplate(admin_apiKey, admin_secretKey, del_instance_id, del_template_id)
-    print("클라우드스택의 백업본 인스턴스 삭제 리스폰스: ", instance_del_req, "\n클라우드스택의 백업본 템플릿 삭제 리스폰스: ", template_del_req)
-    del_cloudstack_instance_info.delete()   # Delete instance information from Database
+    if CloudstackInstance.objects.filter(instance_name=backup_instance_name).exists():  # In case of backup image exists, and cloudstack backup done.
+        del_cloudstack_instance_info = CloudstackInstance.objects.get(instance_name=backup_instance_name)
+        del_instance_id = del_cloudstack_instance_info.instance_id
+        del_template_id = del_cloudstack_instance_info.image_id
+        
+        # 그 전에 생성됐던 백업본 삭제
+        instance_del_req, template_del_req = deleteCloudstackInstanceAndTemplate(admin_apiKey, admin_secretKey, del_instance_id, del_template_id)
+        print("클라우드스택의 백업본 인스턴스 삭제 리스폰스: ", instance_del_req, "\n클라우드스택의 백업본 템플릿 삭제 리스폰스: ", template_del_req)
+        del_cloudstack_instance_info.delete()   # Delete instance information from Database
 
     time.sleep(5)   # 삭제하고 타이밍 얼마나 줄 지 생각해볼 것
     # 삭제 후 다시 템플릿 등록, 인스턴스 생성
@@ -884,7 +885,8 @@ def openstackStackCreate(instance_name, template_name):  # 오픈스택 상의 �
 
 def restoreFromCloudstack(cloudstack_user_apiKey, cloudstack_user_secretKey, cloudstack_instance_id, cloudstack_instance_name, cloudstack_template_name, cloudstack_del_template_id):
     import cloudstack_controller as csc
-
+    
+    CloudstackInstance.objects.filter(instance_id=cloudstack_instance_id).update(status="RESTORING TO OPENSTACK")
     cloudstack_instance_stop_response = stopCloudstackInstance(cloudstack_user_apiKey, cloudstack_user_secretKey, cloudstack_instance_id)    # 실행중인 VM을 중지
     print(cloudstack_instance_stop_response)
 
@@ -1205,6 +1207,7 @@ def freezerRestoreWithCycle():
         print("리스토어할 인스턴스 오브젝트: ", restore_instance)
         restore_instance_id = restore_instance.instance_id
         restore_instance_name = restore_instance.instance_name
+        restore_instance_image_name = restore_instance.image_name
         OpenstackInstance.objects.filter(instance_id=restore_instance_id).update(status="RESTORING")
         print("리스토어할 인스턴스 ID: ", restore_instance_id)
 
@@ -1213,8 +1216,17 @@ def freezerRestoreWithCycle():
         del_stack_name = restore_instance.stack_name
         del_update_image_id = restore_instance.update_image_ID
         del_openstack_tenant_id = restore_instance.user_id.openstack_user_project_id
-        del_error_stack_result = deleteStackBeforeFreezerRestore(del_openstack_tenant_id, del_stack_id, del_stack_name, del_update_image_id)
-        print(del_error_stack_result)
+        if del_stack_id != None:    # In case of error instance is not freezer backuped instance
+            del_error_stack_result = deleteStackBeforeFreezerRestore(del_openstack_tenant_id, del_stack_id, del_stack_name, del_update_image_id)
+            print(del_error_stack_result)
+        else:
+            del_freezer_restored_instance_req = requests.delete("http://" + oc.hostIP + "/compute/v2.1/servers/" + restore_instance_id,
+                headers={'X-Auth-Token': admin_token})
+            del_freezer_restore_image_id = requests.get("http://" + oc.hostIP + "/image/v2/images?name=" + restore_instance_image_name,
+                headers={'X-Auth-Token': admin_token}).json()["images"][0]["id"]
+            del_freezer_restore_image_req = requests.delete("http://" + oc.hostIP + "/image/v2/images/" + del_freezer_restore_image_id,
+                headers={'X-Auth-Token': admin_token})
+            print("Deleted freezer backuped instance", del_freezer_restored_instance_req.status_code, del_freezer_restore_image_req.status_code)
 
         # --------- freezer restore --------- #
         try:
@@ -1345,7 +1357,7 @@ def deleter():
     # AccountInfo.objects.all().delete()
     # OpenstackInstance.objects.all().delete()
     # OpenstackBackupImage.objects.all().delete()
-    # CloudstackInstance.objects.all().delete()
+    CloudstackInstance.objects.all().delete()
     ServerStatusFlag.objects.filter(platform_name="openstack").update(status=True)
     # ServerStatusFlag.objects.get(id=2).delete()
     # OpenstackInstance.objects.get(instance_pk=1).delete()
@@ -1413,7 +1425,7 @@ def dbModifier():
     #     disk_size = 10,
     #     num_cpu = 1
     # )
-    # ServerStatusFlag.objects.filter(platform_name="openstack").update(status=True)
+    ServerStatusFlag.objects.filter(platform_name="openstack").update(status=True)
     print("updated")
 
 
@@ -1425,7 +1437,7 @@ def start():
     
     DjangoServerTime.objects.filter(id=1).update(start_time=time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(time.time())))
     DjangoServerTime.objects.filter(id=1).update(backup_ran=False)
-    scheduler.add_job(backup_all6, 'interval', seconds=660)
+    scheduler.add_job(backup_all6, 'interval', seconds=900)
     scheduler.add_job(freezerRestore6, 'interval', seconds=30)
     scheduler.add_job(openstackServerChecker, 'interval', seconds=60)
 

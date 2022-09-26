@@ -201,11 +201,11 @@ class Instance(RequestChecker):    # 인스턴스 요청에 대한 공통 요소
     def exceedTimeCalculator(self, next_time, next_minute):
         if next_minute >= 60:
             next_time += (next_minute//60)
-            if next_time < 10:
-                next_time = "0" + str(next_time)
             next_minute -= (60*(next_minute//60))
             if next_minute < 10:
                 next_minute = "0" + str(next_minute)
+        if next_time < 10:
+                next_time = "0" + str(next_time)
         return next_time, next_minute
     
     def timeFormatSetter(self, stack_data):
@@ -214,6 +214,7 @@ class Instance(RequestChecker):    # 인스턴스 요청에 대한 공통 요소
             next_time = int(django_server_started_time[11:13])
             next_minute = int(django_server_started_time[14:16]) + oc.backup_interval
             next_time, next_minute = self.exceedTimeCalculator(next_time, next_minute)
+            print(next_time, next_minute)
             next_backup_time = django_server_started_time[:11] + str(next_time) + ":" + str(next_minute)
             stack_data["next_backup_time"] = next_backup_time
         else:
@@ -507,4 +508,4 @@ class Stack(TemplateModifier, Instance):
             print("스택 정보 불러오는 중 예외 발생: ", e)
             raise OpenstackServerError
 
-        return updated_instance_id, updated_instance_name, updated_instance_ip_address, updated_instance_status, updated_instance_image_name, updated_instance_flavor_name, updated_instance_ram_size, updated_disk_size, updated_num_cpu, package_for_db, updated_num_people,  updated_data_size, user_req_backup_time, freezer_restored_instance_snapshotID
+        return updated_instance_id, updated_instance_name, updated_instance_ip_address, updated_instance_status, updated_instance_image_name, updated_instance_flavor_name, updated_instance_ram_size, updated_disk_size, updated_num_cpu, package_for_db, updated_num_people,  updated_data_size, user_req_backup_time, freezer_restored_instance_snapshotID, stack_name, stack_id
