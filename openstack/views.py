@@ -143,15 +143,15 @@ class Openstack(Stack, APIView):
                 return JsonResponse({"message" : "오픈스택 서버에 문제가 생겨 token으로 오픈스택 유저의 정보를 얻어올 수 없습니다."}, status=500)
 
             try:
-                user_instance_info = OpenstackInstance.objects.filter(user_id=user_id)
-                for instance_info in user_instance_info:
-                    if instance_info.status == "ERROR":
-                        continue
-                    instance_req = super().reqChecker("get", "http://" + openstack_hostIP + "/compute/v2.1/servers/" + instance_info.instance_id, token)
-                    if instance_req == None:
-                        return JsonResponse({"message" : "오픈스택 서버에 문제가 생겨 인스턴스의 상태 정보를 가져올 수 없습니다."}, status=500)
-                    instance_status = instance_req.json()["server"]["status"]
-                    OpenstackInstance.objects.filter(instance_id=instance_info.instance_id).update(status=instance_status)
+                # user_instance_info = OpenstackInstance.objects.filter(user_id=user_id)
+                # for instance_info in user_instance_info:
+                #     if instance_info.status == "ERROR":
+                #         continue
+                #     instance_req = super().reqChecker("get", "http://" + openstack_hostIP + "/compute/v2.1/servers/" + instance_info.instance_id, token)
+                #     if instance_req == None:
+                #         return JsonResponse({"message" : "오픈스택 서버에 문제가 생겨 인스턴스의 상태 정보를 가져올 수 없습니다."}, status=500)
+                #     instance_status = instance_req.json()["server"]["status"]
+                #     OpenstackInstance.objects.filter(instance_id=instance_info.instance_id).update(status=instance_status)
 
                 user_stack_data = list(OpenstackInstance.objects.filter(user_id=user_id).values())
                 for stack_data in user_stack_data:
@@ -181,13 +181,16 @@ class Openstack(Stack, APIView):
 
             if stack_data.stack_id != None:     # Freezer로 복원 된 인스턴스가 아닌 경우    -> Stack.stackUpdater()
                 updated_instance_id, updated_instance_name, updated_instance_ip_address, updated_instance_status, updated_instance_image_name, updated_instance_flavor_name, updated_instance_ram_size, updated_disk_size, updated_num_cpu, package_for_db, updated_num_people,  updated_data_size, user_req_backup_time, snapshotID_for_update = super().stackUpdater(openstack_hostIP, input_data, token, user_id)
+                OpenstackInstance.objects.filter(instance_pk=input_data["instance_pk"]).update(instance_id=updated_instance_id, instance_name=updated_instance_name,
+                    ip_address=str(updated_instance_ip_address), status=updated_instance_status, image_name=updated_instance_image_name, flavor_name=updated_instance_flavor_name,
+                    ram_size=updated_instance_ram_size, num_people=updated_num_people, expected_data_size=updated_data_size, disk_size=updated_disk_size, num_cpu=updated_num_cpu, 
+                    package=package_for_db, backup_time=user_req_backup_time, update_image_ID=snapshotID_for_update)
             else:       # Freezer로 복원 된 인스턴스인 경우    -> Stack.stackUpdaterWhenFreezerRestored()
-                updated_instance_id, updated_instance_name, updated_instance_ip_address, updated_instance_status, updated_instance_image_name, updated_instance_flavor_name, updated_instance_ram_size, updated_disk_size, updated_num_cpu, package_for_db, updated_num_people,  updated_data_size, user_req_backup_time, snapshotID_for_update = super().stackUpdaterWhenFreezerRestored(openstack_hostIP, input_data, token, user_id)
-
-            OpenstackInstance.objects.filter(instance_pk=input_data["instance_pk"]).update(instance_id=updated_instance_id, instance_name=updated_instance_name,
-                ip_address=str(updated_instance_ip_address), status=updated_instance_status, image_name=updated_instance_image_name, flavor_name=updated_instance_flavor_name,
-                ram_size=updated_instance_ram_size, num_people=updated_num_people, expected_data_size=updated_data_size, disk_size=updated_disk_size, num_cpu=updated_num_cpu, 
-                package=package_for_db, backup_time=user_req_backup_time, update_image_ID=snapshotID_for_update)
+                updated_instance_id, updated_instance_name, updated_instance_ip_address, updated_instance_status, updated_instance_image_name, updated_instance_flavor_name, updated_instance_ram_size, updated_disk_size, updated_num_cpu, package_for_db, updated_num_people,  updated_data_size, user_req_backup_time, snapshotID_for_update, updated_stack_name, updated_stack_id = super().stackUpdaterWhenFreezerRestored(openstack_hostIP, input_data, token, user_id)
+                OpenstackInstance.objects.filter(instance_pk=input_data["instance_pk"]).update(instance_id=updated_instance_id, instance_name=updated_instance_name, stack_id=updated_stack_id,
+                    stack_name=updated_stack_name, ip_address=str(updated_instance_ip_address), status=updated_instance_status, image_name=updated_instance_image_name,
+                    flavor_name=updated_instance_flavor_name, ram_size=updated_instance_ram_size, num_people=updated_num_people, expected_data_size=updated_data_size, disk_size=updated_disk_size,
+                    num_cpu=updated_num_cpu, package=package_for_db, backup_time=user_req_backup_time, update_image_ID=snapshotID_for_update)
 
         except oc.TokenExpiredError as e:
             print("Token Expired: ", e)
@@ -346,16 +349,16 @@ class DashBoard(RequestChecker, APIView):
                 return JsonResponse({"message" : "오픈스택 서버에 문제가 생겨 token으로 오픈스택 유저의 정보를 얻어올 수 없습니다."}, status=500)
 
             try:
-                user_instance_info = OpenstackInstance.objects.filter(user_id=user_id)
-                for instance_info in user_instance_info:    # 대쉬보드 출력에 status는 굳이 필요없지만, db 정보 최신화를 위해 status 업데이트.
-                    if instance_info.status == "ERROR":
-                        continue
-                    instance_status_req = super().reqChecker("get", "http://" + openstack_hostIP + "/compute/v2.1/servers/" + instance_info.instance_id, token)
-                    if instance_status_req == None:
-                        return JsonResponse({"message" : "오픈스택 서버에 문제가 생겨 리소스 정보를 받아올 수 없습니다."}, status=500)
+                # user_instance_info = OpenstackInstance.objects.filter(user_id=user_id)
+                # for instance_info in user_instance_info:    # 대쉬보드 출력에 status는 굳이 필요없지만, db 정보 최신화를 위해 status 업데이트.
+                #     if instance_info.status == "ERROR":
+                #         continue
+                #     instance_status_req = super().reqChecker("get", "http://" + openstack_hostIP + "/compute/v2.1/servers/" + instance_info.instance_id, token)
+                #     if instance_status_req == None:
+                #         return JsonResponse({"message" : "오픈스택 서버에 문제가 생겨 리소스 정보를 받아올 수 없습니다."}, status=500)
 
-                    instance_status = instance_status_req.json()["server"]["status"]
-                    OpenstackInstance.objects.filter(instance_id=instance_info.instance_id).update(status=instance_status)
+                #     instance_status = instance_status_req.json()["server"]["status"]
+                #     OpenstackInstance.objects.filter(instance_id=instance_info.instance_id).update(status=instance_status)
 
                 num_instances = OpenstackInstance.objects.filter(user_id=user_id).count()
                 total_ram_size = OpenstackInstance.objects.filter(user_id=user_id).aggregate(Sum("ram_size"))   # 여기서부터
@@ -402,6 +405,7 @@ class InstanceStart(Instance, APIView):
                 + "/action", token, json.dumps(server_start_payload))
             if instance_start_req == None:    # "오픈스택과 통신이 안됐을 시(timeout 시)"
                 return JsonResponse({"message" : "오픈스택 서버에 문제가 생겨 해당 동작을 수행할 수 없습니다."}, status=500)
+            OpenstackInstance.objects.filter(instance_id=start_instance_id).update(status="ACTIVE")
 
         except oc.TokenExpiredError as e:
             print("에러 내용: ", e)
@@ -430,6 +434,7 @@ class InstanceStop(Instance, APIView):
                 + "/action", token, json.dumps(server_stop_payload))
             if instance_stop_req == None:    # "오픈스택과 통신이 안됐을 시(timeout 시)"
                 return JsonResponse({"message" : "오픈스택 서버에 문제가 생겨 해당 동작을 수행할 수 없습니다."}, status=500)
+            OpenstackInstance.objects.filter(instance_id=stop_instance_id).update(status="SHUTOFF")
         
 
         except oc.TokenExpiredError as e:
@@ -471,4 +476,4 @@ class InstanceConsole(Instance, APIView):
             print("에러 내용: ", e)
             return JsonResponse({"message" : str(e)}, status=401)
 
-        return JsonResponse({"instance_url" : instance_url}, status=200)
+        return JsonResponse({"instance_url" : instance_url}, status=200)        #git test

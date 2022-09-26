@@ -54,3 +54,4 @@ class ServerStatusFlag(models.Model):
 class DjangoServerTime(models.Model):
     start_time = models.TextField()
     backup_ran = models.BooleanField()
+    backup_ran_time = models.TextField(null=True)

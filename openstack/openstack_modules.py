@@ -204,29 +204,25 @@ class Instance(RequestChecker):    # 인스턴스 요청에 대한 공통 요소
             next_minute -= (60*(next_minute//60))
             if next_minute < 10:
                 next_minute = "0" + str(next_minute)
+        if next_time < 10:
+                next_time = "0" + str(next_time)
         return next_time, next_minute
     
-    def timeFormatSetter(self, stack_data, instance_id):
+    def timeFormatSetter(self, stack_data):
         if DjangoServerTime.objects.get(id=1).backup_ran == False:
             django_server_started_time = DjangoServerTime.objects.get(id=1).start_time[:16]
             next_time = int(django_server_started_time[11:13])
             next_minute = int(django_server_started_time[14:16]) + oc.backup_interval
             next_time, next_minute = self.exceedTimeCalculator(next_time, next_minute)
+            print(next_time, next_minute)
             next_backup_time = django_server_started_time[:11] + str(next_time) + ":" + str(next_minute)
             stack_data["next_backup_time"] = next_backup_time
         else:
-            if OpenstackBackupImage.objects.filter(instance_id=instance_id).exists():
-                backup_ran_time = str(OpenstackBackupImage.objects.get(instance_id=instance_id).updated_at)[:16]
-                next_time = int(backup_ran_time[11:13])
-                next_minute = int(backup_ran_time[14:16]) + oc.backup_interval
-            else:
-                backup_ran_time = DjangoServerTime.objects.get(id=1).start_time[:16]
-                next_time = int(backup_ran_time[11:13])
-                next_minute = int(backup_ran_time[14:16]) + oc.backup_interval*2
-                
+            django_server_backup_ran_time = DjangoServerTime.objects.get(id=1).backup_ran_time[:16]
+            next_time = int(django_server_backup_ran_time[11:13])
+            next_minute = int(django_server_backup_ran_time[14:16]) + oc.backup_interval
             next_time, next_minute = self.exceedTimeCalculator(next_time, next_minute)
-            print(next_time, next_minute)
-            next_backup_time = backup_ran_time[:11] + str(next_time) + ":" + str(next_minute)
+            next_backup_time = django_server_backup_ran_time[:11] + str(next_time) + ":" + str(next_minute)
             stack_data["next_backup_time"] = next_backup_time
         
         return stack_data
@@ -234,10 +230,10 @@ class Instance(RequestChecker):    # 인스턴스 요청에 대한 공통 요소
     def instance_backup_time_show(self, stack_data, instance_id):
         if OpenstackBackupImage.objects.filter(instance_id=instance_id).exists():
             stack_data["backup_completed_time"] = str(OpenstackBackupImage.objects.get(instance_id=instance_id).updated_at)[:16]
-            stack_data = self.timeFormatSetter(stack_data, instance_id)
+            stack_data = self.timeFormatSetter(stack_data)
         else:
             stack_data["backup_completed_time"] = ""
-            stack_data = self.timeFormatSetter(stack_data, instance_id)
+            stack_data = self.timeFormatSetter(stack_data)
         return stack_data
 
 
@@ -512,4 +508,4 @@ class Stack(TemplateModifier, Instance):
             print("스택 정보 불러오는 중 예외 발생: ", e)
             raise OpenstackServerError
 
-        return updated_instance_id, updated_instance_name, updated_instance_ip_address, updated_instance_status, updated_instance_image_name, updated_instance_flavor_name, updated_instance_ram_size, updated_disk_size, updated_num_cpu, package_for_db, updated_num_people,  updated_data_size, user_req_backup_time, freezer_restored_instance_snapshotID
+        return updated_instance_id, updated_instance_name, updated_instance_ip_address, updated_instance_status, updated_instance_image_name, updated_instance_flavor_name, updated_instance_ram_size, updated_disk_size, updated_num_cpu, package_for_db, updated_num_people,  updated_data_size, user_req_backup_time, freezer_restored_instance_snapshotID, stack_name, stack_id
