@@ -476,4 +476,4 @@ class InstanceConsole(Instance, APIView):
             print("에러 내용: ", e)
             return JsonResponse({"message" : str(e)}, status=401)
 
-        return JsonResponse({"instance_url" : instance_url}, status=200)
+        return JsonResponse({"instance_url" : instance_url}, status=200)        #git test
