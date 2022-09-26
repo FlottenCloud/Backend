@@ -4,6 +4,7 @@ sys.path.append(os.path.dirname(os.path.abspath(os.path.dirname(__file__))))    
 
 import openstack_controller as oc    #백엔드 루트 디렉토리에 openstack.py 생성했고, 그 안에 공통으로 사용될 함수, 변수들 넣을 것임.
 import cloudstack_controller as csc
+import log_manager
 from .openstack_modules import *
 import json
 import requests
@@ -117,6 +118,7 @@ class Openstack(Stack, APIView):
             else:
                 print("not saved")
                 print(serializer.errors)
+            log_manager.instanceLogAdder(user_id, instance_name, "Created")
         
         except oc.TokenExpiredError as e:
             print("Token Expired: ", e)
@@ -157,13 +159,11 @@ class Openstack(Stack, APIView):
                 for stack_data in user_stack_data:
                     instance_id = stack_data["instance_id"]
                     stack_data = super().instance_backup_time_show(stack_data, instance_id)
-
                 print(user_stack_data)
 
             except OperationalError:
                 return JsonResponse({[]}, status=200)
         
-
         except oc.TokenExpiredError as e:
             print("에러 내용: ", e)
             return JsonResponse({"message" : str(e)}, status=401)
@@ -191,6 +191,7 @@ class Openstack(Stack, APIView):
                     stack_name=updated_stack_name, ip_address=str(updated_instance_ip_address), status=updated_instance_status, image_name=updated_instance_image_name,
                     flavor_name=updated_instance_flavor_name, ram_size=updated_instance_ram_size, num_people=updated_num_people, expected_data_size=updated_data_size, disk_size=updated_disk_size,
                     num_cpu=updated_num_cpu, package=package_for_db, backup_time=user_req_backup_time, update_image_ID=snapshotID_for_update)
+            log_manager.instanceLogAdder(user_id, updated_instance_name, "Updated")
 
         except oc.TokenExpiredError as e:
             print("Token Expired: ", e)
@@ -249,8 +250,7 @@ class Openstack(Stack, APIView):
                         headers={'X-Auth-Token': admin_token}).json()["images"][0]["id"]
                     del_freezer_restore_image_req = requests.delete("http://" + oc.hostIP + "/image/v2/images/" + del_freezer_restore_image_id,
                         headers={'X-Auth-Token': admin_token})
-                    print("Deleted freezer backuped instance", del_freezer_restored_instance_req.status_code, del_freezer_restore_image_req.status_code)
-                    
+                    print("Deleted freezer backuped instance", del_freezer_restored_instance_req.status_code, del_freezer_restore_image_req.status_code)    
             except Exception as e:
                 print("Error occurred while deleting stack, error message: ", e, " Stack delete response at openstack: ", stack_del_req.status_code)
                 return JsonResponse({"message" : "오픈스택 서버에 문제가 생겨 인스턴스(스택)을 삭제할 수 없습니다."}, status=500)
@@ -283,6 +283,8 @@ class Openstack(Stack, APIView):
                 cloudstack_template_del_req = csc.requestThroughSig(csc.admin_secretKey, cloudstack_template_del_req_body)
                 
                 cloudstack_instance_data.delete()
+
+            log_manager.instanceLogAdder(user_id, del_instance_name, "Deleted")
 
         except oc.TokenExpiredError as e:
             print("에러 내용: ", e)
@@ -393,6 +395,7 @@ class InstanceStart(Instance, APIView):
             
             start_instance_pk = super().checkDataBaseInstanceID(input_data)
             start_instance_id = OpenstackInstance.objects.get(instance_pk=start_instance_pk).instance_id
+            start_instance_name = OpenstackInstance.objects.get(instance_pk=start_instance_pk).instance_name
             if start_instance_pk == None :
                 return JsonResponse({"message" : "인스턴스를 찾을 수 없습니다."}, status=404)
             elif OpenstackInstance.objects.get(instance_pk=start_instance_pk).status == "ERROR" :
@@ -406,6 +409,7 @@ class InstanceStart(Instance, APIView):
             if instance_start_req == None:    # "오픈스택과 통신이 안됐을 시(timeout 시)"
                 return JsonResponse({"message" : "오픈스택 서버에 문제가 생겨 해당 동작을 수행할 수 없습니다."}, status=500)
             OpenstackInstance.objects.filter(instance_id=start_instance_id).update(status="ACTIVE")
+            log_manager.instanceLogAdder(user_id, start_instance_name, "Started")
 
         except oc.TokenExpiredError as e:
             print("에러 내용: ", e)
@@ -424,6 +428,7 @@ class InstanceStop(Instance, APIView):
 
             stop_instance_pk = super().checkDataBaseInstanceID(input_data)
             stop_instance_id = OpenstackInstance.objects.get(instance_pk=stop_instance_pk).instance_id
+            stop_instance_name = OpenstackInstance.objects.get(instance_pk=stop_instance_pk).instance_name
             if stop_instance_id == None :
                 return JsonResponse({"message" : "인스턴스를 찾을 수 없습니다."}, status=404)
 
@@ -435,7 +440,7 @@ class InstanceStop(Instance, APIView):
             if instance_stop_req == None:    # "오픈스택과 통신이 안됐을 시(timeout 시)"
                 return JsonResponse({"message" : "오픈스택 서버에 문제가 생겨 해당 동작을 수행할 수 없습니다."}, status=500)
             OpenstackInstance.objects.filter(instance_id=stop_instance_id).update(status="SHUTOFF")
-        
+            log_manager.instanceLogAdder(user_id, stop_instance_name, "Stopped")
 
         except oc.TokenExpiredError as e:
             print("에러 내용: ", e)
