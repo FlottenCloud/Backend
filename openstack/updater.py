@@ -36,6 +36,7 @@ def errorCheckAndUpdateDBstatus():
         return print("오픈스택 서버가 고장나 에러상태인 인스턴스 리스트를 받아올 수 없습니다.")
     openstack_hostIP = oc.hostIP
     req_checker = RequestChecker()
+    log_manager = InstanceLogManager()
 
     error_instance_list_req = req_checker.reqChecker("get", "http://" + openstack_hostIP + "/compute/v2.1/servers?status=ERROR&all_tenants=1", admin_token)
     print(error_instance_list_req)
@@ -50,8 +51,13 @@ def errorCheckAndUpdateDBstatus():
         return print("에러상태인 인스턴스가 없습니다.")
     
     for error_instance in error_instance_list:
+        user_id = error_instance.user_id.user_id
+        error_instance_pk = error_instance.instance_pk
+        error_instance_name = error_instance.instance_name
         OpenstackInstance.objects.filter(instance_id=error_instance["id"]).update(status="ERROR")
         print("instance " + error_instance["id"] + "에러 감지")
+        log_manager.userLogAdder(user_id, error_instance_name, "Error occurred", "instance")
+        log_manager.instanceLogAdder(error_instance_pk, error_instance_name, "Error occurred")
 
 
 # ------------------------------------------------------------ Backup Part ------------------------------------------------------------ #
@@ -121,7 +127,7 @@ def deployCloudstackInstance(user_id, user_apiKey, user_secretKey, instance_pk, 
     medium_offeringID = csc.medium_offeringID
     log_manager = InstanceLogManager()
     
-    user_id_instance = AccountInfo.objects.get(user_id=user_id)
+    user_id_object = AccountInfo.objects.get(user_id=user_id)
     template_name = instance_name + "Template"
     if os_type == "ubuntu" :     # ubuntu(18.04 LTS)
         os_type_id = "4bfd5052-3c9c-11ed-8341-525400956326"
@@ -152,7 +158,7 @@ def deployCloudstackInstance(user_id, user_apiKey, user_secretKey, instance_pk, 
             created_instance_id = instance_info_res["listvirtualmachinesresponse"]["virtualmachine"][0]["id"]
             created_instance_name = instance_info_res["listvirtualmachinesresponse"]["virtualmachine"][0]["name"]
             created_instance_status = instance_info_res["listvirtualmachinesresponse"]["virtualmachine"][0]["state"]
-            created_instance_ip_address = "10.0.0." + str(CloudstackInstance.objects.filter(user_id=user_id_instance.user_id).count() + 1)
+            created_instance_ip_address = "10.0.0." + str(CloudstackInstance.objects.filter(user_id=user_id_object.user_id).count() + 1)
             created_instance_image_id = instance_info_res["listvirtualmachinesresponse"]["virtualmachine"][0]["templateid"]
             created_instance_flavor_name = "MEDIUM"
             created_instance_ram_size = round(instance_info_res["listvirtualmachinesresponse"]["virtualmachine"][0]["memory"]/1024, 2)
@@ -164,7 +170,7 @@ def deployCloudstackInstance(user_id, user_apiKey, user_secretKey, instance_pk, 
 
     # db에 user_id, instance_id, image_id(template_id), ip_address, instance_name, status, flavor_name(medium 고정일 듯), ram_size(1G고정일 듯), disk_size, num_cpu 저장
     CloudstackInstance.objects.create(
-        user_id = user_id_instance,
+        user_id = user_id_object,
         instance_id = created_instance_id,
         instance_pk = instance_pk,
         instance_name = created_instance_name,
@@ -176,7 +182,7 @@ def deployCloudstackInstance(user_id, user_apiKey, user_secretKey, instance_pk, 
         disk_size = created_instance_disk_size,
         num_cpu = created_instance_num_cpu
     )
-    log_manager.userLogAdder(user_id_instance, created_instance_name, "Backup(to cloudstack)", "instance")
+    log_manager.userLogAdder(user_id_object.user_id, created_instance_name, "Backup(to cloudstack)", "instance")
     log_manager.instanceLogAdder(instance_pk, created_instance_name, "Backup(to cloudstack)")
     
     print("Created Instance " + backup_img_file_name + " to cloudstack")
@@ -895,7 +901,7 @@ def restoreFromCloudstack(cloudstack_user_apiKey, cloudstack_user_secretKey, clo
     import cloudstack_controller as csc
     log_manager = InstanceLogManager()
     
-    user_id = AccountInfo.objects.get(apiKey=cloudstack_user_apiKey)
+    user_id = AccountInfo.objects.get(apiKey=cloudstack_user_apiKey).user_id
     instance_pk = CloudstackInstance.objects.get(instance_id=cloudstack_instance_id).instance_pk
     CloudstackInstance.objects.filter(instance_id=cloudstack_instance_id).update(status="RESTORING TO OPENSTACK")
     cloudstack_instance_stop_response = stopCloudstackInstance(cloudstack_user_apiKey, cloudstack_user_secretKey, cloudstack_instance_id)    # 실행중인 VM을 중지
@@ -1173,7 +1179,7 @@ def freezerBackupWithCycle(cycle):
         backup_instance_list = OpenstackInstance.objects.filter(freezer_completed=False).filter(backup_time=cycle)
         for instance in backup_instance_list:
             start_time = time.time()    # 시간 측정용
-            user_id = instance.user_id
+            user_id = instance.user_id.user_id
             instance_pk = instance.instance_pk
             instance_name = instance.instance_name
             if instance.status == "ERROR" or  instance.status == "RESTORING":
@@ -1211,9 +1217,9 @@ def freezerBackupWithCycle(cycle):
 def freezerRestoreWithCycle():
     import time
     import openstack_controller as oc
-    import log_manager
     admin_token = oc.admin_token()
     req_checker = RequestChecker()
+    log_manager = InstanceLogManager()
 
     print("freezerRestore function Start!!")
     error_instance_count = OpenstackInstance.objects.filter(status="ERROR").count()
@@ -1226,7 +1232,7 @@ def freezerRestoreWithCycle():
     for restore_instance in restore_instance_list:  # 프리저로 백업됐고 에러가 난 인스턴스에 대해
         start_time = time.time()
         print("리스토어할 인스턴스 오브젝트: ", restore_instance)
-        user_id = restore_instance.user_id
+        user_id = restore_instance.user_id.user_id
         instance_pk = restore_instance.instance_pk
         restore_instance_id = restore_instance.instance_id
         restore_instance_name = restore_instance.instance_name
