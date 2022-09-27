@@ -147,6 +147,7 @@ class Openstack(Stack, APIView):
                 return JsonResponse({"message" : "오픈스택 서버에 문제가 생겨 token으로 오픈스택 유저의 정보를 얻어올 수 없습니다."}, status=500)
             q = Q()     # Query를 통한 가상머신 검색을 위한 where 절
             query_instance_name = request.GET.get("instance_name", None)    # Query에 instance_name있는지 확인
+            print("Instance name for search: ", query_instance_name)
 
             try:
                 # user_instance_info = OpenstackInstance.objects.filter(user_id=user_id)
@@ -167,6 +168,10 @@ class Openstack(Stack, APIView):
 
                 if query_instance_name:   # Query에 가상머신 이름이 있으면
                     q &= Q(instance_name=query_instance_name)   # where절을 통해 해당 가상머신만 추출
+                    print("Searched instance is")
+                    searched_instance = list(OpenstackInstance.objects.filter(q).values())
+                    print(searched_instance)
+                    return JsonResponse({"instance" : searched_instance}, status=200)
 
             except OperationalError:
                 return JsonResponse({[]}, status=200)

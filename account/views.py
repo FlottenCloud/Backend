@@ -288,7 +288,7 @@ class LogView(APIView):
     user_id = openapi.Parameter('user_id', openapi.IN_PATH, description='User ID to get log', required=True, type=openapi.TYPE_STRING)
 
     @swagger_auto_schema(tags=["User Log API"], manual_parameters=[user_id], responses={200:"Success"})
-    def get(self, user_id):
+    def get(self, request, user_id):
         res = list(AccountLog.objects.filter(user_id=user_id).values())
 
         return JsonResponse({"log" : res}, status=200)
