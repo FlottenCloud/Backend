@@ -13,9 +13,8 @@ import webbrowser
 from apscheduler.schedulers.background import BackgroundScheduler
 from django.core.files import File
 from django.http import JsonResponse
+from log_manager import InstanceLogManager
 from account.models import AccountInfo
-from openstack import serializers
-
 from openstack.models import OpenstackBackupImage, OpenstackInstance, ServerStatusFlag, DjangoServerTime
 from cloudstack.models import CloudstackInstance
 from openstack.serializers import OpenstackInstanceSerializer,OpenstackBackupImageSerializer
@@ -120,6 +119,7 @@ def deployCloudstackInstance(user_id, user_apiKey, user_secretKey, instance_pk, 
     hostID = csc.hostID
     small_offeringID = csc.small_offeringID
     medium_offeringID = csc.medium_offeringID
+    log_manager = InstanceLogManager()
     
     user_id_instance = AccountInfo.objects.get(user_id=user_id)
     template_name = instance_name + "Template"
@@ -176,6 +176,7 @@ def deployCloudstackInstance(user_id, user_apiKey, user_secretKey, instance_pk, 
         disk_size = created_instance_disk_size,
         num_cpu = created_instance_num_cpu
     )
+    
     print("Created Instance " + backup_img_file_name + " to cloudstack")
 
     return "클라우드 스택으로 인스턴스 백업 완료"

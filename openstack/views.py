@@ -163,15 +163,17 @@ class Openstack(InstanceLogManager, Stack, APIView):
                 #     OpenstackInstance.objects.filter(instance_id=instance_info.instance_id).update(status=instance_status)
                 user_stack_data = list(OpenstackInstance.objects.filter(user_id=user_id).values())
                 for stack_data in user_stack_data:
-                    instance_id = stack_data["instance_id"]
-                    stack_data = super().instance_backup_time_show(stack_data, instance_id)
+                    instance_pk = stack_data["instance_pk"]
+                    stack_data = super().instance_backup_time_show(stack_data, instance_pk)
                 print(user_stack_data)
 
                 if query_instance_name:   # Query에 가상머신 이름이 있으면
                     q &= Q(instance_name=query_instance_name)   # where절을 통해 해당 가상머신만 추출
                     print("Searched instance is")
                     searched_instance = list(OpenstackInstance.objects.filter(q).values())
+                    instance_pk = searched_instance[0]["instance_pk"]
                     print(searched_instance)
+                    searched_instance[0] = super().instance_backup_time_show(searched_instance[0], instance_pk)
                     return JsonResponse({"instance" : searched_instance}, status=200)
 
             except OperationalError:

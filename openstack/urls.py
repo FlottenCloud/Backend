@@ -12,5 +12,3 @@ urlpatterns = [
     path('instance-stop/', views.InstanceStop.as_view()),   # 인스턴스 stop btn에 붙일 url
     path('instance-console/', views.InstanceConsole.as_view()),
 ]
-
-# 단건 get 만들기.
