@@ -4,8 +4,7 @@ sys.path.append(os.path.dirname(os.path.abspath(os.path.dirname(__file__))))    
 
 import openstack_controller as oc    #백엔드 루트 디렉토리에 openstack.py 생성했고, 그 안에 공통으로 사용될 함수, 변수들 넣을 것임. 아직은 클래스화 안 했음.
 import cloudstack_controller as csc
-import log_manager
-import time
+from log_manager import UserLogManager
 import json
 import requests
 from .models import AccountInfo, AccountLog
@@ -52,7 +51,7 @@ cloudstack_user_secretKey = openapi.Parameter(   # for django swagger
 )
 
 # request django url = /account/
-class AccountView(APIView):
+class AccountView(UserLogManager, APIView):
     @swagger_auto_schema(tags=["User API"], request_body=UserRegisterSerializer, responses={200:"Success", 404:"Not Found", 409:"Conflict"})
     def post(self, cloudstack_account_make_req_body):
         input_data = json.loads(cloudstack_account_make_req_body.body)
@@ -150,7 +149,7 @@ class AccountView(APIView):
             cloudstack_network_id = cloudstack_user_network_id,
             cloudstack_network_vlan = cloudstack_user_network_vlan
         )
-        log_manager.userLogAdder(input_data["user_id"], "Sign Up")
+        super().userLogAdder(input_data["user_id"], input_data["user_id"], "Sign Up", "user")
 
         user_network_create_req = JsonResponse(input_data, status=200)
         user_network_create_req['Access-Control-Allow-Origin'] = '*'
@@ -249,7 +248,7 @@ class AccountView(APIView):
         return JsonResponse({"message" : "회원탈퇴가 완료되었습니다."}, status=200)
 
 # request django url = /account/login/
-class SignView(APIView):
+class SignView(UserLogManager, APIView):
     @swagger_auto_schema(tags=["User SignIn API"], request_body=UserSignInSerializer, responses={200:"Success", 206:"Partial Content", 400:"Bad Request", 401:"Not Allowed"})
     def post(self, request):
         input_data = json.loads(request.body)
@@ -262,10 +261,10 @@ class SignView(APIView):
                 if user.password == input_data['password']:
                     openstack_user_token = oc.user_token(input_data)
                     if openstack_user_token == None:
-                        log_manager.userLogAdder(input_data["user_id"], "Sign In")
+                        super().userLogAdder(input_data["user_id"], input_data["user_id"], "Sign In", "user")
                         return JsonResponse({"apiKey" : apiKey, "secretKey" : secretKey}, status=206)
                     #hash token 해줄 것
-                    log_manager.userLogAdder(input_data["user_id"], "Sign In")
+                    super().userLogAdder(input_data["user_id"], input_data["user_id"], "Sign In", "user")
                     response = JsonResponse({"openstack_user_token" : openstack_user_token, "apiKey" : apiKey, "secretKey" : secretKey}, status=200)
                     response['Access-Control-Allow-Origin'] = '*'
                     return response

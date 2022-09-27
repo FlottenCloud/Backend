@@ -2,8 +2,10 @@ from sqlite3 import OperationalError
 import json
 from bs4 import BeautifulSoup
 import cloudstack_controller as csc
-import log_manager
+from log_manager import InstanceLogManager
 from django.db.models import Q
+
+from openstack.models import InstanceLog
 from .models import CloudstackInstance
 from account.models import AccountLog
 from django.db.models import Sum
@@ -90,7 +92,7 @@ class CloudstackInstanceInfo(APIView):
         return response
 
 # request django url = /cloudstack/log/<int:instance_pk>/
-class CloudstackInstanceLog(APIView):
+class CloudstackInstanceLogShower(APIView):
     instance_pk = openapi.Parameter('instance_pk', openapi.IN_PATH, description='Instance ID to get info', required=True, type=openapi.TYPE_INTEGER)
 
     @swagger_auto_schema(tags=["Cloudstack Instance Log API"], manual_parameters=[instance_pk], responses={200:"Success", 404:"Not Found"})
@@ -98,13 +100,10 @@ class CloudstackInstanceLog(APIView):
         apiKey = request.headers["apiKey"]
         user_id = AccountInfo.objects.filter(cloudstack_apiKey=apiKey)[0].user_id
         try:
-            instance_object = CloudstackInstance.objects.get(instance_pk=instance_pk)
-            instance_name = instance_object.instance_name
+            instance_log = list(InstanceLog.objects.filter(instance_pk=instance_pk).values())
         except Exception as e:
             print("인스턴스 정보 조회 중 예외 발생: ", e)
             return JsonResponse({"message" : "해당 가상머신이 존재하지 않습니다."}, status=404)
-
-        instance_log = list(AccountLog.objects.filter(instance_name=instance_name).values())
  
         return JsonResponse({"log" : instance_log}, status=200)
 
@@ -136,7 +135,7 @@ class DashBoard(APIView):
         return JsonResponse(dashboard_data)
 
 
-class InstanceStart(APIView):
+class InstanceStart(InstanceLogManager, APIView):
     @swagger_auto_schema(tags=["Cloudstack Instance API"], manual_parameters=[cloudstack_user_apiKey, cloudstack_user_secretKey], request_body=CloudstackInstanceIDSerializer, responses={202:"Accepted", 404:"Not Found"})
     def post(self, request):    # header: apiKey, secretKey, body: instance_id
         apiKey = request.headers["apiKey"]
@@ -152,11 +151,12 @@ class InstanceStart(APIView):
         instance_start_req = csc.requestThroughSig(secretKey, instance_start_req_body)
         
         CloudstackInstance.objects.filter(instance_id=start_instance_id).update(status="ACTIVE")
-        log_manager.instanceLogAdder(user_id, start_instance_name, "Started")
+        super().userLogAdder(user_id, start_instance_name, "Started", "instance")
+        super().instanceLogAdder(start_instance_pk, start_instance_name, "Started")
         
         return JsonResponse({"message" : "가상머신 시작"}, status=202)
 
-class InstanceStop(APIView):
+class InstanceStop(InstanceLogManager, APIView):
     @swagger_auto_schema(tags=["Cloudstack Instance API"], manual_parameters=[cloudstack_user_apiKey, cloudstack_user_secretKey], request_body=CloudstackInstanceIDSerializer, responses={202:"Accepted", 404:"Not Found"})
     def post(self, request):    # header: apiKey, secretKey, body: instance_id
         apiKey = request.headers["apiKey"]
@@ -164,7 +164,7 @@ class InstanceStop(APIView):
         stop_instance_pk = json.loads(request.body)["instance_pk"]
         user_id = CloudstackInstance.objects.get(instance_pk=stop_instance_pk).user_id
         stop_instance_id = CloudstackInstance.objects.get(instance_pk=stop_instance_pk).instance_id
-        start_instance_name = CloudstackInstance.objects.get(instance_pk=stop_instance_pk).instance_name
+        stop_instance_name = CloudstackInstance.objects.get(instance_pk=stop_instance_pk).instance_name
         if stop_instance_id == None :
             return JsonResponse({"message" : "인스턴스를 찾을 수 없습니다."}, status=404)
 
@@ -172,7 +172,8 @@ class InstanceStop(APIView):
         instance_stop_req = csc.requestThroughSig(secretKey, instance_stop_req_body)
         
         CloudstackInstance.objects.filter(instance_id=stop_instance_id).update(status="SHUTOFF")
-        log_manager.instanceLogAdder(user_id, start_instance_name, "Stopped")
+        super().userLogAdder(user_id, stop_instance_name, "Stopped", "instance")
+        super().instanceLogAdder(stop_instance_pk, stop_instance_name, "Stopped")
         
         return JsonResponse({"message" : "가상머신 정지"}, status=202)
 

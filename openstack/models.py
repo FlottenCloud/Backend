@@ -34,6 +34,17 @@ class OpenstackInstance(models.Model):  #유저와 연관짓기 위한 외래키
     class Meta:
         db_table = 'openstack_instance'
 
+class InstanceLog(models.Model):
+    # Foreign key(instance - image-log)
+    instance_pk = models.ForeignKey("OpenstackInstance", related_name="instance_log", on_delete=models.CASCADE, db_column="instance_pk")
+    # instance log
+    instance_name = models.CharField(max_length=50)
+    log = models.TextField()
+    log_time = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'instance_log'
+
 class OpenstackBackupImage(models.Model):
     # Foreign key(instance - image-file)
     instance_pk = models.ForeignKey("OpenstackInstance", related_name="instance_backup_img_file", on_delete=models.CASCADE, db_column="instance_pk")
@@ -51,7 +62,13 @@ class ServerStatusFlag(models.Model):
     platform_name = models.CharField(max_length=50)
     status = models.BooleanField()
 
+    class Meta:
+        db_table = 'server_status'
+
 class DjangoServerTime(models.Model):
     start_time = models.TextField()
     backup_ran = models.BooleanField()
     backup_ran_time = models.TextField(null=True)
+
+    class Meta:
+        db_table = 'django_server_time'

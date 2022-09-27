@@ -4,14 +4,13 @@ sys.path.append(os.path.dirname(os.path.abspath(os.path.dirname(__file__))))    
 
 import openstack_controller as oc    #백엔드 루트 디렉토리에 openstack.py 생성했고, 그 안에 공통으로 사용될 함수, 변수들 넣을 것임.
 import cloudstack_controller as csc
-import log_manager
+from log_manager import InstanceLogManager
 from .openstack_modules import *
 import json
 import requests
 from sqlite3 import OperationalError
 from django.db.models import Q
-from .models import OpenstackBackupImage, OpenstackInstance, ServerStatusFlag, DjangoServerTime
-from account.models import AccountLog
+from .models import OpenstackInstance, OpenstackBackupImage, InstanceLog, ServerStatusFlag, DjangoServerTime
 from cloudstack.models import CloudstackInstance
 import account.models
 from django.db.models import Sum
@@ -34,7 +33,7 @@ openstack_user_token = openapi.Parameter(   # for django swagger
 )
 
 # request django url = /openstack/      인스턴스 CRUD 로직
-class Openstack(Stack, APIView):
+class Openstack(InstanceLogManager, Stack, APIView):
     @swagger_auto_schema(tags=["Openstack API"], manual_parameters=[openstack_user_token], request_body=CreateStackSerializer, responses={200:"Success", 400:"Bad Request", 401:"Unauthorized", 404:"Not Found", 409:"Conflict", 500:"Internal Server Error"})
     def post(self, request):   # header: user_token, body: 요구사항({os, package[], num_people, data_size, instance_name, backup_time})
         stack_template_root = "templates/"
@@ -120,7 +119,10 @@ class Openstack(Stack, APIView):
             else:
                 print("not saved")
                 print(serializer.errors)
-            log_manager.instanceLogAdder(user_id, instance_name, "Created")
+
+            instance_pk = OpenstackInstance.objects.get(instance_id=instance_id)    # 로그 저장을 위해 인스턴스 생성된 인스턴스의 pk값 받아옴
+            super().userLogAdder(user_id, instance_name, "Created", "instance")
+            super().instanceLogAdder(instance_pk, instance_name, "Created")
         
         except oc.TokenExpiredError as e:
             print("Token Expired: ", e)
@@ -202,7 +204,9 @@ class Openstack(Stack, APIView):
                     stack_name=updated_stack_name, ip_address=str(updated_instance_ip_address), status=updated_instance_status, image_name=updated_instance_image_name,
                     flavor_name=updated_instance_flavor_name, ram_size=updated_instance_ram_size, num_people=updated_num_people, expected_data_size=updated_data_size, disk_size=updated_disk_size,
                     num_cpu=updated_num_cpu, package=package_for_db, backup_time=user_req_backup_time, update_image_ID=snapshotID_for_update)
-            log_manager.instanceLogAdder(user_id, updated_instance_name, "Updated")
+
+            super().userLogAdder(user_id, updated_instance_name, "Updated", "instance")
+            super().instanceLogAdder(input_data["instance_pk"], updated_instance_name, "Updated")
 
         except oc.TokenExpiredError as e:
             print("Token Expired: ", e)
@@ -295,7 +299,7 @@ class Openstack(Stack, APIView):
                 
                 cloudstack_instance_data.delete()
 
-            log_manager.instanceLogAdder(user_id, del_instance_name, "Deleted")
+            super().userLogAdder(user_id, del_instance_name, "Deleted", "instance")
 
         except oc.TokenExpiredError as e:
             print("에러 내용: ", e)
@@ -349,7 +353,7 @@ class InstanceInfo(Instance, APIView):
         return response
 
 # request django url = /openstack/log/<int:instance_pk>/
-class InstanceLog(APIView):
+class InstanceLogShower(APIView):
     instance_pk = openapi.Parameter('instance_pk', openapi.IN_PATH, description='Instance ID to get info', required=True, type=openapi.TYPE_INTEGER)
     
     @swagger_auto_schema(tags=["Openstack Instance Log API"], manual_parameters=[openstack_user_token, instance_pk], responses={200:"Success", 401:"Unauthorized", 500:"Internal Server Error"})
@@ -359,8 +363,7 @@ class InstanceLog(APIView):
             if user_id == None:
                 return JsonResponse({"message" : "오픈스택 서버에 문제가 생겨 인스턴스 정보를 불러올 수 없습니다."}, status=500)
             try:
-                instance_name = OpenstackInstance.objects.get(instance_pk=instance_pk).instance_name
-                instance_log = list(AccountLog.objects.filter(instance_name=instance_name).values())
+                instance_log = list(InstanceLog.objects.filter(instance_pk=instance_pk).values())
             except Exception as e:
                 print("인스턴스 정보 조회 중 예외 발생: ", e)
                 return JsonResponse({"message" : "해당 가상머신이 존재하지 않습니다."}, status=500)
@@ -419,7 +422,7 @@ class DashBoard(RequestChecker, APIView):
         return JsonResponse(dashboard_data)
 
 
-class InstanceStart(Instance, APIView):
+class InstanceStart(InstanceLogManager, Instance, APIView):
     @swagger_auto_schema(tags=["Openstack Instance API"], manual_parameters=[openstack_user_token], request_body=InstancePKSerializer, responses={202:"Accepted", 401:"Unauthorized", 404:"Not Found", 500:"Internal Server Error"})
     def post(self, request):    # header: user_token, body: instance_pk
         try:
@@ -443,7 +446,8 @@ class InstanceStart(Instance, APIView):
             if instance_start_req == None:    # "오픈스택과 통신이 안됐을 시(timeout 시)"
                 return JsonResponse({"message" : "오픈스택 서버에 문제가 생겨 해당 동작을 수행할 수 없습니다."}, status=500)
             OpenstackInstance.objects.filter(instance_id=start_instance_id).update(status="ACTIVE")
-            log_manager.instanceLogAdder(user_id, start_instance_name, "Started")
+            super().userLogAdder(user_id, start_instance_name, "Started", "instance")
+            super().instanceLogAdder(input_data["instance_pk"], start_instance_name, "Started")
 
         except oc.TokenExpiredError as e:
             print("에러 내용: ", e)
@@ -452,7 +456,7 @@ class InstanceStart(Instance, APIView):
         return JsonResponse({"message" : "가상머신 시작"}, status=202)
 
 
-class InstanceStop(Instance, APIView):
+class InstanceStop(InstanceLogManager, Instance, APIView):
     @swagger_auto_schema(tags=["Openstack Instance API"], manual_parameters=[openstack_user_token], request_body=InstancePKSerializer, responses={202:"Accepted", 401:"Unauthorized", 404:"Not Found", 500:"Internal Server Error"})
     def post(self, request):    # header: user_token, body: instance_pk
         try:
@@ -474,7 +478,8 @@ class InstanceStop(Instance, APIView):
             if instance_stop_req == None:    # "오픈스택과 통신이 안됐을 시(timeout 시)"
                 return JsonResponse({"message" : "오픈스택 서버에 문제가 생겨 해당 동작을 수행할 수 없습니다."}, status=500)
             OpenstackInstance.objects.filter(instance_id=stop_instance_id).update(status="SHUTOFF")
-            log_manager.instanceLogAdder(user_id, stop_instance_name, "Stopped")
+            super().userLogAdder(user_id, stop_instance_name, "Stopped", "instance")
+            super().instanceLogAdder(input_data["instance_pk"], stop_instance_name, "Stopped")
 
         except oc.TokenExpiredError as e:
             print("에러 내용: ", e)
