@@ -174,6 +174,7 @@ class Openstack(InstanceLogManager, Stack, APIView):
                     instance_pk = searched_instance[0]["instance_pk"]
                     print(searched_instance)
                     searched_instance[0] = super().instance_backup_time_show(searched_instance[0], instance_pk)
+
                     return JsonResponse({"instance" : searched_instance}, status=200)
 
             except OperationalError:
@@ -347,7 +348,7 @@ class InstanceInfo(Instance, APIView):
             "ip_address" : object_ip_address, "status" : object_status, "image_name" : object_image_name, "os" : object_os, "flavor_name" : object_flavor_name, "ram_size" : object_ram_size,
             "num_people" : object_num_people, "expected_data_size" : object_data_size, "disk_size" : object_disk_size, "num_cpu" : object_num_cpu, "backup_time" : object_backup_time, "package" : object_package,
             "update_image" : object_update_image_id}
-        instance_info = super().instance_backup_time_show(instance_info, object_instance_id)
+        instance_info = super().instance_backup_time_show(instance_info, object_instance_pk)
         print(instance_info)
         
         response = JsonResponse(instance_info, status=200)
