@@ -41,12 +41,15 @@ class Cloudstack(APIView):
             q = Q()     # Query를 통한 가상머신 검색을 위한 where 절
             query_instance_name = request.GET.get("instance_name", None)    # Query에 instance_name있는지 확인
 
-            user_instance_info_list = list(CloudstackInstance.objects.filter(user_id=cloudstack_user_id).values())
-            print(user_instance_info_list)
-        
             if query_instance_name:   # Query에 가상머신 이름이 있으면
                 q &= Q(instance_name=query_instance_name)   # where절을 통해 해당 가상머신만 추출
+                print("Searched instance is")
+                searched_instance = list(Cloudstack.objects.filter(q).values())
+                print(searched_instance)
                 return JsonResponse({"instance" : q}, status=200)
+                
+            user_instance_info_list = list(CloudstackInstance.objects.filter(user_id=cloudstack_user_id).values())
+            print(user_instance_info_list)
 
         except OperationalError:
             return JsonResponse({[]}, status=200)
