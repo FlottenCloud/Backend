@@ -336,7 +336,6 @@ def backup(cycle):
                     print(serializer.data)
                     backup_img_file_to_db.close()
                     os.remove(backup_instance_id + ".qcow2")
-                    log_manager.instanceLogAdder(user_id, backup_instance_id, "Backuped")
 
                     #------cloudstack instance expunge, template delete & template register, instance deploy------#
                     instance_backup_to_cloudstack_response = cloudstackInstanceDeleteAndCreate(user_id, cloudstack_user_apiKey, cloudstack_user_secretKey, backup_instance_pk, backup_instance_name, cloudstack_user_network_id, backup_img_file_name, backup_instance_os_type)
@@ -369,7 +368,6 @@ def backup(cycle):
                             print(serializer.data)
                             backup_img_file_to_db.close()
                             os.remove(backup_instance_id + ".qcow2")
-                            log_manager.instanceLogAdder(user_id, backup_instance_id, "Backuped")
 
                             #------cloudstack instance expunge, template delete & template register, instance deploy------#
                             instance_backup_to_cloudstack_response = cloudstackInstanceDeleteAndCreate(user_id, cloudstack_user_apiKey, cloudstack_user_secretKey, backup_instance_pk, backup_instance_name, cloudstack_user_network_id, backup_img_file_name, backup_instance_os_type)
@@ -394,7 +392,6 @@ def backup(cycle):
                             print(serializer.data)
                             backup_img_file_to_db.close()
                             os.remove(backup_instance_id + ".qcow2")
-                            log_manager.instanceLogAdder(user_id, backup_instance_id, "Backuped")
                             
                             #------cloudstack template register & instance deploy------#
                             instance_backup_to_cloudstack_response = deployCloudstackInstance(user_id, cloudstack_user_apiKey, cloudstack_user_secretKey, backup_instance_pk, backup_instance_name, cloudstack_user_network_id, backup_img_file_name, backup_instance_os_type)
@@ -416,7 +413,6 @@ def backup(cycle):
                         print(serializer.data)
                         backup_img_file_to_db.close()
                         os.remove(backup_instance_id + ".qcow2")
-                        log_manager.instanceLogAdder(user_id, backup_instance_id, "Backuped")
                         
                         #------cloudstack template register & instance deploy------#
                         instance_backup_to_cloudstack_response = deployCloudstackInstance(user_id, cloudstack_user_apiKey, cloudstack_user_secretKey, backup_instance_pk, backup_instance_name, cloudstack_user_network_id, backup_img_file_name, backup_instance_os_type)
