@@ -182,8 +182,8 @@ def deployCloudstackInstance(user_id, user_apiKey, user_secretKey, instance_pk, 
         disk_size = created_instance_disk_size,
         num_cpu = created_instance_num_cpu
     )
-    log_manager.userLogAdder(user_id_object.user_id, created_instance_name, "Backup(to cloudstack)", "instance")
-    log_manager.instanceLogAdder(instance_pk, created_instance_name, "Backup(to cloudstack)")
+    log_manager.userLogAdder(user_id_object.user_id, created_instance_name, "Backuped(to cloudstack)", "instance")
+    log_manager.instanceLogAdder(instance_pk, created_instance_name, "Backuped(to cloudstack)")
     
     print("Created Instance " + backup_img_file_name + " to cloudstack")
 
