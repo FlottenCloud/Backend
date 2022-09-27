@@ -46,6 +46,9 @@ class Cloudstack(APIView):
         
             if query_instance_name:   # Query에 가상머신 이름이 있으면
                 q &= Q(instance_name=query_instance_name)   # where절을 통해 해당 가상머신만 추출
+                print("Searched instance is")
+                searched_instance = list(Cloudstack.objects.filter(q).values())
+                print(searched_instance)
                 return JsonResponse({"instance" : q}, status=200)
 
         except OperationalError:
