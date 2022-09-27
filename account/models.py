@@ -25,7 +25,6 @@ class AccountLog(models.Model):
     # Foreign Key
     user_id = models.ForeignKey("AccountInfo", related_name="user_log", on_delete=models.CASCADE, db_column="user_id")
     # log
-    agent = models.TextField(null=True)
     log = models.TextField()
     log_time = models.DateTimeField(auto_now=True)
 
