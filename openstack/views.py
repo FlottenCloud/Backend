@@ -159,18 +159,18 @@ class Openstack(Stack, APIView):
                 #         return JsonResponse({"message" : "오픈스택 서버에 문제가 생겨 인스턴스의 상태 정보를 가져올 수 없습니다."}, status=500)
                 #     instance_status = instance_req.json()["server"]["status"]
                 #     OpenstackInstance.objects.filter(instance_id=instance_info.instance_id).update(status=instance_status)
+                user_stack_data = list(OpenstackInstance.objects.filter(user_id=user_id).values())
+                for stack_data in user_stack_data:
+                    instance_id = stack_data["instance_id"]
+                    stack_data = super().instance_backup_time_show(stack_data, instance_id)
+                print(user_stack_data)
+
                 if query_instance_name:   # Query에 가상머신 이름이 있으면
                     q &= Q(instance_name=query_instance_name)   # where절을 통해 해당 가상머신만 추출
                     print("Searched instance is")
                     searched_instance = list(OpenstackInstance.objects.filter(q).values())
                     print(searched_instance)
                     return JsonResponse({"instance" : searched_instance}, status=200)
-                
-                user_stack_data = list(OpenstackInstance.objects.filter(user_id=user_id).values())
-                for stack_data in user_stack_data:
-                    instance_id = stack_data["instance_id"]
-                    stack_data = super().instance_backup_time_show(stack_data, instance_id)
-                print(user_stack_data)
 
             except OperationalError:
                 return JsonResponse({[]}, status=200)
