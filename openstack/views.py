@@ -120,7 +120,7 @@ class Openstack(InstanceLogManager, Stack, APIView):
                 print("not saved")
                 print(serializer.errors)
 
-            instance_pk = OpenstackInstance.objects.get(instance_id=instance_id)    # 로그 저장을 위해 인스턴스 생성된 인스턴스의 pk값 받아옴
+            instance_pk = OpenstackInstance.objects.get(instance_id=instance_id).instance_pk    # 로그 저장을 위해 인스턴스 생성된 인스턴스의 pk값 받아옴
             super().userLogAdder(user_id, instance_name, "Created", "instance")
             super().instanceLogAdder(instance_pk, instance_name, "Created")
         

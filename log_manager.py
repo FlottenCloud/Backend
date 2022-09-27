@@ -18,7 +18,7 @@ class UserLogManager:
 class InstanceLogManager(UserLogManager):
     def instanceLogAdder(self, instance_pk, instance_name, behavior):
         InstanceLog.objects.create(
-            instance_pk = instance_pk,
+            instance_pk = OpenstackInstance.objects.get(instance_pk=instance_pk),
             instance_name = instance_name,
             log = behavior
         )
