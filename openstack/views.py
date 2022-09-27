@@ -10,6 +10,7 @@ import json
 import requests
 from sqlite3 import OperationalError
 from .models import OpenstackBackupImage, OpenstackInstance, ServerStatusFlag, DjangoServerTime
+from account.models import AccountLog
 from cloudstack.models import CloudstackInstance
 import account.models
 from django.db.models import Sum
@@ -296,7 +297,7 @@ class Openstack(Stack, APIView):
 class InstanceInfo(Instance, APIView):
     instance_pk = openapi.Parameter('instance_pk', openapi.IN_PATH, description='Instance ID to get info', required=True, type=openapi.TYPE_INTEGER)
     
-    @swagger_auto_schema(ta0gs=["Openstack API"], manual_parameters=[openstack_user_token, instance_pk], responses={200:"Success", 404:"Not Found", 500:"Internal Server Error"})
+    @swagger_auto_schema(tags=["Openstack Instance Info API"], manual_parameters=[openstack_user_token, instance_pk], responses={200:"Success", 404:"Not Found", 500:"Internal Server Error"})
     def get(self, request, instance_pk):
         token, user_id = oc.getRequestParams(request)
         if user_id == None:
@@ -337,11 +338,34 @@ class InstanceInfo(Instance, APIView):
         
         return response
 
+# request django url = /openstack/log/<int:instance_pk>/
+class InstanceLog(APIView):
+    instance_pk = openapi.Parameter('instance_pk', openapi.IN_PATH, description='Instance ID to get info', required=True, type=openapi.TYPE_INTEGER)
+    
+    @swagger_auto_schema(tags=["Openstack Instance Log API"], manual_parameters=[openstack_user_token, instance_pk], responses={200:"Success", 401:"Unauthorized", 500:"Internal Server Error"})
+    def get(self, request, instance_pk):
+        try:
+            token, user_id = oc.getRequestParams(request)
+            if user_id == None:
+                return JsonResponse({"message" : "오픈스택 서버에 문제가 생겨 인스턴스 정보를 불러올 수 없습니다."}, status=500)
+            try:
+                instance_name = OpenstackInstance.objects.get(instance_pk=instance_pk).instance_name
+                instance_log = list(AccountLog.objects.filter(instance_name=instance_name).values())
+            except Exception as e:
+                print("인스턴스 정보 조회 중 예외 발생: ", e)
+                return JsonResponse({"message" : "해당 가상머신이 존재하지 않습니다."}, status=500)
+
+        except oc.TokenExpiredError as e:
+            print("에러 내용: ", e)
+            return JsonResponse({"message" : str(e)}, status=401)
+        
+        return JsonResponse({"log" : instance_log}, status=200)
+
 
 
 # request django url = /openstack/dashboard/            대쉬보드에 리소스 사용량 보여주기 용
 class DashBoard(RequestChecker, APIView):
-    @swagger_auto_schema(tags=["Openstack Dashboard API"], manual_parameters=[openstack_user_token], responses={200:"Success", 404:"Not Found", 500:"Internal Server Error"})
+    @swagger_auto_schema(tags=["Openstack Dashboard API"], manual_parameters=[openstack_user_token], responses={200:"Success", 401:"Unauthorized", 500:"Internal Server Error"})
     def get(self, request):     # header: user_token
         try:
             if ServerStatusFlag.objects.get(platform_name="openstack").status == False:
@@ -386,7 +410,7 @@ class DashBoard(RequestChecker, APIView):
 
 
 class InstanceStart(Instance, APIView):
-    @swagger_auto_schema(tags=["Openstack Instance API"], manual_parameters=[openstack_user_token], request_body=InstancePKSerializer, responses={202:"Accepted", 404:"Not Found", 500:"Internal Server Error"})
+    @swagger_auto_schema(tags=["Openstack Instance API"], manual_parameters=[openstack_user_token], request_body=InstancePKSerializer, responses={202:"Accepted", 401:"Unauthorized", 404:"Not Found", 500:"Internal Server Error"})
     def post(self, request):    # header: user_token, body: instance_pk
         try:
             input_data, token, user_id = oc.getRequestParamsWithBody(request)   # 요청에는 user_id를 안쓰지만, exception 처리를 위해 user_id None인지 체크용으로 받아옴.
@@ -419,7 +443,7 @@ class InstanceStart(Instance, APIView):
 
 
 class InstanceStop(Instance, APIView):
-    @swagger_auto_schema(tags=["Openstack Instance API"], manual_parameters=[openstack_user_token], request_body=InstancePKSerializer, responses={202:"Accepted", 404:"Not Found", 500:"Internal Server Error"})
+    @swagger_auto_schema(tags=["Openstack Instance API"], manual_parameters=[openstack_user_token], request_body=InstancePKSerializer, responses={202:"Accepted", 401:"Unauthorized", 404:"Not Found", 500:"Internal Server Error"})
     def post(self, request):    # header: user_token, body: instance_pk
         try:
             input_data, token, user_id = oc.getRequestParamsWithBody(request)   # 요청에는 user_id를 안쓰지만, exception 처리를 위해 user_id None인지 체크용으로 받아옴.
@@ -450,7 +474,7 @@ class InstanceStop(Instance, APIView):
 
 
 class InstanceConsole(Instance, APIView):
-    @swagger_auto_schema(tags=["Openstack Instance API"], manual_parameters=[openstack_user_token], request_body=InstancePKSerializer, responses={200:"Success", 404:"Not Found", 500:"Internal Server Error"})
+    @swagger_auto_schema(tags=["Openstack Instance API"], manual_parameters=[openstack_user_token], request_body=InstancePKSerializer, responses={200:"Success", 401:"Unauthorized", 404:"Not Found", 500:"Internal Server Error"})
     def post(self, request):    # header: user_token, body: instance_pk
         try:
             input_data, token, user_id = oc.getRequestParamsWithBody(request)   # 요청에는 user_id를 안쓰지만, exception 처리를 위해 user_id None인지 체크용으로 받아옴.
