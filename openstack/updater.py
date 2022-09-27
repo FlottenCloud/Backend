@@ -13,9 +13,8 @@ import webbrowser
 from apscheduler.schedulers.background import BackgroundScheduler
 from django.core.files import File
 from django.http import JsonResponse
+from log_manager import InstanceLogManager
 from account.models import AccountInfo
-from openstack import serializers
-
 from openstack.models import OpenstackBackupImage, OpenstackInstance, ServerStatusFlag, DjangoServerTime
 from cloudstack.models import CloudstackInstance
 from openstack.serializers import OpenstackInstanceSerializer,OpenstackBackupImageSerializer
@@ -120,6 +119,7 @@ def deployCloudstackInstance(user_id, user_apiKey, user_secretKey, instance_pk, 
     hostID = csc.hostID
     small_offeringID = csc.small_offeringID
     medium_offeringID = csc.medium_offeringID
+    log_manager = InstanceLogManager()
     
     user_id_instance = AccountInfo.objects.get(user_id=user_id)
     template_name = instance_name + "Template"
@@ -176,6 +176,9 @@ def deployCloudstackInstance(user_id, user_apiKey, user_secretKey, instance_pk, 
         disk_size = created_instance_disk_size,
         num_cpu = created_instance_num_cpu
     )
+    log_manager.userLogAdder(user_id_instance, created_instance_name, "Backup(to cloudstack)", "instance")
+    log_manager.instanceLogAdder(instance_pk, created_instance_name, "Backup(to cloudstack)")
+    
     print("Created Instance " + backup_img_file_name + " to cloudstack")
 
     return "클라우드 스택으로 인스턴스 백업 완료"
@@ -890,7 +893,10 @@ def openstackStackCreate(instance_name, template_name):  # 오픈스택 상의 �
 
 def restoreFromCloudstack(cloudstack_user_apiKey, cloudstack_user_secretKey, cloudstack_instance_id, cloudstack_instance_name, cloudstack_template_name, cloudstack_del_template_id):
     import cloudstack_controller as csc
+    log_manager = InstanceLogManager()
     
+    user_id = AccountInfo.objects.get(apiKey=cloudstack_user_apiKey)
+    instance_pk = CloudstackInstance.objects.get(instance_id=cloudstack_instance_id).instance_pk
     CloudstackInstance.objects.filter(instance_id=cloudstack_instance_id).update(status="RESTORING TO OPENSTACK")
     cloudstack_instance_stop_response = stopCloudstackInstance(cloudstack_user_apiKey, cloudstack_user_secretKey, cloudstack_instance_id)    # 실행중인 VM을 중지
     print(cloudstack_instance_stop_response)
@@ -955,6 +961,9 @@ def restoreFromCloudstack(cloudstack_user_apiKey, cloudstack_user_secretKey, clo
     print(del_cloudstack_VM_res)
     del_cloudstack_template_res = cloudstack_delete_Template(cloudstack_user_apiKey, cloudstack_user_secretKey, cloudstack_del_template_id)
     print(del_cloudstack_template_res)
+
+    log_manager.userLogAdder(user_id, cloudstack_instance_name, "Restored(from cloudstack)", "instance")
+    log_manager.instanceLogAdder(instance_pk, cloudstack_instance_name, "Restored(from cloudstack)")
 
     return restore_res
 
@@ -1120,6 +1129,7 @@ def deleteStackBeforeFreezerRestore(tenant_id_for_restore, stack_id_for_del, sta
 
 def freezerBackupWithCycle(cycle):
     import openstack_controller as oc
+    log_manager = InstanceLogManager()
     
     instance_tool = Instance()
     print("freezerBackup With Cycle function Start!!")
@@ -1163,6 +1173,9 @@ def freezerBackupWithCycle(cycle):
         backup_instance_list = OpenstackInstance.objects.filter(freezer_completed=False).filter(backup_time=cycle)
         for instance in backup_instance_list:
             start_time = time.time()    # 시간 측정용
+            user_id = instance.user_id
+            instance_pk = instance.instance_pk
+            instance_name = instance.instance_name
             if instance.status == "ERROR" or  instance.status == "RESTORING":
                 print("instance " + instance.instance_name + " status is error. Can not backup with freezer.")
                 resultData = "Instance " + instance.instance_name + " Error"
@@ -1184,6 +1197,8 @@ def freezerBackupWithCycle(cycle):
             except:
                 return "Error!! When trying freezer Backup"
             OpenstackInstance.objects.filter(instance_id=backup_instance_id).update(freezer_completed=True)
+            log_manager.userLogAdder(user_id, instance_name, "Backuped(with Freezer)", "instance")
+            log_manager.instanceLogAdder(instance_pk, instance_name, "Backuped(with Freezer)")
 
             end_time = time.time()
             print("Freezer backup time: ", f"{end_time - start_time:.5f} sec")
@@ -1211,6 +1226,8 @@ def freezerRestoreWithCycle():
     for restore_instance in restore_instance_list:  # 프리저로 백업됐고 에러가 난 인스턴스에 대해
         start_time = time.time()
         print("리스토어할 인스턴스 오브젝트: ", restore_instance)
+        user_id = restore_instance.user_id
+        instance_pk = restore_instance.instance_pk
         restore_instance_id = restore_instance.instance_id
         restore_instance_name = restore_instance.instance_name
         restore_instance_image_name = restore_instance.image_name
@@ -1257,7 +1274,8 @@ def freezerRestoreWithCycle():
         
         OpenstackInstance.objects.filter(instance_name=restored_instance_name).update(instance_id=restored_instance_id, instance_name=restored_instance_name,
             stack_id=None, stack_name=None, ip_address=restored_instance_ip_address, status="ACTIVE", image_name="RESTORE"+restored_instance_name, update_image_ID=None, freezer_completed=False)
-        log_manager.instanceLogAdder(restore_instance.user_id, restored_instance_name, "Restored")
+        log_manager.userLogAdder(user_id, restore_instance_name, "Backuped(with Freezer)", "instance")
+        log_manager.instanceLogAdder(instance_pk, restore_instance_name, "Backuped(with Freezer)")
 
         end_time = time.time()
         print("Freezer restore time: ", f"{end_time - start_time:.5f} sec")

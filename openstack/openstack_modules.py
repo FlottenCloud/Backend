@@ -9,6 +9,7 @@ import requests
 import time
 from .models import OpenstackInstance, OpenstackBackupImage, DjangoServerTime
 from account.models import AccountInfo
+from cloudstack.models import CloudstackInstance
 
 openstack_hostIP = oc.hostIP
 
@@ -227,9 +228,9 @@ class Instance(RequestChecker):    # 인스턴스 요청에 대한 공통 요소
         
         return stack_data
 
-    def instance_backup_time_show(self, stack_data, instance_id):
-        if OpenstackBackupImage.objects.filter(instance_id=instance_id).exists():
-            stack_data["backup_completed_time"] = str(OpenstackBackupImage.objects.get(instance_id=instance_id).updated_at)[:16]
+    def instance_backup_time_show(self, stack_data, instance_pk):
+        if CloudstackInstance.objects.filter(instance_pk=instance_pk).exists():
+            stack_data["backup_completed_time"] = str(CloudstackInstance.objects.filter(instance_pk=instance_pk).created_at)[:16]
             stack_data = self.timeFormatSetter(stack_data)
         else:
             stack_data["backup_completed_time"] = ""
