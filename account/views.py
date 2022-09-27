@@ -51,8 +51,9 @@ cloudstack_user_secretKey = openapi.Parameter(   # for django swagger
     type = openapi.TYPE_STRING
 )
 
+# request django url = /account/
 class AccountView(APIView):
-    @swagger_auto_schema(tags=["User API"], request_body=UserRegisterSerializer, responses={200:"Success", 404:"Not Found", 409:"Confilict"})
+    @swagger_auto_schema(tags=["User API"], request_body=UserRegisterSerializer, responses={200:"Success", 404:"Not Found", 409:"Conflict"})
     def post(self, cloudstack_account_make_req_body):
         input_data = json.loads(cloudstack_account_make_req_body.body)
         if AccountInfo.objects.filter(user_id=input_data["user_id"]).exists():
@@ -149,7 +150,7 @@ class AccountView(APIView):
             cloudstack_network_id = cloudstack_user_network_id,
             cloudstack_network_vlan = cloudstack_user_network_vlan
         )
-        log_manager.userLogAdder(input_data["user_id"], "signup")
+        log_manager.userLogAdder(input_data["user_id"], "Sign Up")
 
         user_network_create_req = JsonResponse(input_data, status=200)
         user_network_create_req['Access-Control-Allow-Origin'] = '*'
@@ -247,6 +248,7 @@ class AccountView(APIView):
 
         return JsonResponse({"message" : "회원탈퇴가 완료되었습니다."}, status=200)
 
+# request django url = /account/login/
 class SignView(APIView):
     @swagger_auto_schema(tags=["User SignIn API"], request_body=UserSignInSerializer, responses={200:"Success", 206:"Partial Content", 400:"Bad Request", 401:"Not Allowed"})
     def post(self, request):
@@ -260,10 +262,10 @@ class SignView(APIView):
                 if user.password == input_data['password']:
                     openstack_user_token = oc.user_token(input_data)
                     if openstack_user_token == None:
-                        log_manager.userLogAdder(input_data["user_id"], "signin")
+                        log_manager.userLogAdder(input_data["user_id"], "Sign In")
                         return JsonResponse({"apiKey" : apiKey, "secretKey" : secretKey}, status=206)
                     #hash token 해줄 것
-                    log_manager.userLogAdder(input_data["user_id"], "signin")
+                    log_manager.userLogAdder(input_data["user_id"], "Sign In")
                     response = JsonResponse({"openstack_user_token" : openstack_user_token, "apiKey" : apiKey, "secretKey" : secretKey}, status=200)
                     response['Access-Control-Allow-Origin'] = '*'
                     return response
@@ -280,3 +282,13 @@ class SignView(APIView):
             response = JsonResponse({'message': "서버에 존재하지 않는 사용자입니다."}, status=400)
             response['Access-Control-Allow-Origin'] = '*'
             return response
+
+# request django url = /account/log/<str:user_id>/
+class LogView(APIView):
+    user_id = openapi.Parameter('user_id', openapi.IN_PATH, description='User ID to get log', required=True, type=openapi.TYPE_STRING)
+
+    @swagger_auto_schema(tags=["User Log API"], manual_parameters=[user_id], responses={200:"Success"})
+    def get(self, user_id):
+        res = list(AccountLog.objects.filter(user_id=user_id).values())
+
+        return JsonResponse({"log" : res}, status=200)

@@ -3,7 +3,9 @@ import json
 from bs4 import BeautifulSoup
 import cloudstack_controller as csc
 import log_manager
+from django.db.models import Q
 from .models import CloudstackInstance
+from account.models import AccountLog
 from django.db.models import Sum
 from django.http import JsonResponse
 from django.shortcuts import render
@@ -36,18 +38,26 @@ class Cloudstack(APIView):
             secretKey = request.headers["secretKey"]
             cloudstack_user_id = AccountInfo.objects.filter(cloudstack_apiKey=apiKey)[0].user_id
             print(cloudstack_user_id)
+            q = Q()     # Query를 통한 가상머신 검색을 위한 where 절
+            query_instance_name = request.GET.get("instance_name", None)    # Query에 instance_name있는지 확인
+
             user_instance_info_list = list(CloudstackInstance.objects.filter(user_id=cloudstack_user_id).values())
             print(user_instance_info_list)
+        
+            if query_instance_name:   # Query에 가상머신 이름이 있으면
+                q &= Q(instance_name=query_instance_name)   # where절을 통해 해당 가상머신만 추출
+                return JsonResponse({"instance" : q}, status=200)
 
         except OperationalError:
             return JsonResponse({[]}, status=200)
 
         return JsonResponse({"instances": user_instance_info_list}, status=200)
 
-# request django url = /openstack/<int:instance_pk>/
+# request django url = /cloudstack/<int:instance_pk>/
 class CloudstackInstanceInfo(APIView):
     instance_pk = openapi.Parameter('instance_pk', openapi.IN_PATH, description='Instance ID to get info', required=True, type=openapi.TYPE_INTEGER)
-    @swagger_auto_schema(ta0gs=["Openstack API"], manual_parameters=[instance_pk], responses={200:"Success", 404:"Not Found", 500:"Internal Server Error"})
+
+    @swagger_auto_schema(tags=["Cloudstack Instance Info API"], manual_parameters=[instance_pk], responses={200:"Success", 404:"Not Found"})
     def get(self, request, instance_pk):
         apiKey = request.headers["apiKey"]
         user_id = AccountInfo.objects.filter(cloudstack_apiKey=apiKey)[0].user_id
@@ -55,7 +65,7 @@ class CloudstackInstanceInfo(APIView):
             instance_object = CloudstackInstance.objects.get(instance_pk=instance_pk)
         except Exception as e:
             print("인스턴스 정보 조회 중 예외 발생: ", e)
-            return JsonResponse({"message" : "해당 가상머신이 존재하지 않습니다."}, status=500)  
+            return JsonResponse({"message" : "해당 가상머신이 존재하지 않습니다."}, status=404)
         
         object_own_user_id = user_id
         object_instance_pk = instance_object.instance_pk
@@ -75,6 +85,26 @@ class CloudstackInstanceInfo(APIView):
         response = JsonResponse(instance_info, status=200)
         
         return response
+
+# request django url = /cloudstack/log/<int:instance_pk>/
+class CloudstackInstanceLog(APIView):
+    instance_pk = openapi.Parameter('instance_pk', openapi.IN_PATH, description='Instance ID to get info', required=True, type=openapi.TYPE_INTEGER)
+
+    @swagger_auto_schema(tags=["Cloudstack Instance Log API"], manual_parameters=[instance_pk], responses={200:"Success", 404:"Not Found"})
+    def get(self, request, instance_pk):
+        apiKey = request.headers["apiKey"]
+        user_id = AccountInfo.objects.filter(cloudstack_apiKey=apiKey)[0].user_id
+        try:
+            instance_object = CloudstackInstance.objects.get(instance_pk=instance_pk)
+            instance_name = instance_object.instance_name
+        except Exception as e:
+            print("인스턴스 정보 조회 중 예외 발생: ", e)
+            return JsonResponse({"message" : "해당 가상머신이 존재하지 않습니다."}, status=404)
+
+        instance_log = list(AccountLog.objects.filter(instance_name=instance_name).values())
+ 
+        return JsonResponse({"log" : instance_log}, status=200)
+
 
 # request django url = /openstack/dashboard/            대쉬보드에 리소스 사용량 보여주기 용
 class DashBoard(APIView):
