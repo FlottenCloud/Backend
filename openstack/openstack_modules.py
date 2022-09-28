@@ -230,7 +230,7 @@ class Instance(RequestChecker):    # 인스턴스 요청에 대한 공통 요소
 
     def instance_backup_time_show(self, stack_data, instance_pk):
         if CloudstackInstance.objects.filter(instance_pk=instance_pk).exists():
-            stack_data["backup_completed_time"] = str(CloudstackInstance.objects.filter(instance_pk=instance_pk).created_at)[:16]
+            stack_data["backup_completed_time"] = str(CloudstackInstance.objects.get(instance_pk=instance_pk).created_at)[:16]
             stack_data = self.timeFormatSetter(stack_data)
         else:
             stack_data["backup_completed_time"] = ""
