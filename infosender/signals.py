@@ -1,5 +1,4 @@
 import json
-import logging
 
 from channels.generic.websocket import WebsocketConsumer
 
@@ -10,19 +9,16 @@ from account.models import AccountLog
 from openstack.models import OpenstackInstance, InstanceLog
 from cloudstack.models import CloudstackInstance
 
-logger = logging.getLogger(__name__)
 websocket = WebsocketConsumer()
 
 @receiver(post_save, sender=AccountLog)
 def userLogMessage(sender, instance, **kwargs):
-    logger.debug("Log modified: {} :: content = {}.".format(instance, instance.content))
-
     user_id = instance.user_id.user_id
 
     message = {
         "user_id" : user_id,
         "added_log" : instance.log,
-        "log_added_time" : instance.log_time
+        "log_added_time" : str(instance.log_time)
     }
 
     websocket.send(text_data=json.dumps({
@@ -32,8 +28,6 @@ def userLogMessage(sender, instance, **kwargs):
 
 @receiver(post_save, sender=OpenstackInstance)
 def openstackInstanceMessage(sender, instance, **kwargs):
-    logger.debug("Log modified: {} :: content = {}.".format(instance, instance.content))
-
     user_id = instance.user_id.user_id
 
     message = {
@@ -50,8 +44,6 @@ def openstackInstanceMessage(sender, instance, **kwargs):
 
 @receiver(post_save, sender=CloudstackInstance)
 def cloudstackInstanceMessage(sender, instance, **kwargs):
-    logger.debug("Log modified: {} :: content = {}.".format(instance, instance.content))
-
     user_id = instance.user_id.user_id
 
     message = {
@@ -68,8 +60,6 @@ def cloudstackInstanceMessage(sender, instance, **kwargs):
     
 @receiver(post_save, sender=InstanceLog)
 def instanceLogMessage(sender, instance, **kwargs):
-    logger.debug("Log modified: {} :: content = {}.".format(instance, instance.content))
-
     user_id = instance.instance_pk.user_id.user_id
     instance_pk = instance.instance_pk.instance_pk
     instance_name = instance.instance_pk.instance_name
@@ -79,7 +69,7 @@ def instanceLogMessage(sender, instance, **kwargs):
         "instance_pk" : instance_pk,
         "instance_name" : instance_name,
         "added_log" : instance.log,
-        "log_added_time" : instance.log_time
+        "log_added_time" : str(instance.log_time)
     }
 
     websocket.send(text_data=json.dumps({
