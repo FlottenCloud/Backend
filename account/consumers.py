@@ -6,13 +6,13 @@ from .models import AccountInfo
 
 class UserLogConsumer(AsyncWebsocketConsumer):
     async def connect(self):
-        job_pk = self.scope['url_route']['kwargs']['job_pk']
+        user_id = self.scope["user"]
 
         await self.accept()
-        await self.sendUserLog(job_pk)
+        await self.sendUserLog(user_id)
 
     async def disconnect(self, close_code):
-        await self.group_discard(
+        await self.discard(
             self.channel_name
         )
 
