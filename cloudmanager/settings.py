@@ -33,6 +33,7 @@ ALLOWED_HOSTS = ['*']
 # Application definition
 
 INSTALLED_APPS = [
+    'channels',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -43,12 +44,14 @@ INSTALLED_APPS = [
     'drf_yasg',
     'rest_framework',
     'django_apscheduler',
-    'channels',
+    'infosender',
     'account',
     'openstack',
     'cloudstack',
     'django_cleanup.apps.CleanupConfig',
 ]
+
+ASGI_APPLICATION = 'cloudmanager.asgi.application'
 
 APSCHEDULER_DATETIME_FORMAT = "N j, Y, f:s a"  # Default
 
