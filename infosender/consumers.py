@@ -4,7 +4,7 @@ from channels.generic.websocket import AsyncWebsocketConsumer
 
 class InfoConsumer(AsyncWebsocketConsumer):
     async def connect(self):
-        user_id = self.scope["url_route"]["kwargs"]["user_id"]
+        user_id = self.scope["user"]
         print(user_id)
         self.group_name = "user-{}".format(user_id)
         print(self.group_name)
