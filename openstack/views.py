@@ -122,7 +122,7 @@ class Openstack(InstanceLogManager, Stack, APIView):
 
             instance_pk = OpenstackInstance.objects.get(instance_id=instance_id).instance_pk    # 로그 저장을 위해 인스턴스 생성된 인스턴스의 pk값 받아옴
             super().userLogAdder(user_id, instance_name, "Created", "instance")
-            super().instanceLogAdder(instance_pk, instance_name, "Created")
+            super().instanceLogAdder(instance_pk, instance_name, "create", "Created")
         
         except oc.TokenExpiredError as e:
             print("Token Expired: ", e)
@@ -209,7 +209,7 @@ class Openstack(InstanceLogManager, Stack, APIView):
                     num_cpu=updated_num_cpu, package=package_for_db, backup_time=user_req_backup_time, update_image_ID=snapshotID_for_update)
 
             super().userLogAdder(user_id, updated_instance_name, "Updated", "instance")
-            super().instanceLogAdder(input_data["instance_pk"], updated_instance_name, "Updated")
+            super().instanceLogAdder(input_data["instance_pk"], updated_instance_name, "update", "Updated")
 
         except oc.TokenExpiredError as e:
             print("Token Expired: ", e)
@@ -450,7 +450,7 @@ class InstanceStart(InstanceLogManager, Instance, APIView):
                 return JsonResponse({"message" : "오픈스택 서버에 문제가 생겨 해당 동작을 수행할 수 없습니다."}, status=500)
             OpenstackInstance.objects.filter(instance_id=start_instance_id).update(status="ACTIVE")
             super().userLogAdder(user_id, start_instance_name, "Started", "instance")
-            super().instanceLogAdder(input_data["instance_pk"], start_instance_name, "Started")
+            super().instanceLogAdder(input_data["instance_pk"], start_instance_name, "start", "Started")
 
         except oc.TokenExpiredError as e:
             print("에러 내용: ", e)
@@ -482,7 +482,7 @@ class InstanceStop(InstanceLogManager, Instance, APIView):
                 return JsonResponse({"message" : "오픈스택 서버에 문제가 생겨 해당 동작을 수행할 수 없습니다."}, status=500)
             OpenstackInstance.objects.filter(instance_id=stop_instance_id).update(status="SHUTOFF")
             super().userLogAdder(user_id, stop_instance_name, "Stopped", "instance")
-            super().instanceLogAdder(input_data["instance_pk"], stop_instance_name, "Stopped")
+            super().instanceLogAdder(input_data["instance_pk"], stop_instance_name, "stop", "Stopped")
 
         except oc.TokenExpiredError as e:
             print("에러 내용: ", e)

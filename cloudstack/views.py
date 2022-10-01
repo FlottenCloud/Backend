@@ -152,7 +152,7 @@ class InstanceStart(InstanceLogManager, APIView):
         
         CloudstackInstance.objects.filter(instance_id=start_instance_id).update(status="ACTIVE")
         super().userLogAdder(user_id, start_instance_name, "Started", "instance")
-        super().instanceLogAdder(start_instance_pk, start_instance_name, "Started")
+        super().instanceLogAdder(start_instance_pk, start_instance_name, "start", "Started")
         
         return JsonResponse({"message" : "가상머신 시작"}, status=202)
 
@@ -173,7 +173,7 @@ class InstanceStop(InstanceLogManager, APIView):
         
         CloudstackInstance.objects.filter(instance_id=stop_instance_id).update(status="SHUTOFF")
         super().userLogAdder(user_id, stop_instance_name, "Stopped", "instance")
-        super().instanceLogAdder(stop_instance_pk, stop_instance_name, "Stopped")
+        super().instanceLogAdder(stop_instance_pk, stop_instance_name, "stop", "Stopped")
         
         return JsonResponse({"message" : "가상머신 정지"}, status=202)
 

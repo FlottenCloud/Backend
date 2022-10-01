@@ -57,7 +57,7 @@ def errorCheckAndUpdateDBstatus():
         OpenstackInstance.objects.filter(instance_id=error_instance["id"]).update(status="ERROR")
         print("instance " + error_instance["id"] + "에러 감지")
         log_manager.userLogAdder(user_id, error_instance_name, "Error occurred", "instance")
-        log_manager.instanceLogAdder(error_instance_pk, error_instance_name, "Error occurred")
+        log_manager.instanceLogAdder(error_instance_pk, error_instance_name, "error_occurred", "Error occurred")
 
 
 # ------------------------------------------------------------ Backup Part ------------------------------------------------------------ #
@@ -183,7 +183,7 @@ def deployCloudstackInstance(user_id, user_apiKey, user_secretKey, instance_pk, 
         num_cpu = created_instance_num_cpu
     )
     log_manager.userLogAdder(user_id_object.user_id, created_instance_name, "Backuped(to cloudstack)", "instance")
-    log_manager.instanceLogAdder(instance_pk, created_instance_name, "Backuped(to cloudstack)")
+    log_manager.instanceLogAdder(instance_pk, created_instance_name, "backup_complete", "Backuped(to cloudstack)")
     
     print("Created Instance " + backup_img_file_name + " to cloudstack")
 
@@ -230,12 +230,12 @@ def cloudstackInstanceDeleteAndCreate(user_id, cloudstack_user_apiKey, cloudstac
     # ------------------------------ Total Backup ------------------------------ #
 def backup(cycle):
     import openstack_controller as oc                            # import는 여기 고정 -> 컴파일 시간에 circular import 때문에 걸려서
-    import log_manager
     openstack_hostIP = oc.hostIP
 
     print("this function runs every", cycle, "seconds")
     req_checker = RequestChecker()
     instance_tool = Instance()
+    log_manager = InstanceLogManager()
 
     try:
         instance_count = OpenstackInstance.objects.filter(backup_time=cycle).count()
@@ -265,6 +265,7 @@ def backup(cycle):
             cloudstack_user_secretKey = instance.user_id.cloudstack_secretKey
             print("클라우드 스택의 유저 네트워크 id: ", cloudstack_user_network_id)
             print("인스턴스 id: ", backup_instance_id)
+            log_manager.instanceLogAdder(backup_instance_pk, backup_instance_name, "backup_start", "Backup started(to cloudstack)")
             backup_payload = {
                 "createBackup": {
                     "name": "Backup " + backup_instance_id,
@@ -899,6 +900,7 @@ def restoreFromCloudstack(cloudstack_user_apiKey, cloudstack_user_secretKey, clo
     
     user_id = AccountInfo.objects.get(apiKey=cloudstack_user_apiKey).user_id
     instance_pk = CloudstackInstance.objects.get(instance_id=cloudstack_instance_id).instance_pk
+    log_manager.instanceLogAdder(instance_pk, cloudstack_instance_name, "platform_restore_start", "Restore started(from cloudstack)")
     CloudstackInstance.objects.filter(instance_id=cloudstack_instance_id).update(status="RESTORING TO OPENSTACK")
     cloudstack_instance_stop_response = stopCloudstackInstance(cloudstack_user_apiKey, cloudstack_user_secretKey, cloudstack_instance_id)    # 실행중인 VM을 중지
     print(cloudstack_instance_stop_response)
@@ -965,7 +967,7 @@ def restoreFromCloudstack(cloudstack_user_apiKey, cloudstack_user_secretKey, clo
     print(del_cloudstack_template_res)
 
     log_manager.userLogAdder(user_id, cloudstack_instance_name, "Restored(from cloudstack)", "instance")
-    log_manager.instanceLogAdder(instance_pk, cloudstack_instance_name, "Restored(from cloudstack)")
+    log_manager.instanceLogAdder(instance_pk, cloudstack_instance_name, "platform_restore_complete", "Restored(from cloudstack)")
 
     return restore_res
 
@@ -1178,6 +1180,7 @@ def freezerBackupWithCycle(cycle):
             user_id = instance.user_id.user_id
             instance_pk = instance.instance_pk
             instance_name = instance.instance_name
+            log_manager.instanceLogAdder(instance_pk, instance_name, "backup_start", "Backup started(with Freezer)")
             if instance.status == "ERROR" or  instance.status == "RESTORING":
                 print("instance " + instance.instance_name + " status is error. Can not backup with freezer.")
                 resultData = "Instance " + instance.instance_name + " Error"
@@ -1200,7 +1203,7 @@ def freezerBackupWithCycle(cycle):
                 return "Error!! When trying freezer Backup"
             OpenstackInstance.objects.filter(instance_id=backup_instance_id).update(freezer_completed=True)
             log_manager.userLogAdder(user_id, instance_name, "Backuped(with Freezer)", "instance")
-            log_manager.instanceLogAdder(instance_pk, instance_name, "Backuped(with Freezer)")
+            log_manager.instanceLogAdder(instance_pk, instance_name, "backup_complete", "Backuped(with Freezer)")
 
             end_time = time.time()
             print("Freezer backup time: ", f"{end_time - start_time:.5f} sec")
@@ -1234,6 +1237,7 @@ def freezerRestoreWithCycle():
         restore_instance_name = restore_instance.instance_name
         restore_instance_image_name = restore_instance.image_name
         OpenstackInstance.objects.filter(instance_id=restore_instance_id).update(status="RESTORING")
+        log_manager.instanceLogAdder(instance_pk, restore_instance_name, "restore_start", "Restore started(with Freezer)")
         print("리스토어할 인스턴스 ID: ", restore_instance_id)
 
         # --------- error 터진 stack 삭제 --------- #
@@ -1276,8 +1280,8 @@ def freezerRestoreWithCycle():
         
         OpenstackInstance.objects.filter(instance_name=restored_instance_name).update(instance_id=restored_instance_id, instance_name=restored_instance_name,
             stack_id=None, stack_name=None, ip_address=restored_instance_ip_address, status="ACTIVE", image_name="RESTORE"+restored_instance_name, update_image_ID=None, freezer_completed=False)
-        log_manager.userLogAdder(user_id, restore_instance_name, "Backuped(with Freezer)", "instance")
-        log_manager.instanceLogAdder(instance_pk, restore_instance_name, "Backuped(with Freezer)")
+        log_manager.userLogAdder(user_id, restore_instance_name, "Restored(with Freezer)", "instance")
+        log_manager.instanceLogAdder(instance_pk, restore_instance_name, "restore_complete", "Restored(with Freezer)")
 
         end_time = time.time()
         print("Freezer restore time: ", f"{end_time - start_time:.5f} sec")

@@ -39,6 +39,7 @@ class InstanceLog(models.Model):
     instance_pk = models.ForeignKey("OpenstackInstance", related_name="instance_log", on_delete=models.CASCADE, db_column="instance_pk")
     # instance log
     instance_name = models.CharField(max_length=50)
+    action = models.TextField()
     log = models.TextField()
     log_time = models.DateTimeField(auto_now=True)
 
