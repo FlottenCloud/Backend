@@ -14,7 +14,8 @@ from cloudstack.models import CloudstackInstance
 def userLogMessage(sender, instance, **kwargs):
     channel_layer = channels.layers.get_channel_layer()
     user_id = instance.user_id.user_id
-    group_name = "user-{}".format(user_id)
+    # group_name = "user-{}".format(user_id)
+    group_name = "user-AnonymousUser"
 
     message = {
         "user_id" : user_id,
@@ -25,7 +26,7 @@ def userLogMessage(sender, instance, **kwargs):
     async_to_sync(channel_layer.group_send)(
         group_name,
         {
-            "type" : "user_log",
+            "type" : "user_log_send",
             "message" : message
         }
     )
@@ -34,7 +35,8 @@ def userLogMessage(sender, instance, **kwargs):
 def openstackInstanceMessage(sender, instance, **kwargs):
     channel_layer = channels.layers.get_channel_layer()
     user_id = instance.user_id.user_id
-    group_name = "user-{}".format(user_id)
+    # group_name = "user-{}".format(user_id)
+    group_name = "user-AnonymousUser"
 
     message = {
         "user_id" : user_id,
@@ -46,7 +48,7 @@ def openstackInstanceMessage(sender, instance, **kwargs):
     async_to_sync(channel_layer.group_send)(
         group_name,
         {
-            "type" : "openstack_instance_status_change",
+            "type" : "openstack_instance_status_change_send",
             "message" : message
         }
     )
@@ -55,7 +57,8 @@ def openstackInstanceMessage(sender, instance, **kwargs):
 def cloudstackInstanceMessage(sender, instance, **kwargs):
     channel_layer = channels.layers.get_channel_layer()
     user_id = instance.user_id.user_id
-    group_name = "user-{}".format(user_id)
+    # group_name = "user-{}".format(user_id)
+    group_name = "user-AnonymousUser"
 
     message = {
         "user_id" : user_id,
@@ -67,7 +70,7 @@ def cloudstackInstanceMessage(sender, instance, **kwargs):
     async_to_sync(channel_layer.group_send)(
         group_name,
         {
-            "type" : "cloudstack_instance_status_change",
+            "type" : "cloudstack_instance_status_change_send",
             "message" : message
         }
     )
@@ -76,7 +79,8 @@ def cloudstackInstanceMessage(sender, instance, **kwargs):
 def instanceLogMessage(sender, instance, **kwargs):
     channel_layer = channels.layers.get_channel_layer()
     user_id = instance.instance_pk.user_id.user_id
-    group_name = "user-{}".format(user_id)
+    # group_name = "user-{}".format(user_id)
+    group_name = "user-AnonymousUser"
     instance_pk = instance.instance_pk.instance_pk
     instance_name = instance.instance_pk.instance_name
 
@@ -91,7 +95,7 @@ def instanceLogMessage(sender, instance, **kwargs):
     async_to_sync(channel_layer.group_send)(
         group_name,
         {
-            "type" : "instance_log",
+            "type" : "instance_log_send",
             "message" : message
         }
     )

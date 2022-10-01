@@ -25,3 +25,35 @@ class InfoConsumer(AsyncWebsocketConsumer):
             self.group_name,
             self.channel_name
         )
+
+    async def user_log_send(self, event):
+        message = event["message"]
+
+        await self.send(text_data=json.dumps({
+            "type" : "user_log",
+            "message" : message
+        }))
+
+    async def openstack_instance_status_change_send(self, event):
+        message = event["message"]
+
+        await self.send(text_data=json.dumps({
+            "type" : "openstack_instance_status_change",
+            "message" : message
+        }))
+
+    async def cloudstack_instance_status_change_send(self, event):
+        message = event["message"]
+
+        await self.send(text_data=json.dumps({
+            "type" : "cloudstack_instance_status_change",
+            "message" : message
+        }))
+
+    async def instance_log_send(self, event):
+        message = event["message"]
+
+        await self.send(text_data=json.dumps({
+            "type" : "instance_log",
+            "message" : message
+        }))
