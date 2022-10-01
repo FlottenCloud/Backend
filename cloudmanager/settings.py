@@ -33,6 +33,7 @@ ALLOWED_HOSTS = ['*']
 # Application definition
 
 INSTALLED_APPS = [
+    'channels',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -43,11 +44,23 @@ INSTALLED_APPS = [
     'drf_yasg',
     'rest_framework',
     'django_apscheduler',
+    'infosender',
     'account',
     'openstack',
     'cloudstack',
     'django_cleanup.apps.CleanupConfig',
 ]
+
+ASGI_APPLICATION = 'cloudmanager.asgi.application'      # For websocket setting
+
+CHANNEL_LAYERS = {      # For websocket setting
+    'default': {
+        "BACKEND": "channels_redis.core.RedisChannelLayer",
+        'CONFIG': {
+            'hosts': [('127.0.0.1', 6379)],
+        },
+    },
+}
 
 APSCHEDULER_DATETIME_FORMAT = "N j, Y, f:s a"  # Default
 
