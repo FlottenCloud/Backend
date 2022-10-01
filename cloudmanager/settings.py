@@ -51,7 +51,13 @@ INSTALLED_APPS = [
     'django_cleanup.apps.CleanupConfig',
 ]
 
-ASGI_APPLICATION = 'cloudmanager.asgi.application'
+ASGI_APPLICATION = 'cloudmanager.asgi.application'      # For websocket setting
+
+CHANNEL_LAYERS = {      # For websocket setting
+    "default": {
+        "BACKEND": "channels.layers.InMemoryChannelLayer"
+    }
+}
 
 APSCHEDULER_DATETIME_FORMAT = "N j, Y, f:s a"  # Default
 

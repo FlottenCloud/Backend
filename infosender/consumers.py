@@ -10,6 +10,8 @@ class InfoConsumer(WebsocketConsumer):
             "type" : "connection_established",
             "message" : "Connected to 뜬구름"
         }))
+
+    def disconnect(self, code):
    
     # def receive(self, text_data):
     #     text_data_json = json.loads(text_data)
