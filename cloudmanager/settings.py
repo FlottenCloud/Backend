@@ -54,9 +54,12 @@ INSTALLED_APPS = [
 ASGI_APPLICATION = 'cloudmanager.asgi.application'      # For websocket setting
 
 CHANNEL_LAYERS = {      # For websocket setting
-    "default": {
-        "BACKEND": "channels.layers.InMemoryChannelLayer"
-    }
+    'default': {
+        "BACKEND": "channels_redis.core.RedisChannelLayer",
+        'CONFIG': {
+            'hosts': [('127.0.0.1', 6379)],
+        },
+    },
 }
 
 APSCHEDULER_DATETIME_FORMAT = "N j, Y, f:s a"  # Default
