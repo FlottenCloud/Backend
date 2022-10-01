@@ -524,3 +524,58 @@ class InstanceConsole(Instance, APIView):
             return JsonResponse({"message" : str(e)}, status=401)
 
         return JsonResponse({"instance_url" : instance_url}, status=200)        #git test
+
+
+
+class ErrorPageView(Instance, APIView):
+    @swagger_auto_schema(tags=["Instance Error Page API"], manual_parameters=[openstack_user_token], request_body=InstancePKSerializer, responses={200:"Success", 401:"Unauthorized", 404:"Not Found", 500:"Internal Server Error"})
+    def post(self, request):    # header: user_token, body: instance_pk,   for error occur
+        try:
+            admin_token = oc.admin_token()
+            input_data, user_token, user_id = oc.getRequestParamsWithBody(request)   # 요청에는 user_id를 안쓰지만, exception 처리를 위해 user_id None인지 체크용으로 받아옴.
+            if user_id == None:
+                    return JsonResponse({"message" : "오픈스택 서버에 문제가 생겨 token으로 오픈스택 유저의 정보를 얻어올 수 없습니다."}, status=500)
+            instance_pk_for_error = super().checkDataBaseInstanceID(input_data)
+            instance_id_for_error = OpenstackInstance.objects.get(instance_pk=instance_pk_for_error).instance_id
+
+            instance_error_occur_payload = {
+                "os-resetState" : {
+                    "state" : "error"
+                }
+            }
+            instance_error_occur_req = super().reqCheckerWithData("post", "http://" + openstack_hostIP + "/compute/v2.1/servers/" + instance_id_for_error+ "/action",
+                admin_token, json.dumps(instance_error_occur_payload))
+            if instance_error_occur_req == None:    # "오픈스택과 통신이 안됐을 시(timeout 시)"
+                return JsonResponse({"message" : "오픈스택 서버에 문제가 생겨 해당 동작을 수행할 수 없습니다."}, status=500)
+        
+        except oc.TokenExpiredError as e:
+            print("에러 내용: ", e)
+            return JsonResponse({"message" : str(e)}, status=401)
+
+        return JsonResponse({"message" : "가상머신 에러 발생시킴"}, status=200)        #git test
+
+
+    @swagger_auto_schema(tags=["Instance Error Page API"], manual_parameters=[openstack_user_token], responses={200:"Success", 401:"Unauthorized", 404:"Not Found", 500:"Internal Server Error"})
+    def get(self, request):     # header: user_token
+        try:
+            if ServerStatusFlag.objects.get(platform_name="openstack").status == False:
+                return JsonResponse({"message" : "오픈스택 서버에 문제가 생겨 리소스 정보를 받아올 수 없습니다."}, status=500)
+            token, user_id = oc.getRequestParams(request)
+            if user_id == None:
+                return JsonResponse({"message" : "오픈스택 서버에 문제가 생겨 token으로 오픈스택 유저의 정보를 얻어올 수 없습니다."}, status=500)
+
+            try:
+                user_stack_data = list(OpenstackInstance.objects.filter(user_id=user_id).values())
+                for stack_data in user_stack_data:
+                    instance_pk = stack_data["instance_pk"]
+                    stack_data = super().instance_backup_time_show(stack_data, instance_pk)
+                print(user_stack_data)
+
+            except OperationalError:
+                return JsonResponse({[]}, status=200)
+        
+        except oc.TokenExpiredError as e:
+            print("에러 내용: ", e)
+            return JsonResponse({"message" : str(e)}, status=401)
+        
+        return JsonResponse({"instances" : user_stack_data}, status=200)
