@@ -34,22 +34,6 @@ class InfoConsumer(AsyncWebsocketConsumer):
             "message" : message
         }))
 
-    async def openstack_instance_status_change_send(self, event):
-        message = event["message"]
-
-        await self.send(text_data=json.dumps({
-            "type" : "openstack_instance_status_change",
-            "message" : message
-        }))
-
-    async def cloudstack_instance_status_change_send(self, event):
-        message = event["message"]
-
-        await self.send(text_data=json.dumps({
-            "type" : "cloudstack_instance_status_change",
-            "message" : message
-        }))
-
     async def instance_log_send(self, event):
         message = event["message"]
 

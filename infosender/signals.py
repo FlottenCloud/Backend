@@ -30,50 +30,6 @@ def userLogMessage(sender, instance, **kwargs):
             "message" : message
         }
     )
-
-@receiver(post_save, sender=OpenstackInstance)
-def openstackInstanceMessage(sender, instance, **kwargs):
-    channel_layer = channels.layers.get_channel_layer()
-    user_id = instance.user_id.user_id
-    # group_name = "user-{}".format(user_id)
-    group_name = "user-AnonymousUser"
-
-    message = {
-        "user_id" : user_id,
-        "instance_pk" : instance.instance_pk,
-        "instance_name" : instance.instance_name,
-        "changed_status" : instance.status
-    }
-
-    async_to_sync(channel_layer.group_send)(
-        group_name,
-        {
-            "type" : "openstack_instance_status_change_send",
-            "message" : message
-        }
-    )
-
-@receiver(post_save, sender=CloudstackInstance)
-def cloudstackInstanceMessage(sender, instance, **kwargs):
-    channel_layer = channels.layers.get_channel_layer()
-    user_id = instance.user_id.user_id
-    # group_name = "user-{}".format(user_id)
-    group_name = "user-AnonymousUser"
-
-    message = {
-        "user_id" : user_id,
-        "instance_pk" : instance.instance_pk,
-        "instance_name" : instance.instance_name,
-        "changed_status" : instance.status
-    }
-
-    async_to_sync(channel_layer.group_send)(
-        group_name,
-        {
-            "type" : "cloudstack_instance_status_change_send",
-            "message" : message
-        }
-    )
     
 @receiver(post_save, sender=InstanceLog)
 def instanceLogMessage(sender, instance, **kwargs):
@@ -88,7 +44,8 @@ def instanceLogMessage(sender, instance, **kwargs):
         "user_id" : user_id,
         "instance_pk" : instance_pk,
         "instance_name" : instance_name,
-        "added_log" : instance.log,
+        "action" : instance.action,     # 여기서 backup_start, backup_complete 등 판단
+        "added_log" : instance.log,     # 이건 단순 log message라고 보면 됨.
         "log_added_time" : str(instance.log_time)
     }
 
