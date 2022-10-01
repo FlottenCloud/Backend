@@ -53,6 +53,10 @@ INSTALLED_APPS = [
 
 ASGI_APPLICATION = 'cloudmanager.asgi.application'      # For websocket setting
 
+
+CELERY_RESULT_BACKEND = 'django-db'
+CELERY_BROKER_URL = 'redis://127.0.0.1:6379'
+
 CHANNEL_LAYERS = {      # For websocket setting
     'default': {
         "BACKEND": "channels_redis.core.RedisChannelLayer",
