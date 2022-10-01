@@ -7,8 +7,7 @@ from django.db.models.signals import post_save
 from django.dispatch import receiver
 
 from account.models import AccountLog
-from openstack.models import OpenstackInstance, InstanceLog
-from cloudstack.models import CloudstackInstance
+from openstack.models import InstanceLog
 
 @receiver(post_save, sender=AccountLog)
 def userLogMessage(sender, instance, **kwargs):
