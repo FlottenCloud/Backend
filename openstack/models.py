@@ -67,7 +67,7 @@ class ServerStatusFlag(models.Model):
         db_table = 'server_status'
 
 class ServerLog(models.Model):
-    log = models.CharField()
+    log = models.CharField(max_length=200)
     log_time = models.DateTimeField(auto_now=True)
 
 class DjangoServerTime(models.Model):

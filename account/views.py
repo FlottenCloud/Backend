@@ -7,7 +7,7 @@ import cloudstack_controller as csc
 from log_manager import UserLogManager
 import json
 import requests
-from .models import AccountInfo
+from .models import AccountInfo, AccountLog
 from django.db.models import Max
 from django.shortcuts import render
 from django.views import View

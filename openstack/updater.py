@@ -51,11 +51,13 @@ def errorCheckAndUpdateDBstatus():
         return print("에러상태인 인스턴스가 없습니다.")
     
     for error_instance in error_instance_list:
-        user_id = error_instance.user_id.user_id
-        error_instance_pk = error_instance.instance_pk
-        error_instance_name = error_instance.instance_name
-        OpenstackInstance.objects.filter(instance_id=error_instance["id"]).update(status="ERROR")
-        print("instance " + error_instance["id"] + "에러 감지")
+        error_instance_id = error_instance["id"]
+        error_openstack_instance = OpenstackInstance.objects.get(instance_id=error_instance_id)
+        user_id = error_openstack_instance.user_id.user_id
+        error_instance_pk = error_openstack_instance.instance_pk
+        error_instance_name = error_openstack_instance.instance_name
+        OpenstackInstance.objects.filter(instance_id=error_instance_id).update(status="ERROR")
+        print("instance " + error_instance_id + "에러 감지")
         log_manager.userLogAdder(user_id, error_instance_name, "Error occurred", "instance")
         log_manager.instanceLogAdder(error_instance_pk, error_instance_name, "error_occurred", "Error occurred")
 
