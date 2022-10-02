@@ -1,5 +1,5 @@
 from account.models import AccountInfo, AccountLog
-from openstack.models import OpenstackInstance, InstanceLog
+from openstack.models import OpenstackInstance, InstanceLog, ServerLog
 
 class UserLogManager:
     def userLogAdder(self, user_id, obj, log_message, mode):
@@ -21,5 +21,11 @@ class InstanceLogManager(UserLogManager):
             instance_pk = OpenstackInstance.objects.get(instance_pk=instance_pk),
             instance_name = instance_name,
             action = instance_action,
+            log = log_message
+        )
+
+class ServerLogManager(UserLogManager):
+    def serverLogAdder(self, log_message):
+        ServerLog.objects.create(
             log = log_message
         )

@@ -13,9 +13,9 @@ import webbrowser
 from apscheduler.schedulers.background import BackgroundScheduler
 from django.core.files import File
 from django.http import JsonResponse
-from log_manager import InstanceLogManager
+from log_manager import InstanceLogManager, ServerLogManager
 from account.models import AccountInfo
-from openstack.models import OpenstackBackupImage, OpenstackInstance, ServerStatusFlag, DjangoServerTime
+from openstack.models import OpenstackBackupImage, OpenstackInstance, ServerStatusFlag, ServerLog, DjangoServerTime
 from cloudstack.models import CloudstackInstance
 from openstack.serializers import OpenstackInstanceSerializer,OpenstackBackupImageSerializer
 from openstack.openstack_modules import RequestChecker, Stack, TemplateModifier, Instance
@@ -974,6 +974,7 @@ def restoreFromCloudstack(cloudstack_user_apiKey, cloudstack_user_secretKey, clo
     # -------- Openstack Server Check Part -------- #
 def openstackServerRecoveryChecker():
     import openstack_controller as oc
+    log_manager = ServerLogManager()
 
     while True:
         if oc.admin_token() == None:      # TimeOut 발생시 계속 서버상태 체크
@@ -996,12 +997,14 @@ def openstackServerRecoveryChecker():
                     print(restore_res)
             
             ServerStatusFlag.objects.filter(platform_name="openstack").update(status=True)
+            log_manager.serverLogAdder("Openstack Server Recovered")
 
             return print("All User's Instance Recovered From Cloudstack!!")           
 
 def openstackServerChecker():
     import openstack_controller as oc
     from openstack_controller import OpenstackServerError
+    log_manager = ServerLogManager()
 
     if oc.admin_token() != None:
         print("Openstack Server On: ", ServerStatusFlag.objects.get(platform_name="openstack").status)
@@ -1009,6 +1012,7 @@ def openstackServerChecker():
     else:
         print("openstack server error occured")
         ServerStatusFlag.objects.filter(platform_name="openstack").update(status=False)
+        log_manager.serverLogAdder("Openstack Server Error Occurred")
         try:
             restore_res = openstackServerRecoveryChecker()
         except OpenstackServerError as e:
