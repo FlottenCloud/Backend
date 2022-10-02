@@ -41,3 +41,11 @@ class InfoConsumer(AsyncWebsocketConsumer):
             "type" : "instance_log",
             "message" : message
         }))
+
+    async def server_log_send(self, event):
+        message = event["message"]
+
+        await self.send(text_data=json.dumps({
+            "type" : "server_log",
+            "message" : message
+        }))

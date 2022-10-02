@@ -66,6 +66,10 @@ class ServerStatusFlag(models.Model):
     class Meta:
         db_table = 'server_status'
 
+class ServerLog(models.Model):
+    log = models.CharField()
+    log_time = models.DateTimeField(auto_now=True)
+
 class DjangoServerTime(models.Model):
     start_time = models.TextField()
     backup_ran = models.BooleanField()
