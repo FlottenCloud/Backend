@@ -142,9 +142,12 @@ class Openstack(InstanceLogManager, Stack, APIView):
     @swagger_auto_schema(tags=["Openstack API"], manual_parameters=[openstack_user_token], responses={200:"Success", 401:"Unauthorized", 404:"Not Found", 500:"Internal Server Error"})
     def get(self, request):     # header: user_token
         try:
-            # if ServerStatusFlag.objects.get(platform_name="openstack").status == False:
+            if ServerStatusFlag.objects.get(platform_name="openstack").status == True:
+                token, user_id = oc.getRequestParams(request)
+            else:
+                user_id = AccountInfo.objects.get(cloudstack_apiKey=request.headers["apiKey"]).user_id
             #     return JsonResponse({"message" : "오픈스택 서버에 문제가 생겨 리소스 정보를 받아올 수 없습니다."}, status=500)
-            token, user_id = oc.getRequestParams(request)
+            # token, user_id = oc.getRequestParams(request)
             # if user_id == None:
             #     return JsonResponse({"message" : "오픈스택 서버에 문제가 생겨 token으로 오픈스택 유저의 정보를 얻어올 수 없습니다."}, status=500)
             q = Q()     # Query를 통한 가상머신 검색을 위한 where 절
@@ -316,7 +319,10 @@ class InstanceInfo(Instance, APIView):
     
     @swagger_auto_schema(tags=["Openstack Instance Info API"], manual_parameters=[openstack_user_token, instance_pk], responses={200:"Success", 404:"Not Found", 500:"Internal Server Error"})
     def get(self, request, instance_pk):
-        token, user_id = oc.getRequestParams(request)
+        if ServerStatusFlag.objects.get(platform_name="openstack").status == True:
+            token, user_id = oc.getRequestParams(request)
+        else:
+            user_id = AccountInfo.objects.get(cloudstack_apiKey=request.headers["apiKey"]).user_id
         # if user_id == None:
         #     return JsonResponse({"message" : "오픈스택 서버에 문제가 생겨 인스턴스 정보를 불러올 수 없습니다."}, status=500)
         try:
@@ -362,7 +368,10 @@ class InstanceLogShower(APIView):
     @swagger_auto_schema(tags=["Openstack Instance Log API"], manual_parameters=[openstack_user_token, instance_pk], responses={200:"Success", 401:"Unauthorized", 500:"Internal Server Error"})
     def get(self, request, instance_pk):
         try:
-            token, user_id = oc.getRequestParams(request)
+            if ServerStatusFlag.objects.get(platform_name="openstack").status == True:
+                token, user_id = oc.getRequestParams(request)
+            else:
+                user_id = AccountInfo.objects.get(cloudstack_apiKey=request.headers["apiKey"]).user_id
             # if user_id == None:
             #     return JsonResponse({"message" : "오픈스택 서버에 문제가 생겨 인스턴스 정보를 불러올 수 없습니다."}, status=500)
             try:
@@ -386,7 +395,10 @@ class DashBoard(RequestChecker, APIView):
         try:
             # if ServerStatusFlag.objects.get(platform_name="openstack").status == False:
             #     return JsonResponse({"message" : "오픈스택 서버에 문제가 생겨 리소스 정보를 받아올 수 없습니다."}, status=500)
-            token, user_id = oc.getRequestParams(request)
+            if ServerStatusFlag.objects.get(platform_name="openstack").status == True:
+                token, user_id = oc.getRequestParams(request)
+            else:
+                user_id = AccountInfo.objects.get(cloudstack_apiKey=request.headers["apiKey"]).user_id
             # if user_id == None:
             #     return JsonResponse({"message" : "오픈스택 서버에 문제가 생겨 token으로 오픈스택 유저의 정보를 얻어올 수 없습니다."}, status=500)
 
