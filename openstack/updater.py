@@ -99,7 +99,7 @@ def registerCloudstackTemplate(zoneID, template_name, backup_img_file_name, os_t
 
     request_body = {"apiKey" : admin_apiKey, "response" : "json", "command" : "registerTemplate",
         "displaytext" : template_name, "format" : "qcow2", "hypervisor" : "kvm",
-        "name" : template_name, "url" : "https://hoograduation.s3.ap-northeast-2.amazonaws.com/" + backup_img_file_name, "ostypeid" : os_type_id, "zoneid" : zoneID}
+        "name" : template_name, "url" : "https://hoograduation.s3.ap-northeast-2.amazonaws.com/img-files/" + backup_img_file_name, "ostypeid" : os_type_id, "zoneid" : zoneID}
     template_register_req = csc.requestThroughSigForTemplateRegister(admin_secretKey, request_body)
     webbrowser.open(template_register_req)  # url 오픈으로 해결 안돼서 webbrowser로 open함
     
