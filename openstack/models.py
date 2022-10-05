@@ -39,7 +39,8 @@ class InstanceLog(models.Model):
     instance_pk = models.ForeignKey("OpenstackInstance", related_name="instance_log", on_delete=models.CASCADE, db_column="instance_pk")
     # instance log
     instance_name = models.CharField(max_length=50)
-    log = models.TextField()
+    action = models.TextField()     # 여기서 backup_start, backup_complete 등 판단
+    log = models.TextField()    # 이건 단순 log message라고 보면 됨.
     log_time = models.DateTimeField(auto_now=True)
 
     class Meta:
@@ -64,6 +65,10 @@ class ServerStatusFlag(models.Model):
 
     class Meta:
         db_table = 'server_status'
+
+class ServerLog(models.Model):
+    log = models.CharField(max_length=200)
+    log_time = models.DateTimeField(auto_now=True)
 
 class DjangoServerTime(models.Model):
     start_time = models.TextField()

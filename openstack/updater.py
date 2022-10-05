@@ -13,9 +13,9 @@ import webbrowser
 from apscheduler.schedulers.background import BackgroundScheduler
 from django.core.files import File
 from django.http import JsonResponse
-from log_manager import InstanceLogManager
+from log_manager import InstanceLogManager, ServerLogManager
 from account.models import AccountInfo
-from openstack.models import OpenstackBackupImage, OpenstackInstance, ServerStatusFlag, DjangoServerTime
+from openstack.models import OpenstackBackupImage, OpenstackInstance, ServerStatusFlag, ServerLog, DjangoServerTime
 from cloudstack.models import CloudstackInstance
 from openstack.serializers import OpenstackInstanceSerializer,OpenstackBackupImageSerializer
 from openstack.openstack_modules import RequestChecker, Stack, TemplateModifier, Instance
@@ -51,13 +51,15 @@ def errorCheckAndUpdateDBstatus():
         return print("에러상태인 인스턴스가 없습니다.")
     
     for error_instance in error_instance_list:
-        user_id = error_instance.user_id.user_id
-        error_instance_pk = error_instance.instance_pk
-        error_instance_name = error_instance.instance_name
-        OpenstackInstance.objects.filter(instance_id=error_instance["id"]).update(status="ERROR")
-        print("instance " + error_instance["id"] + "에러 감지")
+        error_instance_id = error_instance["id"]
+        error_openstack_instance = OpenstackInstance.objects.get(instance_id=error_instance_id)
+        user_id = error_openstack_instance.user_id.user_id
+        error_instance_pk = error_openstack_instance.instance_pk
+        error_instance_name = error_openstack_instance.instance_name
+        OpenstackInstance.objects.filter(instance_id=error_instance_id).update(status="ERROR")
+        print("instance " + error_instance_id + "에러 감지")
         log_manager.userLogAdder(user_id, error_instance_name, "Error occurred", "instance")
-        log_manager.instanceLogAdder(error_instance_pk, error_instance_name, "Error occurred")
+        log_manager.instanceLogAdder(error_instance_pk, error_instance_name, "error_occurred", "Error occurred")
 
 
 # ------------------------------------------------------------ Backup Part ------------------------------------------------------------ #
@@ -97,7 +99,7 @@ def registerCloudstackTemplate(zoneID, template_name, backup_img_file_name, os_t
 
     request_body = {"apiKey" : admin_apiKey, "response" : "json", "command" : "registerTemplate",
         "displaytext" : template_name, "format" : "qcow2", "hypervisor" : "kvm",
-        "name" : template_name, "url" : "http://" + django_server_ip + ":8000/media/img-files/" + backup_img_file_name, "ostypeid" : os_type_id, "zoneid" : zoneID}
+        "name" : template_name, "url" : "https://hoograduation.s3.ap-northeast-2.amazonaws.com/img-files/" + backup_img_file_name, "ostypeid" : os_type_id, "zoneid" : zoneID}
     template_register_req = csc.requestThroughSigForTemplateRegister(admin_secretKey, request_body)
     webbrowser.open(template_register_req)  # url 오픈으로 해결 안돼서 webbrowser로 open함
     
@@ -183,7 +185,7 @@ def deployCloudstackInstance(user_id, user_apiKey, user_secretKey, instance_pk, 
         num_cpu = created_instance_num_cpu
     )
     log_manager.userLogAdder(user_id_object.user_id, created_instance_name, "Backuped(to cloudstack)", "instance")
-    log_manager.instanceLogAdder(instance_pk, created_instance_name, "Backuped(to cloudstack)")
+    log_manager.instanceLogAdder(instance_pk, created_instance_name, "backup_complete", "Backuped(to cloudstack)")
     
     print("Created Instance " + backup_img_file_name + " to cloudstack")
 
@@ -230,12 +232,12 @@ def cloudstackInstanceDeleteAndCreate(user_id, cloudstack_user_apiKey, cloudstac
     # ------------------------------ Total Backup ------------------------------ #
 def backup(cycle):
     import openstack_controller as oc                            # import는 여기 고정 -> 컴파일 시간에 circular import 때문에 걸려서
-    import log_manager
     openstack_hostIP = oc.hostIP
 
     print("this function runs every", cycle, "seconds")
     req_checker = RequestChecker()
     instance_tool = Instance()
+    log_manager = InstanceLogManager()
 
     try:
         instance_count = OpenstackInstance.objects.filter(backup_time=cycle).count()
@@ -265,6 +267,7 @@ def backup(cycle):
             cloudstack_user_secretKey = instance.user_id.cloudstack_secretKey
             print("클라우드 스택의 유저 네트워크 id: ", cloudstack_user_network_id)
             print("인스턴스 id: ", backup_instance_id)
+            log_manager.instanceLogAdder(backup_instance_pk, backup_instance_name, "backup_start", "Backup started(to cloudstack)")
             backup_payload = {
                 "createBackup": {
                     "name": "Backup " + backup_instance_id,
@@ -899,6 +902,7 @@ def restoreFromCloudstack(cloudstack_user_apiKey, cloudstack_user_secretKey, clo
     
     user_id = AccountInfo.objects.get(apiKey=cloudstack_user_apiKey).user_id
     instance_pk = CloudstackInstance.objects.get(instance_id=cloudstack_instance_id).instance_pk
+    log_manager.instanceLogAdder(instance_pk, cloudstack_instance_name, "platform_restore_start", "Restore started(from cloudstack)")
     CloudstackInstance.objects.filter(instance_id=cloudstack_instance_id).update(status="RESTORING TO OPENSTACK")
     cloudstack_instance_stop_response = stopCloudstackInstance(cloudstack_user_apiKey, cloudstack_user_secretKey, cloudstack_instance_id)    # 실행중인 VM을 중지
     print(cloudstack_instance_stop_response)
@@ -965,13 +969,14 @@ def restoreFromCloudstack(cloudstack_user_apiKey, cloudstack_user_secretKey, clo
     print(del_cloudstack_template_res)
 
     log_manager.userLogAdder(user_id, cloudstack_instance_name, "Restored(from cloudstack)", "instance")
-    log_manager.instanceLogAdder(instance_pk, cloudstack_instance_name, "Restored(from cloudstack)")
+    log_manager.instanceLogAdder(instance_pk, cloudstack_instance_name, "platform_restore_complete", "Restored(from cloudstack)")
 
     return restore_res
 
     # -------- Openstack Server Check Part -------- #
 def openstackServerRecoveryChecker():
     import openstack_controller as oc
+    log_manager = ServerLogManager()
 
     while True:
         if oc.admin_token() == None:      # TimeOut 발생시 계속 서버상태 체크
@@ -994,12 +999,14 @@ def openstackServerRecoveryChecker():
                     print(restore_res)
             
             ServerStatusFlag.objects.filter(platform_name="openstack").update(status=True)
+            log_manager.serverLogAdder("Openstack Server Recovered")
 
             return print("All User's Instance Recovered From Cloudstack!!")           
 
 def openstackServerChecker():
     import openstack_controller as oc
     from openstack_controller import OpenstackServerError
+    log_manager = ServerLogManager()
 
     if oc.admin_token() != None:
         print("Openstack Server On: ", ServerStatusFlag.objects.get(platform_name="openstack").status)
@@ -1007,6 +1014,7 @@ def openstackServerChecker():
     else:
         print("openstack server error occured")
         ServerStatusFlag.objects.filter(platform_name="openstack").update(status=False)
+        log_manager.serverLogAdder("Openstack Server Error Occurred")
         try:
             restore_res = openstackServerRecoveryChecker()
         except OpenstackServerError as e:
@@ -1178,6 +1186,7 @@ def freezerBackupWithCycle(cycle):
             user_id = instance.user_id.user_id
             instance_pk = instance.instance_pk
             instance_name = instance.instance_name
+            log_manager.instanceLogAdder(instance_pk, instance_name, "backup_start", "Backup started(with Freezer)")
             if instance.status == "ERROR" or  instance.status == "RESTORING":
                 print("instance " + instance.instance_name + " status is error. Can not backup with freezer.")
                 resultData = "Instance " + instance.instance_name + " Error"
@@ -1200,7 +1209,7 @@ def freezerBackupWithCycle(cycle):
                 return "Error!! When trying freezer Backup"
             OpenstackInstance.objects.filter(instance_id=backup_instance_id).update(freezer_completed=True)
             log_manager.userLogAdder(user_id, instance_name, "Backuped(with Freezer)", "instance")
-            log_manager.instanceLogAdder(instance_pk, instance_name, "Backuped(with Freezer)")
+            log_manager.instanceLogAdder(instance_pk, instance_name, "backup_complete", "Backuped(with Freezer)")
 
             end_time = time.time()
             print("Freezer backup time: ", f"{end_time - start_time:.5f} sec")
@@ -1234,6 +1243,7 @@ def freezerRestoreWithCycle():
         restore_instance_name = restore_instance.instance_name
         restore_instance_image_name = restore_instance.image_name
         OpenstackInstance.objects.filter(instance_id=restore_instance_id).update(status="RESTORING")
+        log_manager.instanceLogAdder(instance_pk, restore_instance_name, "restore_start", "Restore started(with Freezer)")
         print("리스토어할 인스턴스 ID: ", restore_instance_id)
 
         # --------- error 터진 stack 삭제 --------- #
@@ -1276,8 +1286,8 @@ def freezerRestoreWithCycle():
         
         OpenstackInstance.objects.filter(instance_name=restored_instance_name).update(instance_id=restored_instance_id, instance_name=restored_instance_name,
             stack_id=None, stack_name=None, ip_address=restored_instance_ip_address, status="ACTIVE", image_name="RESTORE"+restored_instance_name, update_image_ID=None, freezer_completed=False)
-        log_manager.userLogAdder(user_id, restore_instance_name, "Backuped(with Freezer)", "instance")
-        log_manager.instanceLogAdder(instance_pk, restore_instance_name, "Backuped(with Freezer)")
+        log_manager.userLogAdder(user_id, restore_instance_name, "Restored(with Freezer)", "instance")
+        log_manager.instanceLogAdder(instance_pk, restore_instance_name, "restore_complete", "Restored(with Freezer)")
 
         end_time = time.time()
         print("Freezer restore time: ", f"{end_time - start_time:.5f} sec")
@@ -1458,13 +1468,15 @@ def dbModifier():
 
 # ------------------------------------------------------------------------ Total Batch Job Part ------------------------------------------------------------------------ #
 def start():
+    import openstack_controller as oc
+    backup_interval = oc.backup_interval
     scheduler = BackgroundScheduler() # ({'apscheduler.job_defaults.max_instances': 2}) # max_instance = 한 번에 실행할 수 있는 같은 job의 개수
     # scheduler.add_job(deleter, 'interval', seconds=5)
     # scheduler.add_job(dbModifier, "interval", seconds=5)
     
     DjangoServerTime.objects.filter(id=1).update(start_time=time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(time.time())))
     DjangoServerTime.objects.filter(id=1).update(backup_ran=False)
-    scheduler.add_job(backup_all6, 'interval', seconds=900)
+    scheduler.add_job(backup_all6, 'interval', seconds=backup_interval*60)
     scheduler.add_job(freezerRestore6, 'interval', seconds=30)
     scheduler.add_job(openstackServerChecker, 'interval', seconds=60)
 

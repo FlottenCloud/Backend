@@ -33,6 +33,7 @@ ALLOWED_HOSTS = ['*']
 # Application definition
 
 INSTALLED_APPS = [
+    'channels',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -43,11 +44,28 @@ INSTALLED_APPS = [
     'drf_yasg',
     'rest_framework',
     'django_apscheduler',
+    'storages',
+    'infosender',
     'account',
     'openstack',
     'cloudstack',
     'django_cleanup.apps.CleanupConfig',
 ]
+
+ASGI_APPLICATION = 'cloudmanager.asgi.application'      # For websocket setting
+
+
+CELERY_RESULT_BACKEND = 'django-db'
+CELERY_BROKER_URL = 'redis://127.0.0.1:6379'
+
+CHANNEL_LAYERS = {      # For websocket setting
+    'default': {
+        "BACKEND": "channels.layers.InMemoryChannelLayer",
+        # 'CONFIG': {
+        #     'hosts': [('127.0.0.1', 6379)],
+        # },
+    },
+}
 
 APSCHEDULER_DATETIME_FORMAT = "N j, Y, f:s a"  # Default
 
@@ -171,5 +189,19 @@ CORS_ALLOW_HEADERS = [
     "secretKey"
 ]
 
-MEDIA_URL = '/media/'
-MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+
+# AWS Setting
+AWS_REGION = 'ap-northeast-2'
+AWS_STORAGE_BUCKET_NAME = 'hoograduation'
+AWS_QUERYSTRING_AUTH = False
+AWS_S3_HOST = 's3.%s.amazonaws.com' % AWS_REGION
+AWS_ACCESS_KEY_ID = ''
+AWS_SECRET_ACCESS_KEY = ''
+AWS_S3_CUSTOM_DOMAIN = '%s.s3.amazonaws.com' % AWS_STORAGE_BUCKET_NAME
+
+
+#Media Setting
+MEDIA_URL = "https://%s/" % AWS_S3_CUSTOM_DOMAIN
+DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
+# MEDIA_URL = '/media/'
+# MEDIA_ROOT = os.path.join(BASE_DIR, 'media')

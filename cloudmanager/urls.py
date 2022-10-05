@@ -39,9 +39,10 @@ urlpatterns = [
     path(r'swagger', schema_view.with_ui('swagger', cache_timeout=0), name='schema-swagger-ui'),
     path(r'redoc', schema_view.with_ui('redoc', cache_timeout=0), name='schema-redoc-v1'),
     path('admin/', admin.site.urls),
+    path('infosender_test/', include('infosender.urls')),
     path('account/', include('account.urls')),
     path('openstack/', include('openstack.urls')),
-    path('cloudstack/', include('cloudstack.urls'))
+    path('cloudstack/', include('cloudstack.urls')),
 ]
 # if settings.DEBUG:
 urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
