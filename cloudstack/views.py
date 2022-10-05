@@ -141,7 +141,7 @@ class InstanceStart(InstanceLogManager, APIView):
         apiKey = request.headers["apiKey"]
         secretKey = request.headers["secretKey"]
         start_instance_pk = json.loads(request.body)["instance_pk"]
-        user_id = CloudstackInstance.objects.get(instance_pk=start_instance_pk).user_id
+        user_id = CloudstackInstance.objects.get(instance_pk=start_instance_pk).user_id.user_id
         start_instance_id = CloudstackInstance.objects.get(instance_pk=start_instance_pk).instance_id
         start_instance_name = CloudstackInstance.objects.get(instance_pk=start_instance_pk).instance_name
         if start_instance_id == None :
@@ -162,7 +162,7 @@ class InstanceStop(InstanceLogManager, APIView):
         apiKey = request.headers["apiKey"]
         secretKey = request.headers["secretKey"]
         stop_instance_pk = json.loads(request.body)["instance_pk"]
-        user_id = CloudstackInstance.objects.get(instance_pk=stop_instance_pk).user_id
+        user_id = CloudstackInstance.objects.get(instance_pk=stop_instance_pk).user_id.user_id
         stop_instance_id = CloudstackInstance.objects.get(instance_pk=stop_instance_pk).instance_id
         stop_instance_name = CloudstackInstance.objects.get(instance_pk=stop_instance_pk).instance_name
         if stop_instance_id == None :
