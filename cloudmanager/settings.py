@@ -44,6 +44,7 @@ INSTALLED_APPS = [
     'drf_yasg',
     'rest_framework',
     'django_apscheduler',
+    'storages',
     'infosender',
     'account',
     'openstack',
@@ -188,5 +189,19 @@ CORS_ALLOW_HEADERS = [
     "secretKey"
 ]
 
-MEDIA_URL = '/media/'
-MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+
+# AWS Setting
+AWS_REGION = 'ap-northeast-2'
+AWS_STORAGE_BUCKET_NAME = 'hoograduation'
+AWS_QUERYSTRING_AUTH = False
+AWS_S3_HOST = 's3.%s.amazonaws.com' % AWS_REGION
+AWS_ACCESS_KEY_ID = 'AKIA573XWIYXZZYIEYXW'
+AWS_SECRET_ACCESS_KEY = '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'
+AWS_S3_CUSTOM_DOMAIN = '%s.s3.amazonaws.com' % AWS_STORAGE_BUCKET_NAME
+
+
+#Media Setting
+MEDIA_URL = "https://%s/" % AWS_S3_CUSTOM_DOMAIN
+DEFAULT_FILE_STORAGE = 'storages.backends.s3boto.S3BotoStorage'
+# MEDIA_URL = '/media/'
+# MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
