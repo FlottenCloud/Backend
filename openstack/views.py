@@ -142,11 +142,11 @@ class Openstack(InstanceLogManager, Stack, APIView):
     @swagger_auto_schema(tags=["Openstack API"], manual_parameters=[openstack_user_token], responses={200:"Success", 401:"Unauthorized", 404:"Not Found", 500:"Internal Server Error"})
     def get(self, request):     # header: user_token
         try:
-            if ServerStatusFlag.objects.get(platform_name="openstack").status == False:
-                return JsonResponse({"message" : "오픈스택 서버에 문제가 생겨 리소스 정보를 받아올 수 없습니다."}, status=500)
+            # if ServerStatusFlag.objects.get(platform_name="openstack").status == False:
+            #     return JsonResponse({"message" : "오픈스택 서버에 문제가 생겨 리소스 정보를 받아올 수 없습니다."}, status=500)
             token, user_id = oc.getRequestParams(request)
-            if user_id == None:
-                return JsonResponse({"message" : "오픈스택 서버에 문제가 생겨 token으로 오픈스택 유저의 정보를 얻어올 수 없습니다."}, status=500)
+            # if user_id == None:
+            #     return JsonResponse({"message" : "오픈스택 서버에 문제가 생겨 token으로 오픈스택 유저의 정보를 얻어올 수 없습니다."}, status=500)
             q = Q()     # Query를 통한 가상머신 검색을 위한 where 절
             query_instance_name = request.GET.get("instance_name", None)    # Query에 instance_name있는지 확인
             print("Instance name for search: ", query_instance_name)
@@ -317,13 +317,13 @@ class InstanceInfo(Instance, APIView):
     @swagger_auto_schema(tags=["Openstack Instance Info API"], manual_parameters=[openstack_user_token, instance_pk], responses={200:"Success", 404:"Not Found", 500:"Internal Server Error"})
     def get(self, request, instance_pk):
         token, user_id = oc.getRequestParams(request)
-        if user_id == None:
-            return JsonResponse({"message" : "오픈스택 서버에 문제가 생겨 인스턴스 정보를 불러올 수 없습니다."}, status=500)
+        # if user_id == None:
+        #     return JsonResponse({"message" : "오픈스택 서버에 문제가 생겨 인스턴스 정보를 불러올 수 없습니다."}, status=500)
         try:
             instance_object = OpenstackInstance.objects.get(instance_pk=instance_pk)
         except Exception as e:
             print("인스턴스 정보 조회 중 예외 발생: ", e)
-            return JsonResponse({"message" : "해당 가상머신이 존재하지 않습니다."}, status=500)  
+            return JsonResponse({"message" : "해당 가상머신이 존재하지 않습니다."}, status=404)  
         
         object_own_user_id = user_id
         object_instance_pk = instance_object.instance_pk
@@ -363,13 +363,13 @@ class InstanceLogShower(APIView):
     def get(self, request, instance_pk):
         try:
             token, user_id = oc.getRequestParams(request)
-            if user_id == None:
-                return JsonResponse({"message" : "오픈스택 서버에 문제가 생겨 인스턴스 정보를 불러올 수 없습니다."}, status=500)
+            # if user_id == None:
+            #     return JsonResponse({"message" : "오픈스택 서버에 문제가 생겨 인스턴스 정보를 불러올 수 없습니다."}, status=500)
             try:
                 instance_log = list(InstanceLog.objects.filter(instance_pk=instance_pk).values())
             except Exception as e:
                 print("인스턴스 정보 조회 중 예외 발생: ", e)
-                return JsonResponse({"message" : "해당 가상머신이 존재하지 않습니다."}, status=500)
+                return JsonResponse({"message" : "해당 가상머신이 존재하지 않습니다."}, status=404)
 
         except oc.TokenExpiredError as e:
             print("에러 내용: ", e)
@@ -384,11 +384,11 @@ class DashBoard(RequestChecker, APIView):
     @swagger_auto_schema(tags=["Openstack Dashboard API"], manual_parameters=[openstack_user_token], responses={200:"Success", 401:"Unauthorized", 500:"Internal Server Error"})
     def get(self, request):     # header: user_token
         try:
-            if ServerStatusFlag.objects.get(platform_name="openstack").status == False:
-                return JsonResponse({"message" : "오픈스택 서버에 문제가 생겨 리소스 정보를 받아올 수 없습니다."}, status=500)
+            # if ServerStatusFlag.objects.get(platform_name="openstack").status == False:
+            #     return JsonResponse({"message" : "오픈스택 서버에 문제가 생겨 리소스 정보를 받아올 수 없습니다."}, status=500)
             token, user_id = oc.getRequestParams(request)
-            if user_id == None:
-                return JsonResponse({"message" : "오픈스택 서버에 문제가 생겨 token으로 오픈스택 유저의 정보를 얻어올 수 없습니다."}, status=500)
+            # if user_id == None:
+            #     return JsonResponse({"message" : "오픈스택 서버에 문제가 생겨 token으로 오픈스택 유저의 정보를 얻어올 수 없습니다."}, status=500)
 
             try:
                 # user_instance_info = OpenstackInstance.objects.filter(user_id=user_id)

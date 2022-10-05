@@ -1468,13 +1468,15 @@ def dbModifier():
 
 # ------------------------------------------------------------------------ Total Batch Job Part ------------------------------------------------------------------------ #
 def start():
+    import openstack_controller as oc
+    backup_interval = oc.backup_interval
     scheduler = BackgroundScheduler() # ({'apscheduler.job_defaults.max_instances': 2}) # max_instance = 한 번에 실행할 수 있는 같은 job의 개수
     # scheduler.add_job(deleter, 'interval', seconds=5)
     # scheduler.add_job(dbModifier, "interval", seconds=5)
     
     DjangoServerTime.objects.filter(id=1).update(start_time=time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(time.time())))
     DjangoServerTime.objects.filter(id=1).update(backup_ran=False)
-    scheduler.add_job(backup_all6, 'interval', seconds=900)
+    scheduler.add_job(backup_all6, 'interval', seconds=backup_interval*60)
     scheduler.add_job(freezerRestore6, 'interval', seconds=30)
     scheduler.add_job(openstackServerChecker, 'interval', seconds=60)
 
