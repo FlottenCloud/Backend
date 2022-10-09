@@ -24,7 +24,7 @@ class OpenstackInstance(models.Model):  #유저와 연관짓기 위한 외래키
     ram_size = models.FloatField(validators=[MaxValueValidator(12)])
     # num_people = models.IntegerField(validators=[MinValueValidator(1)], null=True)
     # expected_data_size = models.IntegerField(validators=[MinValueValidator(1)], null=True)
-    pc_spec = models.CharField(max_length=10)
+    pc_spec = models.CharField(max_length=10, null=True)
     disk_size = models.FloatField(validators=[MaxValueValidator(100)])
     num_cpu = models.IntegerField(validators=[MaxValueValidator(12)])
     package = models.TextField(null=True, blank=True)
