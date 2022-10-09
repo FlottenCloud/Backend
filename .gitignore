@@ -10,3 +10,4 @@ migrations
 back_imgs
 .DS_Store
 makesig.py
+settings.py
