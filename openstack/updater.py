@@ -810,8 +810,9 @@ def openstackStackCreate(instance_name, template_name):  # 오픈스택 상의 �
     stack_id_for_del = stack_object.stack_id
     stack_name_for_del = stack_object.stack_name
     image_name_for_del = stack_object.image_name
-    num_people = stack_object.num_people
-    data_size = stack_object.expected_data_size
+    # num_people = stack_object.num_people
+    # data_size = stack_object.expected_data_size
+    pc_spec = stack_object.pc_spec
     flavor = stack_object.flavor_name
     package = stack_object.package.split(",")
     os_of_instance = stack_object.os
