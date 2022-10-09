@@ -288,6 +288,7 @@ class LogView(APIView):
 
     @swagger_auto_schema(tags=["User Log API"], manual_parameters=[user_id], responses={200:"Success"})
     def get(self, request, user_id):
-        res = list(AccountLog.objects.filter(user_id=user_id).values())
+        log_list = list(AccountLog.objects.filter(user_id=user_id).values())
+        log_list.reverse()
 
-        return JsonResponse({"log" : res}, status=200)
+        return JsonResponse({"log" : log_list}, status=200)
