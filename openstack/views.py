@@ -42,7 +42,7 @@ class Openstack(InstanceLogManager, Stack, APIView):
             if user_id == None:
                 return JsonResponse({"message" : "오픈스택 서버에 문제가 생겼습니다."}, status=500)
 
-            user_os, user_package, num_people, data_size, flavor, user_instance_name, backup_time = super().getUserRequirement(input_data)
+            user_os, user_package, pc_spec, flavor, user_instance_name, backup_time = super().getUserRequirement(input_data)
             if user_instance_name == "Duplicated":
                 return JsonResponse({"message": "이미 존재하는 가상머신 이름입니다."}, status=409)
             if flavor == "EXCEEDED":
@@ -102,8 +102,9 @@ class Openstack(InstanceLogManager, Stack, APIView):
                 "image_name" : instance_image_name,
                 "flavor_name" : instance_flavor_name,
                 "ram_size" : instance_ram_size,
-                "num_people" : num_people,
-                "expected_data_size" : data_size,
+                "pc_spec" : pc_spec,
+                # "num_people" : num_people,
+                # "expected_data_size" : data_size,
                 "disk_size" : instance_disk_size,
                 "num_cpu" : instance_num_cpu,
                 "package" : package_for_db,
@@ -199,16 +200,16 @@ class Openstack(InstanceLogManager, Stack, APIView):
             stack_data = OpenstackInstance.objects.get(instance_pk=input_data["instance_pk"])
 
             if stack_data.stack_id != None:     # Freezer로 복원 된 인스턴스가 아닌 경우    -> Stack.stackUpdater()
-                updated_instance_id, updated_instance_name, updated_instance_ip_address, updated_instance_status, updated_instance_image_name, updated_instance_flavor_name, updated_instance_ram_size, updated_disk_size, updated_num_cpu, package_for_db, updated_num_people,  updated_data_size, user_req_backup_time, snapshotID_for_update = super().stackUpdater(openstack_hostIP, input_data, token, user_id)
+                updated_instance_id, updated_instance_name, updated_instance_ip_address, updated_instance_status, updated_instance_image_name, updated_instance_flavor_name, updated_instance_ram_size, updated_disk_size, updated_num_cpu, package_for_db, updated_pc_spec, user_req_backup_time, snapshotID_for_update = super().stackUpdater(openstack_hostIP, input_data, token, user_id)
                 OpenstackInstance.objects.filter(instance_pk=input_data["instance_pk"]).update(instance_id=updated_instance_id, instance_name=updated_instance_name,
                     ip_address=str(updated_instance_ip_address), status=updated_instance_status, image_name=updated_instance_image_name, flavor_name=updated_instance_flavor_name,
-                    ram_size=updated_instance_ram_size, num_people=updated_num_people, expected_data_size=updated_data_size, disk_size=updated_disk_size, num_cpu=updated_num_cpu, 
+                    ram_size=updated_instance_ram_size, pc_spec=updated_pc_spec, disk_size=updated_disk_size, num_cpu=updated_num_cpu, 
                     package=package_for_db, backup_time=user_req_backup_time, update_image_ID=snapshotID_for_update)
             else:       # Freezer로 복원 된 인스턴스인 경우    -> Stack.stackUpdaterWhenFreezerRestored()
-                updated_instance_id, updated_instance_name, updated_instance_ip_address, updated_instance_status, updated_instance_image_name, updated_instance_flavor_name, updated_instance_ram_size, updated_disk_size, updated_num_cpu, package_for_db, updated_num_people,  updated_data_size, user_req_backup_time, snapshotID_for_update, updated_stack_name, updated_stack_id = super().stackUpdaterWhenFreezerRestored(openstack_hostIP, input_data, token, user_id)
+                updated_instance_id, updated_instance_name, updated_instance_ip_address, updated_instance_status, updated_instance_image_name, updated_instance_flavor_name, updated_instance_ram_size, updated_disk_size, updated_num_cpu, package_for_db, updated_pc_spec, user_req_backup_time, snapshotID_for_update, updated_stack_name, updated_stack_id = super().stackUpdaterWhenFreezerRestored(openstack_hostIP, input_data, token, user_id)
                 OpenstackInstance.objects.filter(instance_pk=input_data["instance_pk"]).update(instance_id=updated_instance_id, instance_name=updated_instance_name, stack_id=updated_stack_id,
                     stack_name=updated_stack_name, ip_address=str(updated_instance_ip_address), status=updated_instance_status, image_name=updated_instance_image_name,
-                    flavor_name=updated_instance_flavor_name, ram_size=updated_instance_ram_size, num_people=updated_num_people, expected_data_size=updated_data_size, disk_size=updated_disk_size,
+                    flavor_name=updated_instance_flavor_name, ram_size=updated_instance_ram_size, pc_spec=updated_pc_spec, disk_size=updated_disk_size,
                     num_cpu=updated_num_cpu, package=package_for_db, backup_time=user_req_backup_time, update_image_ID=snapshotID_for_update)
 
             super().userLogAdder(user_id, updated_instance_name, "Updated", "instance")
@@ -343,8 +344,9 @@ class InstanceInfo(Instance, APIView):
         object_os = instance_object.os
         object_flavor_name= instance_object.flavor_name
         object_ram_size = instance_object.ram_size
-        object_num_people = instance_object.num_people
-        object_data_size = instance_object.expected_data_size
+        # object_num_people = instance_object.num_people
+        # object_data_size = instance_object.expected_data_size
+        object_pc_spec = instance_object.pc_spec
         object_disk_size = instance_object.disk_size
         object_num_cpu = instance_object.num_cpu
         object_package = instance_object.package
@@ -352,8 +354,7 @@ class InstanceInfo(Instance, APIView):
         object_update_image_id = instance_object.update_image_ID
         instance_info = {"user_id" : object_own_user_id, "instance_pk" : object_instance_pk, "instance_id" : object_instance_id, "instance_name" : object_instance_name, "stack_id" : object_stack_id, "stack_name" : object_stack_name, 
             "ip_address" : object_ip_address, "status" : object_status, "image_name" : object_image_name, "os" : object_os, "flavor_name" : object_flavor_name, "ram_size" : object_ram_size,
-            "num_people" : object_num_people, "expected_data_size" : object_data_size, "disk_size" : object_disk_size, "num_cpu" : object_num_cpu, "backup_time" : object_backup_time, "package" : object_package,
-            "update_image" : object_update_image_id}
+            "pc_spec" : object_pc_spec, "disk_size" : object_disk_size, "num_cpu" : object_num_cpu, "backup_time" : object_backup_time, "package" : object_package,"update_image" : object_update_image_id}
         instance_info = super().instance_backup_time_show(instance_info, object_instance_pk)
         print(instance_info)
         

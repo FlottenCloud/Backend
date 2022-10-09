@@ -96,18 +96,25 @@ class TemplateModifier:
     def getUserRequirement(self, input_data):
         user_os = input_data["os"]
         user_package = input_data["package"]
-        if input_data["num_people"] < 0:
-            raise NumPeopleNegativeError
-        if input_data["data_size"] < 0:
-            raise ExpectedDataSizeNegativeError
-        disk_size = round(input_data["num_people"] * input_data["data_size"])   # flavor select에 쓰일 값
+        # if input_data["num_people"] < 0:
+        #     raise NumPeopleNegativeError
+        # if input_data["data_size"] < 0:
+        #     raise ExpectedDataSizeNegativeError
+        # disk_size = round(input_data["num_people"] * input_data["data_size"])   # flavor select에 쓰일 값
+        user_pc_spec = input_data["pc_spec"]
 
-        if disk_size < 5:   # flavor select 로직
+        # if disk_size < 5:   # flavor select 로직
+        #     flavor = "ds512M"
+        # elif 5 <= disk_size <= 10:
+        #     flavor = "ds1G"  # test한다고 tiny 준거임.
+        # elif 10 < disk_size :
+        #     flavor = "EXCEEDED"
+        if user_pc_spec == "low":   # flavor select 로직
             flavor = "ds512M"
-        elif 5 <= disk_size <= 10:
+        elif user_pc_spec == "middle":
             flavor = "ds1G"  # test한다고 tiny 준거임.
-        elif 10 < disk_size :
-            flavor = "EXCEEDED"
+        elif user_pc_spec == "high":
+            flavor = "m1.small"
 
         user_instance_name = input_data["instance_name"]
         if user_instance_name == "":
@@ -117,28 +124,36 @@ class TemplateModifier:
             
         backup_time = input_data["backup_time"]
 
-        return user_os, user_package, input_data["num_people"], input_data["data_size"], flavor, user_instance_name, backup_time
+        return user_os, user_package, user_pc_spec, flavor, user_instance_name, backup_time #input_data["num_people"], input_data["data_size"],
 
     def getUserUpdateRequirement(self, input_data):
         # user_os = input_data["os"]
         user_package = input_data["package"]
-        if input_data["num_people"] < 0:
-            raise NumPeopleNegativeError
-        if input_data["data_size"] < 0:
-            raise ExpectedDataSizeNegativeError
-        disk_size = round(input_data["num_people"] * input_data["data_size"])   # flavor select에 쓰일 값
+        user_pc_spec = input_data["pc_spec"]
+        # if input_data["num_people"] < 0:
+        #     raise NumPeopleNegativeError
+        # if input_data["data_size"] < 0:
+        #     raise ExpectedDataSizeNegativeError
+        # disk_size = round(input_data["num_people"] * input_data["data_size"])   # flavor select에 쓰일 값
         
-        if disk_size < 5:   # flavor select 로직
+        # if disk_size < 5:   # flavor select 로직
+        #     flavor = "ds512M"
+        # elif 5 <= disk_size <= 10:
+        #     flavor = "ds1G"  # test한다고 tiny 준거임.
+        # elif 10 < disk_size :
+        #     flavor = "EXCEEDED"
+
+        if user_pc_spec == "low":   # flavor select 로직
             flavor = "ds512M"
-        elif 5 <= disk_size <= 10:
+        elif user_pc_spec == "middle":
             flavor = "ds1G"  # test한다고 tiny 준거임.
-        elif 10 < disk_size :
-            flavor = "EXCEEDED"
+        elif user_pc_spec == "high":
+            flavor = "m1.small"
 
         # user_instance_name = input_data["instance_name"]
         backup_time = input_data["backup_time"]
 
-        return user_package, input_data["num_people"], input_data["data_size"], flavor, backup_time, # user_os, user_instance_name
+        return user_package, user_pc_spec, flavor, backup_time, # user_os, user_instance_name, input_data["num_people"], input_data["data_size"], 
 
     def templateModify(self, template, user_instance_name, flavor, user_package):
         template_data = template
@@ -326,13 +341,17 @@ class Stack(TemplateModifier, Instance):
 
         print("백업 전 패키지: ", before_update_template_package)
 
-        user_req_package, updated_num_people, updated_data_size, user_req_flavor, user_req_backup_time = super().getUserUpdateRequirement(input_data)
-        if user_req_flavor == "EXCEEDED":   # 용량이 10GB를 넘어간 경우
-            raise OverSizeError
-        elif user_req_flavor == flavor_before_update:   # 원래 쓰려던 용량과 같은 범위 내의 용량을 요구사항으로 입력했을 경우
+        user_req_package, updated_pc_spec, user_req_flavor, user_req_backup_time = super().getUserUpdateRequirement(input_data)
+        # if user_req_flavor == "EXCEEDED":   # 용량이 10GB를 넘어간 경우
+        #     raise OverSizeError
+        if user_req_flavor == flavor_before_update:   # 원래 쓰려던 용량과 같은 범위 내의 용량을 요구사항으로 입력했을 경우
             user_req_flavor = "NOTUPDATE"
         else:
             if flavor_before_update == "ds1G" and user_req_flavor == "ds512M":  # 원래 쓰려던 용량보다 작은 용량을 요구사항으로 입력했을 경우
+                user_req_flavor = "NOTUPDATE"
+            elif flavor_before_update == "m1.small" and user_req_flavor == "ds512M":
+                user_req_flavor = "NOTUPDATE"
+            elif flavor_before_update == "m1.small" and user_req_flavor == "ds1G":
                 user_req_flavor = "NOTUPDATE"
         package_for_update = list(set(user_req_package) - set(before_update_template_package))
         print("요청 정보: ", package_for_update, user_req_flavor, user_req_backup_time)
@@ -407,7 +426,7 @@ class Stack(TemplateModifier, Instance):
             print("스택 정보 불러오는 중 예외 발생: ", e)
             raise OpenstackServerError
         
-        return updated_instance_id, updated_instance_name, updated_instance_ip_address, updated_instance_status, updated_instance_image_name, updated_instance_flavor_name, updated_instance_ram_size, updated_disk_size, updated_num_cpu, package_for_db, updated_num_people,  updated_data_size, user_req_backup_time, snapshotID_for_update
+        return updated_instance_id, updated_instance_name, updated_instance_ip_address, updated_instance_status, updated_instance_image_name, updated_instance_flavor_name, updated_instance_ram_size, updated_disk_size, updated_num_cpu, package_for_db, updated_pc_spec, user_req_backup_time, snapshotID_for_update
     
     def stackUpdaterWhenFreezerRestored(self, openstack_hostIP, input_data, user_token, user_id):    # freezer로 restore 됐을 경우(stack_id, stack_name 없음)
         update_openstack_tenant_id = AccountInfo.objects.get(user_id=user_id).openstack_user_project_id
@@ -418,14 +437,19 @@ class Stack(TemplateModifier, Instance):
         flavor_before_update = stack_data.flavor_name   # 요구사항 변경에 따른 플레이버가 변경되는지 체크용
         package_before_update = stack_data.package.split(",")
 
-        user_req_package, updated_num_people, updated_data_size, user_req_flavor, user_req_backup_time = super().getUserUpdateRequirement(input_data)
-        if user_req_flavor == "EXCEEDED":   # 용량이 10GB를 넘어간 경우
-            raise OverSizeError
-        elif user_req_flavor == flavor_before_update:   # 원래 쓰려던 용량과 같은 범위 내의 용량을 요구사항으로 입력했을 경우
+        user_req_package, updated_pc_spec, user_req_flavor, user_req_backup_time = super().getUserUpdateRequirement(input_data)
+        # if user_req_flavor == "EXCEEDED":   # 용량이 10GB를 넘어간 경우
+        #     raise OverSizeError
+        if user_req_flavor == flavor_before_update:   # 원래 쓰려던 용량과 같은 범위 내의 용량을 요구사항으로 입력했을 경우
             user_req_flavor = "NOTUPDATE"
         else:
             if flavor_before_update == "ds1G" and user_req_flavor == "ds512M":  # 원래 쓰려던 용량보다 작은 용량을 요구사항으로 입력했을 경우
                 user_req_flavor = "NOTUPDATE"
+            elif flavor_before_update == "m1.small" and user_req_flavor == "ds512M":
+                user_req_flavor = "NOTUPDATE"
+            elif flavor_before_update == "m1.small" and user_req_flavor == "ds1G":
+                user_req_flavor = "NOTUPDATE"
+
         if user_req_flavor == "NOTUPDATE":
             user_req_flavor = flavor_before_update
         package_for_update = list(set(user_req_package) - set(package_before_update))
@@ -509,4 +533,4 @@ class Stack(TemplateModifier, Instance):
             print("스택 정보 불러오는 중 예외 발생: ", e)
             raise OpenstackServerError
 
-        return updated_instance_id, updated_instance_name, updated_instance_ip_address, updated_instance_status, updated_instance_image_name, updated_instance_flavor_name, updated_instance_ram_size, updated_disk_size, updated_num_cpu, package_for_db, updated_num_people,  updated_data_size, user_req_backup_time, freezer_restored_instance_snapshotID, stack_name, stack_id
+        return updated_instance_id, updated_instance_name, updated_instance_ip_address, updated_instance_status, updated_instance_image_name, updated_instance_flavor_name, updated_instance_ram_size, updated_disk_size, updated_num_cpu, package_for_db, updated_pc_spec, user_req_backup_time, freezer_restored_instance_snapshotID, stack_name, stack_id
