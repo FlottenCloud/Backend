@@ -14,7 +14,7 @@ admin_project_id = "dc2df96e997149a5a7b611392360483f"
 admins_group_id = "68edb089f2434b43b47a26202e65e6d6"
 admin_role_id = "d7b76260ebbd4828b9e5aa8d67883740"
 public_network_id = "ce081e13-57d4-4c38-9a16-3c4fdd845e7c"  # mainnetwork id
-backup_interval = 15
+backup_interval = 12
 
 # --------------------------------------------------------------- Error Part --------------------------------------------------------------- #
 
