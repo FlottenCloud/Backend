@@ -20,11 +20,10 @@ from cloudstack.models import CloudstackInstance
 from openstack.serializers import OpenstackInstanceSerializer,OpenstackBackupImageSerializer
 from openstack.openstack_modules import RequestChecker, Stack, TemplateModifier, Instance
 
-ssh_ip_addr = "192.168.0.148"
-ssh_user_name = "test"  # 리눅스 Host ID
-ssh_password = "0000"  # 리눅스 Host Password
+ssh_ip_addr = ""
+ssh_user_name = ""  # 리눅스 Host ID
+ssh_password = ""  # 리눅스 Host Password
 ssh_port = 22
-django_server_ip = "10.125.70.26"
 
 
 # ------------------------------------------------------------ Instance Error Check Part ------------------------------------------------------------ #
@@ -486,106 +485,6 @@ def deleteStackBeforeRestore(tenant_id_for_restore, stack_id_for_del, stack_name
     
     return "에러 발생한 스택 삭제 완료"
 
-# def errorCheckRestoreInOpenstack():           # We have to compare this method with Freezer
-#     import time
-#     import openstack_controller as oc
-#     openstack_hostIP = oc.hostIP
-#     req_checker = RequestChecker()
-#     template_modifier = TemplateModifier()
-#     stack_saver = Stack()
-    
-#     restore_instance_list = OpenstackInstance.objects.filter(status="ERROR")
-#     for error_instance in restore_instance_list:
-#         start_time = time.time()        # 나중에 자료에 넣을 시간 비교용
-#         user_id = error_instance.user_id.user_id
-#         user_password = error_instance.user_id.password
-#         instance_id_for_restore = error_instance.instance_id  # restore 할 인스턴스
-#         instance_name_for_restore = error_instance.instance_name
-#         stack_id_for_del = error_instance.stack_id
-#         stack_name_for_del = error_instance.stack_name
-#         instance_num_people_for_restore = error_instance.num_people
-#         instance_expected_data_size_for_restore = error_instance.expected_data_size
-#         instance_flavor_for_restore = error_instance.flavor_name
-#         instance_update_image_id_for_del = error_instance.update_image_ID
-#         instance_os_for_restore = error_instance.os
-#         instance_package_for_restore = error_instance.package
-#         instance_backup_time_for_restore = error_instance.backup_time
-#         print("복구할 인스턴스의 정보: ", instance_id_for_restore, instance_name_for_restore, instance_flavor_for_restore, instance_os_for_restore)
-#         tenant_id_for_restore = error_instance.user_id.openstack_user_project_id  # 유저 project id
-#         image_id_for_restore = error_instance.instance_backup_img_file.get(instance_id=instance_id_for_restore).image_id   # 유저 백업 img id
-#         image_name_for_restore = "Backup " + instance_id_for_restore
-#         print("복구에 쓰일 리소스 정보: ", tenant_id_for_restore, image_id_for_restore, image_name_for_restore)
-        
-#         user_token = oc.user_token({"user_id" : user_id, "password" : user_password})
-#         delete_stack_res = deleteStackBeforeRestore(tenant_id_for_restore, stack_id_for_del, stack_name_for_del, instance_update_image_id_for_del)
-#         print(delete_stack_res)
-        
-#         time.sleep(5)
-#         #-------스택 복구 시작-------#
-#         if instance_os_for_restore == "ubuntu":
-#             with open("templates/ubuntu_1804.json", "r") as f:
-#                 json_template_skeleton = json.load(f)
-#                 json_template = template_modifier.templateModifyWhenRestored(image_name_for_restore, json_template_skeleton, instance_name_for_restore, instance_flavor_for_restore)
-#         elif instance_os_for_restore == "centos":
-#             with open("templates/cirros.json", "r") as f:   # 아직 이미지 안올려놓음
-#                 json_template_skeleton = json.load(f)
-#                 json_template = template_modifier.templateModifyWhenRestored(image_name_for_restore, json_template_skeleton, instance_name_for_restore, instance_flavor_for_restore)
-#         elif instance_os_for_restore == "fedora":
-#             with open("templates/fedora.json", "r") as f:    #이걸로 생성 test
-#                 json_template_skeleton = json.load(f)
-#                 json_template = template_modifier.templateModifyWhenRestored(image_name_for_restore, json_template_skeleton, instance_name_for_restore, instance_flavor_for_restore)
-        
-#         stack_req = req_checker.reqCheckerWithData("post", "http://" + openstack_hostIP + "/heat-api/v1/" + tenant_id_for_restore + "/stacks", user_token, json_template)
-#         if stack_req == None:
-#             return "오픈스택 서버에 문제가 생겨 스택 정보를 가져올 수 없습니다."
-#         print("stack생성", stack_req.json())
-#         stack_id = stack_req.json()["stack"]["id"]
-
-#         stack_name_req = req_checker.reqChecker("get", "http://" + openstack_hostIP + "/heat-api/v1/" + tenant_id_for_restore + "/stacks?id=" + stack_id, user_token)
-#         if stack_name_req == None:
-#             return "오픈스택 서버에 문제가 생겨 스택 이름을 가져올 수 없습니다."
-#         print("스택 이름 정보: ", stack_name_req.json())
-#         stack_name = stack_name_req.json()["stacks"][0]["stack_name"]
-
-#         try:
-#             instance_id, instance_name, instance_ip_address, instance_status, instance_image_name, instance_flavor_name, instance_ram_size, instance_disk_size, instance_num_cpu = stack_saver.stackResourceGetter("create", openstack_hostIP, tenant_id_for_restore, user_id, stack_name, stack_id, user_token)
-#         except Exception as e:  # stackResourceGetter에서 None이 반환 된 경우
-#             print("스택 정보 가져오는 중 에러 발생: ", e)
-#             return "오픈스택 서버에 문제가 생겨 생성된 스택의 정보를 불러올 수 없습니다."
-
-#         # db에 저장 할 인스턴스 정보
-#         instance_data = {
-#             "user_id" : user_id,
-#             "stack_id" : stack_id,
-#             "stack_name" : stack_name,
-#             "instance_id" : instance_id,
-#             "instance_name" : instance_name,
-#             "ip_address" : str(instance_ip_address),
-#             "status" : instance_status,
-#             "image_name" : instance_image_name,
-#             "flavor_name" : instance_flavor_name,
-#             "ram_size" : instance_ram_size,
-#             "num_people" : instance_num_people_for_restore,
-#             "expected_data_size" : instance_expected_data_size_for_restore,
-#             "disk_size" : instance_disk_size,
-#             "num_cpu" : instance_num_cpu,
-#             "package" : instance_package_for_restore,
-#             "backup_time" : instance_backup_time_for_restore,
-#             "os" : instance_os_for_restore
-#         }
-
-#         #serializing을 통한 인스턴스 정보 db 저장
-#         serializer = OpenstackInstanceSerializer(data=instance_data)
-    
-#         if serializer.is_valid():
-#             serializer.save()
-#             print("Saved restored instance data: ", serializer.data)
-#         else:
-#             print("Not saved restored instance data for reason: ", serializer.errors)
-#         end_time = time.time()
-#         print(f"{end_time - start_time:.5f} sec")
-
-#     return "복구 완료"
 
     # --------------- For Openstack Error --------------- #
 
@@ -775,8 +674,6 @@ def openstackImageUploader(template_name):
     put_req = requests.put("http://" + openstack_hostIP + "/image/v2/images/" + image_id + "/file", data=imageData_put_payload,     # req_checker는 header가 토큰으로 고정된 경우만 가능해서 이건 그냥 바로 요청
         headers={'X-Auth-Token' : admin_token, 'Content-type': 'application/octet-stream'})
     print("클라우드스택으로부터 추출한 오픈스택으로 이미지 업로드 리스폰스 코드: ", put_req.status_code)
-    # if put_req.status_code != 204:        # 리스폰스 코드 확인하고 넣을지 말지 결정할 것.
-    #    raise OpenstackServerError
 
     while(True):
         image_status_req = requests.get("http://" + openstack_hostIP + "/image/v2/images/" + image_id,  
@@ -810,8 +707,6 @@ def openstackStackCreate(instance_name, template_name):  # 오픈스택 상의 �
     stack_id_for_del = stack_object.stack_id
     stack_name_for_del = stack_object.stack_name
     image_name_for_del = stack_object.image_name
-    # num_people = stack_object.num_people
-    # data_size = stack_object.expected_data_size
     pc_spec = stack_object.pc_spec
     flavor = stack_object.flavor_name
     package = stack_object.package.split(",")
@@ -877,8 +772,6 @@ def openstackStackCreate(instance_name, template_name):  # 오픈스택 상의 �
         "image_name" : instance_image_name,
         "flavor_name" : instance_flavor_name,
         "ram_size" : instance_ram_size,
-        # "num_people" : num_people,
-        # "expected_data_size" : data_size,
         "disk_size" : instance_disk_size,
         "num_cpu" : instance_num_cpu,
         "package" : package_for_db,
@@ -1125,14 +1018,6 @@ def deleteStackBeforeFreezerRestore(tenant_id_for_restore, stack_id_for_del, sta
             break
         print("스택 삭제 중")
         time.sleep(2)
-
-    # if del_instance_object.instance_backup_img_file.filter(instance_id=del_instance_id).exists():   # 에러가 발생한 스택이 한 번이라도 백업 프로세스가 진행된 스택이라면
-    #     del_backup_image_id = del_instance_object.instance_backup_img_file.get(instance_id=del_instance_id).image_id    # 그 백업 이미지 삭제
-    #     backup_img_del_req = req_checker.reqChecker("delete", "http://" + oc.hostIP + "/image/v2/images/" + del_backup_image_id, token)
-    #     print("인스턴스의 백업 이미지 삭제 리스폰스: ", backup_img_del_req)
-    #     if backup_img_del_req == None:
-    #         return JsonResponse({"message" : "오픈스택 서버에 문제가 생겨 백업해놓은 이미지를 삭제할 수 없습니다."}, status=404)
-    #     del_instance_object.instance_backup_img_file.get(instance_id=del_instance_id).delete()   # 이 경우는 db의 stack정보를 삭제하는 것이 아니기 때문에 backup이미지 정보만 db에서 delete
 
     print("에러가 발생해 삭제한 스택 이름: " + stack_name_for_del + "\n에러가 발생해 삭제한 스택 ID: " + stack_id_for_del)
     
@@ -1389,82 +1274,6 @@ def backup_all12():
     DjangoServerTime.objects.filter(id=1).update(backup_ran_time=time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(time.time())))
     freezerBackup12()
     backup12()
-    
-# ---- 야매용 함수들 ---- #
-def deleter():
-    # AccountInfo.objects.all().delete()
-    # OpenstackInstance.objects.all().delete()
-    # OpenstackBackupImage.objects.all().delete()
-    CloudstackInstance.objects.all().delete()
-    ServerStatusFlag.objects.filter(platform_name="openstack").update(status=True)
-    # ServerStatusFlag.objects.get(id=2).delete()
-    # OpenstackInstance.objects.get(instance_pk=1).delete()
-    print("all-deleted")
-    
-def dbModifier():
-    # OpenstackInstance.objects.filter(instance_name="test1").update(instance_id="96063d0f-d3c7-4339-b124-494f9112b555", instance_name="test1",
-    #         stack_id=None, stack_name=None, ip_address="172.24.4.104", status="ACTIVE", image_name="RESTOREtest1", update_image_ID=None, package="pwgen,apache2", freezer_completed=False)
-    # user1 = AccountInfo.objects.get(user_id="user1")
-    # AccountInfo.objects.create(
-    #     user_id = "user1",
-    #     email = "123@naver.com",
-    #     password = "0000",
-    #     first_name = "hoo",
-    #     last_name = "kim",
-    #     openstack_user_id = "abc",
-    #     openstack_user_project_id = "abc",
-    #     cloudstack_account_id = "abc",
-    #     cloudstack_apiKey = "abc",
-    #     cloudstack_secretKey = "abc",
-    #     cloudstack_network_id = "abc",
-    #     cloudstack_network_vlan = 100
-    # )
-    # OpenstackInstance.objects.create(
-    #     user_id = AccountInfo.objects.get(user_id="user1"),
-    #     instance_pk = 3,
-    #     instance_id = "0dbe2515-178d-41fa-baad-685a30953284",
-    #     instance_name = "test3",
-    #     stack_id = "0dbe2515-178d-41fa-baad-685a30953284",
-    #     stack_name = "test2",
-    #     ip_address = "10.0.0.1",
-    #     status = "active",
-    #     image_name = "abc",
-    #     os = "abc",
-    #     flavor_name = "abc",
-    #     ram_size = 3,
-    #     num_people = 3,
-    #     expected_data_size = 4,
-    #     disk_size = 3,
-    #     num_cpu = 3,
-    #     package = "abc",
-    #     backup_time = 6,
-    #     update_image_ID = "aaa",
-    #     freezer_completed = False
-    # )
-    # CloudstackInstance.objects.all().delete()
-    # ServerStatusFlag.objects.create(
-    #     platform_name = "openstack",
-    #     status = True
-    # )
-    # DjangoServerTime.objects.create(
-    #     start_time = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(time.time())),
-    #     backup_ran = False
-    # )
-    # CloudstackInstance.objects.create(
-    #     user_id = AccountInfo.objects.get(user_id="testuser"),
-    #     instance_id = "abc",
-    #     instance_pk = 1,
-    #     instance_name = "test",
-    #     ip_address = "10.0.0.1",
-    #     status = "Stopped",
-    #     image_id = "abc",
-    #     flavor_name = "small",
-    #     ram_size = 5,
-    #     disk_size = 10,
-    #     num_cpu = 1
-    # )
-    ServerStatusFlag.objects.filter(platform_name="openstack").update(status=True)
-    print("updated")
 
 
 # ------------------------------------------------------------------------ Total Batch Job Part ------------------------------------------------------------------------ #
@@ -1472,8 +1281,6 @@ def start():
     import openstack_controller as oc
     backup_interval = oc.backup_interval
     scheduler = BackgroundScheduler() # ({'apscheduler.job_defaults.max_instances': 2}) # max_instance = 한 번에 실행할 수 있는 같은 job의 개수
-    # scheduler.add_job(deleter, 'interval', seconds=5)
-    # scheduler.add_job(dbModifier, "interval", seconds=5)
     
     DjangoServerTime.objects.filter(id=1).update(start_time=time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(time.time())))
     DjangoServerTime.objects.filter(id=1).update(backup_ran=False)

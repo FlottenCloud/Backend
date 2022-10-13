@@ -13,16 +13,16 @@ import hmac
 import urllib.parse
 import urllib.request
 
-hostIP = "10.125.70.28"
-api_base_url = "http://10.125.70.28:8080/client/api?"
-admin_apiKey = "PI0311btQwGz3ulqBBQC46IAH_AtLImwWwvsbBmkCwuyHIOLtL7UxFL_NXco6xlPJDxI9F9XmZkAxiUq39NutQ"
-admin_secretKey = "h3GuIiVgETsDtFRITxDaXitvxBoLduKILaM1GU1rAm-PSLpAnHdjtHnAeONnGzBRmkXlJ2Jjddodr0Qgl9P4tg"
-zoneID = "d72dbd9a-99a6-449a-97f2-ac9472c782e8"
-domainID = "1925ef52-3c9c-11ed-8341-525400956326"
-hostID = "eaec4dfe-2aa1-4e29-bc6d-2f4d34f436dd"
-small_offeringID = "ebfae4cb-e40f-43a2-abf2-b0723571a209"
-medium_offeringID = "6b5cbc70-8125-44db-b237-b0bafe04192d"
-netOfferingID_L2VLAN = "33ecd693-cdd3-4dc1-9c36-b86f07255625"
+hostIP = ""
+api_base_url = "http:///client/api?"
+admin_apiKey = ""
+admin_secretKey = ""
+zoneID = ""
+domainID = ""
+hostID = ""
+small_offeringID = ""
+medium_offeringID = ""
+netOfferingID_L2VLAN = ""
 
 def requestThroughSig(secretKey, request_body):
     request_str = '&'.join(['='.join([k, urllib.parse.quote_plus(request_body[k])]) for k in request_body.keys()])

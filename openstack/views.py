@@ -86,11 +86,7 @@ class Openstack(InstanceLogManager, Stack, APIView):
                 return JsonResponse({"message" : "오픈스택 서버에 문제가 생겨 생성된 스택의 정보를 불러올 수 없습니다."}, status=500)
             
             package_for_db = (",").join(user_package)   # db에 패키지 목록 문자화해서 저장하는 로직
-            # package_for_db = ""
-            # for i in range(len(user_package)):
-            #     package_for_db += user_package[i]
-            #     if i != len(user_package)-1:
-            #         package_for_db += ","
+    
             instance_data = {   # db에 저장 할 인스턴스 정보
                 "user_id" : user_id,
                 "stack_id" : stack_id,
@@ -103,8 +99,6 @@ class Openstack(InstanceLogManager, Stack, APIView):
                 "flavor_name" : instance_flavor_name,
                 "ram_size" : instance_ram_size,
                 "pc_spec" : pc_spec,
-                # "num_people" : num_people,
-                # "expected_data_size" : data_size,
                 "disk_size" : instance_disk_size,
                 "num_cpu" : instance_num_cpu,
                 "package" : package_for_db,
@@ -147,24 +141,11 @@ class Openstack(InstanceLogManager, Stack, APIView):
                 token, user_id = oc.getRequestParams(request)
             else:
                 user_id = AccountInfo.objects.get(cloudstack_apiKey=request.headers["apiKey"]).user_id
-            #     return JsonResponse({"message" : "오픈스택 서버에 문제가 생겨 리소스 정보를 받아올 수 없습니다."}, status=500)
-            # token, user_id = oc.getRequestParams(request)
-            # if user_id == None:
-            #     return JsonResponse({"message" : "오픈스택 서버에 문제가 생겨 token으로 오픈스택 유저의 정보를 얻어올 수 없습니다."}, status=500)
             q = Q()     # Query를 통한 가상머신 검색을 위한 where 절
             query_instance_name = request.GET.get("instance_name", None)    # Query에 instance_name있는지 확인
             print("Instance name for search: ", query_instance_name)
 
             try:
-                # user_instance_info = OpenstackInstance.objects.filter(user_id=user_id)
-                # for instance_info in user_instance_info:
-                #     if instance_info.status == "ERROR":
-                #         continue
-                #     instance_req = super().reqChecker("get", "http://" + openstack_hostIP + "/compute/v2.1/servers/" + instance_info.instance_id, token)
-                #     if instance_req == None:
-                #         return JsonResponse({"message" : "오픈스택 서버에 문제가 생겨 인스턴스의 상태 정보를 가져올 수 없습니다."}, status=500)
-                #     instance_status = instance_req.json()["server"]["status"]
-                #     OpenstackInstance.objects.filter(instance_id=instance_info.instance_id).update(status=instance_status)
                 user_stack_data = list(OpenstackInstance.objects.filter(user_id=user_id).values())
                 for stack_data in user_stack_data:
                     instance_pk = stack_data["instance_pk"]
@@ -283,13 +264,6 @@ class Openstack(InstanceLogManager, Stack, APIView):
                 if update_image_del_req == None:
                     return JsonResponse({"message" : "오픈스택 서버에 문제가 생겨 업데이트 때 사용한 이미지를 삭제할 수 없습니다."}, status=500)
                 
-            # if openstack_stack_data.instance_backup_img_file.filter(instance_pk=input_data["instance_pk"]).exists():
-            #     del_backup_image_id = openstack_stack_data.instance_backup_img_file.get(instance_pk=input_data["instance_pk"]).image_id
-            #     backup_img_del_req = super().reqChecker("delete", "http://" + openstack_hostIP + "/image/v2/images/" + del_backup_image_id, user_token)
-            #     print("인스턴스의 백업 이미지 삭제 리스폰스: ", backup_img_del_req)
-            #     if backup_img_del_req == None:
-            #         return JsonResponse({"message" : "오픈스택 서버에 문제가 생겨 백업해놓은 이미지를 삭제할 수 없습니다."}, status=404)
-                
             openstack_stack_data.delete() # DB에서 해당 stack row 삭제
                 
             #------------Cloudstack Instance and Image Delete------------#
@@ -324,8 +298,6 @@ class InstanceInfo(Instance, APIView):
             token, user_id = oc.getRequestParams(request)
         else:
             user_id = AccountInfo.objects.get(cloudstack_apiKey=request.headers["apiKey"]).user_id
-        # if user_id == None:
-        #     return JsonResponse({"message" : "오픈스택 서버에 문제가 생겨 인스턴스 정보를 불러올 수 없습니다."}, status=500)
         try:
             instance_object = OpenstackInstance.objects.get(instance_pk=instance_pk)
         except Exception as e:
@@ -344,8 +316,6 @@ class InstanceInfo(Instance, APIView):
         object_os = instance_object.os
         object_flavor_name= instance_object.flavor_name
         object_ram_size = instance_object.ram_size
-        # object_num_people = instance_object.num_people
-        # object_data_size = instance_object.expected_data_size
         object_pc_spec = instance_object.pc_spec
         object_disk_size = instance_object.disk_size
         object_num_cpu = instance_object.num_cpu
@@ -373,8 +343,6 @@ class InstanceLogShower(APIView):
                 token, user_id = oc.getRequestParams(request)
             else:
                 user_id = AccountInfo.objects.get(cloudstack_apiKey=request.headers["apiKey"]).user_id
-            # if user_id == None:
-            #     return JsonResponse({"message" : "오픈스택 서버에 문제가 생겨 인스턴스 정보를 불러올 수 없습니다."}, status=500)
             try:
                 instance_log = list(InstanceLog.objects.filter(instance_pk=instance_pk).values())
             except Exception as e:
@@ -394,27 +362,12 @@ class DashBoard(RequestChecker, APIView):
     @swagger_auto_schema(tags=["Openstack Dashboard API"], manual_parameters=[openstack_user_token], responses={200:"Success", 401:"Unauthorized", 500:"Internal Server Error"})
     def get(self, request):     # header: user_token
         try:
-            # if ServerStatusFlag.objects.get(platform_name="openstack").status == False:
-            #     return JsonResponse({"message" : "오픈스택 서버에 문제가 생겨 리소스 정보를 받아올 수 없습니다."}, status=500)
             if ServerStatusFlag.objects.get(platform_name="openstack").status == True:
                 token, user_id = oc.getRequestParams(request)
             else:
                 user_id = AccountInfo.objects.get(cloudstack_apiKey=request.headers["apiKey"]).user_id
-            # if user_id == None:
-            #     return JsonResponse({"message" : "오픈스택 서버에 문제가 생겨 token으로 오픈스택 유저의 정보를 얻어올 수 없습니다."}, status=500)
 
             try:
-                # user_instance_info = OpenstackInstance.objects.filter(user_id=user_id)
-                # for instance_info in user_instance_info:    # 대쉬보드 출력에 status는 굳이 필요없지만, db 정보 최신화를 위해 status 업데이트.
-                #     if instance_info.status == "ERROR":
-                #         continue
-                #     instance_status_req = super().reqChecker("get", "http://" + openstack_hostIP + "/compute/v2.1/servers/" + instance_info.instance_id, token)
-                #     if instance_status_req == None:
-                #         return JsonResponse({"message" : "오픈스택 서버에 문제가 생겨 리소스 정보를 받아올 수 없습니다."}, status=500)
-
-                #     instance_status = instance_status_req.json()["server"]["status"]
-                #     OpenstackInstance.objects.filter(instance_id=instance_info.instance_id).update(status=instance_status)
-
                 num_instances = OpenstackInstance.objects.filter(user_id=user_id).count()
                 total_ram_size = OpenstackInstance.objects.filter(user_id=user_id).aggregate(Sum("ram_size"))   # 여기서부터
                 total_disk_size = OpenstackInstance.objects.filter(user_id=user_id).aggregate(Sum("disk_size"))
